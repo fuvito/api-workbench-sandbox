@@ -1,8 +1,8 @@
 # ClearSignal Test Targets — Minimum PRD
 
 **Status:** Draft  
-**Source:** `api-workbench-sandbox-project.md` https://github.com/fuvito/api-workbench/blob/main/docs/planning/api-workbench-sandbox-project.md (Draft v0.2, 2026-11-20)  
-**Project repository:** `api-workbench-sandbox` (proposed)  
+**Source:** `docs/from-main/api-workbench-sandbox-project.md` (copied from https://github.com/fuvito/api-workbench/blob/main/docs/planning/api-workbench-sandbox-project.md (Draft v0.2, 2026-11-20))  
+**Project repository:** `api-workbench-sandbox` (decided; no rename)  
 **Delivery:** Local-first; Google Cloud Run deployment later
 
 ## 1. Product summary
@@ -131,10 +131,11 @@ Keep rules small and limited to:
 ### 6.1 Repository and runtime
 
 - One repository, one application, one process, one listening port.
-- Proposed repository name: `clrsig-test-targets`.
+- Repository name: `api-workbench-sandbox` (decided).
 - **Language/framework: Python + FastAPI.**
 - ASGI server: Uvicorn.
-- Use Python 3.12+ unless the repository pins another supported version.
+- Dependency management: **uv** (`pyproject.toml`, `uv.lock`, `.python-version`).
+- Python **3.13.1** (decided; matches the local `.venv`). The container base image must use the same version.
 - Use Pydantic for application configuration and internal validation where useful.
 - Use Starlette/FastAPI middleware for cross-cutting request concerns only.
 - Use `pytest` and `httpx` for automated tests; use `pytest-asyncio` if async test support is needed.
@@ -171,7 +172,7 @@ Also support the source document's `--drift=<n>` startup flag if the chosen impl
 - Log one structured line per request to stdout, including method, path, status, duration, and API prefix.
 - Handle `SIGTERM` gracefully and finish in-flight requests within the shutdown grace period.
 - Do not write runtime data to the container filesystem.
-- Keep specs in read-only image files or embed them in the binary.
+- Keep specs as checked-in YAML files copied read-only into the image; never generate them at runtime.
 - Keep startup fast.
 - Use concurrency-safe stores (`asyncio.Lock` per store or an equivalent approach); keep critical sections short.
 - Use asynchronous request handlers for I/O-bound behavior and `asyncio.sleep()` for deliberate latency. Do not use blocking `time.sleep()` in request handlers.
@@ -244,8 +245,8 @@ Cloud deployment follows a successful local implementation.
 ## 11. Decisions still open
 
 Resolve these before or during the first implementation slice:
-1. Confirm the exact supported Python minor version and dependency-management convention.
-2. Repository name and owner.
+1. ~~Python version~~ — decided: 3.13.1. Dependency management: `uv` with `pyproject.toml` and a committed `uv.lock` (decided).
+2. ~~Repository name~~ — decided: `api-workbench-sandbox`.
 3. Fixed credentials for bearer, basic, and API-key examples.
 4. Whether `ok` ships OpenAPI 3.0 and 3.1 variants.
 5. Confirm the 80–120 operation target.
@@ -260,4 +261,4 @@ Resolve these before or during the first implementation slice:
 - ClearSignal check catalog: `apps/desktop/wails/help/what-we-check.md` in the api-workbench repository.
 - Related planning document: `docs/planning/failure-showcase-repo.md`.
 - Backlog: `docs/planning/backlog.md`.
-- Original project notes: `api-workbench-sandbox-project.md`.
+- Original project notes: `docs/from-main/api-workbench-sandbox-project.md` (copy of the source notes).

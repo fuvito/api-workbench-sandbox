@@ -1,0 +1,24 @@
+openapi: 3.0.3
+info:
+  title: ok API
+  version: 1.0.0
+  description: Correct baseline API. Every operation must conform exactly.
+servers:
+  - url: http://localhost:8080/ok
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Readiness probe
+      responses:
+        "200":
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]

@@ -222,3 +222,41 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 /.idea/
+
+# --- Project additions ---
+# IntelliJ / PyCharm
+.idea/
+*.iml
+*.iws
+out/
+
+# VS Code (keep shared settings/config files if ever added deliberately)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local env / secrets (ADMIN_TOKEN etc.)
+.env
+.env.*
+!.env.example
+
+# Test, coverage and tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Local scratch and ClearSignal run output
+tmp/
+scratch/
+*.log

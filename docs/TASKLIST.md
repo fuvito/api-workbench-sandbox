@@ -6,43 +6,46 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 
 ## Phase 0 — Decisions and repository
 
-- [ ] Confirm repository name and owner (`clrsig-test-targets` proposed).
+- [x] Repository name: `api-workbench-sandbox` (decided).
 - [x] Select Python + FastAPI, served by Uvicorn.
 - [ ] Confirm OpenAPI versions for the `ok` API (3.0, 3.1, or both).
 - [ ] Confirm fixed test credentials for bearer, basic, and API-key examples.
 - [ ] Confirm initial resource/operation target; source proposal is 80–120 operations at full breadth.
 - [ ] Decide where the expected-results file lives and how it relates to the ClearSignal check catalog.
-- [ ] Confirm supported Python minor version and dependency-management convention.
-- [ ] Create the standalone repository.
-- [ ] Add `README.md`, `PRD.md`, `TASKLIST.md`, and `../CLAUDE.md`.
+- [x] Python 3.13.1 (decided).
+- [x] Dependency management: `uv` (`pyproject.toml` + committed `uv.lock`; decided).
+- [x] Create the standalone repository (`api-workbench-sandbox`).
+- [x] Add `README.md` (stub), `docs/PRD.md`, `docs/TASKLIST.md`, and `CLAUDE.md`.
 
 **Exit criteria:** Decisions that affect project structure are recorded; repository exists.
 
 ## Phase 1 — Server skeleton (first vertical slice)
 
-- [ ] Create a Python application using FastAPI.
-- [ ] Configure Uvicorn as the ASGI server and define the local run command.
-- [ ] Add a minimal dependency manifest with FastAPI, Uvicorn, Pydantic, and test dependencies only as needed.
-- [ ] Create one application process and one HTTP listener.
-- [ ] Read `PORT` (default `8080`) and `HOST` (local default `127.0.0.1`).
-- [ ] Implement `GET /ok/health`.
-- [ ] Implement `GET /contract-fail/health`.
-- [ ] Implement `GET /conform-fail/health`.
-- [ ] Implement serving of `/ok/openapi.yaml`.
-- [ ] Implement serving of `/contract-fail/openapi.yaml`.
-- [ ] Implement serving of `/conform-fail/openapi.yaml`.
-- [ ] Implement `PUBLIC_BASE_URL` handling for OpenAPI `servers` values.
-- [ ] Add a generic in-memory store helper (create, get, update, delete, list).
-- [ ] Protect shared store mutations with `asyncio.Lock` or an equivalent concurrency-safe mechanism.
-- [ ] Use async handlers and `asyncio.sleep()` for simulated latency; do not block request workers with `time.sleep()`.
-- [ ] Add pytest/httpx tests for health, spec serving, reset, and one stateful request flow.
-- [ ] Implement independent per-family stores.
-- [ ] Implement each `POST <prefix>/__admin/reset` with seed restoration and `204`.
-- [ ] Protect admin endpoints when `ADMIN_TOKEN` is set.
-- [ ] Add request logging (method, path, status, duration, API prefix).
-- [ ] Add graceful shutdown.
-- [ ] Add Dockerfile and verify local container startup.
-- [ ] Run one real ClearSignal command against the local server.
+- [x] Create a Python application using FastAPI.
+- [x] Configure Uvicorn as the ASGI server and define the local run command.
+- [x] Add a minimal dependency manifest with FastAPI, Uvicorn, Pydantic, and test dependencies only as needed.
+- [x] Create one application process and one HTTP listener.
+- [x] Read `PORT` (default `8080`) and `HOST` (local default `127.0.0.1`).
+- [x] Implement `GET /ok/health`.
+- [x] Implement `GET /contract-fail/health`.
+- [x] Implement `GET /conform-fail/health`.
+- [x] Implement serving of `/ok/openapi.yaml`.
+- [x] Implement serving of `/contract-fail/openapi.yaml`.
+- [x] Implement serving of `/conform-fail/openapi.yaml`.
+- [x] Implement `PUBLIC_BASE_URL` handling for OpenAPI `servers` values.
+- [x] Add a generic in-memory store helper (create, get, update, delete, list).
+- [x] Protect shared store mutations with `asyncio.Lock` or an equivalent concurrency-safe mechanism.
+- [x] Use async handlers and `asyncio.sleep()` for simulated latency; do not block request workers with `time.sleep()`.
+- [x] Add pytest/httpx tests for health, spec serving, reset, and one stateful request flow.
+- [x] Implement independent per-family stores.
+- [x] Implement each `POST <prefix>/__admin/reset` with seed restoration and `204`.
+- [x] Protect admin endpoints when `ADMIN_TOKEN` is set.
+- [x] Add request logging (method, path, status, duration, API prefix).
+- [x] Add graceful shutdown (Uvicorn `timeout_graceful_shutdown`; verified: `docker stop` exits 0 after a clean shutdown).
+- [x] Add Dockerfile and verify local container startup (verified: image builds, `clrsig conform` passes on all three families in the container, admin token enforced).
+- [x] Run one real ClearSignal command against the local server.
+
+**KT checkpoint:** after this phase, walk through the code and specs together (see README "KT notes").
 
 **Exit criteria:** One command starts the server; health/spec/reset work; one end-to-end ClearSignal check works.
 
@@ -188,7 +191,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [ ] Run pytest unit and integration tests.
 - [ ] Build and start server in CI.
 - [ ] Poll readiness endpoint before tests.
-- [ ] Run Family A, B, C, diff, and scenario checks.
+- [ ] Run `ok`, `contract-fail`, and `conform-fail` checks, plus diff and scenario checks.
 - [ ] Add CI leg against released `clrsig`.
 - [ ] Add nightly leg against `api-workbench@main` where practical.
 - [ ] Document local test commands in README.

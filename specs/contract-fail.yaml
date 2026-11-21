@@ -1,0 +1,24 @@
+openapi: 3.0.3
+info:
+  title: contract-fail API
+  version: 1.0.0
+  description: Deliberately incorrect responses (CS-RESP-*). Cases are added in Phase 3.
+servers:
+  - url: http://localhost:8080/contract-fail
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Readiness probe (control case, conforms)
+      responses:
+        "200":
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]

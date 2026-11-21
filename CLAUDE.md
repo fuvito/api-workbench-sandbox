@@ -6,7 +6,7 @@ This repository contains a deliberately designed set of REST API test targets us
 
 It is a test fixture, not a production API and not a general-purpose mock-server product.
 
-Read `docs/PRD.md` and `TASKLIST.md` before making substantial changes. The original design notes are `api-workbench-sandbox-project.md` if present.
+Read `docs/PRD.md` and `docs/TASKLIST.md` before making substantial changes. The original design notes are `docs/from-main/api-workbench-sandbox-project.md`.
 
 ## Product invariants
 
@@ -42,15 +42,16 @@ Read `docs/PRD.md` and `TASKLIST.md` before making substantial changes. The orig
 - Prefer a small dependency set. The expected core stack is Python, FastAPI, Uvicorn, and Pydantic.
 - Use pytest and httpx for tests; add pytest-asyncio if async test support is needed.
 - Use PyYAML only if runtime YAML parsing is required.
-- Do not add SQLAlchemy, database drivers, Celery, Redis, or other persistence/task-queue infrastructure to the MVP.
+- Do not add SQLAlchemy, database drivers, Celery, Redis, PostgreSQL, or other persistence/task-queue infrastructure to the MVP.
 - Keep business rules deliberately small and limited to the PRD.
-- Do not add Redis, PostgreSQL, or another persistence layer to the MVP.
 - Do not add tenant management or per-user isolation to the MVP.
 - Do not add arbitrary scripting or user-supplied code execution.
 
 ## Python and FastAPI conventions
 
-- Use Python 3.12+ unless the repository explicitly pins another supported version.
+- Use Python 3.13.1 (decided; matches the local `.venv` and the container base image).
+- Use `uv` for dependencies (`uv sync`, `uv run pytest`, `uv run python -m app`); commit `pyproject.toml` and `uv.lock`. The repo-local `.venv` is git-ignored.
+- The served spec's `servers[0].url` is rewritten to `PUBLIC_BASE_URL`, or to the request's own base URL when it is unset; nothing else in the YAML changes.
 - Use FastAPI routers to organize the three API families; keep one application process and one listening port.
 - Run through Uvicorn (ASGI).
 - Prefer `async def` handlers for request paths that perform asynchronous work.

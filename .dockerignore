@@ -1,0 +1,12 @@
+.git
+.idea
+.vscode
+.venv
+__pycache__
+.pytest_cache
+tests
+docs
+tmp
+scratch
+*.log
+.env*
