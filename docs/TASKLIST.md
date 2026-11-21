@@ -45,7 +45,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Add Dockerfile and verify local container startup (verified: image builds, `clrsig conform` passes on all three families in the container, admin token enforced).
 - [x] Run one real ClearSignal command against the local server.
 
-**KT checkpoint:** after this phase, walk through the code and specs together (see README "KT notes").
+**KT checkpoint:** write `docs/kts/phase-1-server-skeleton.md` and walk through it together. (Done.)
 
 **Exit criteria:** One command starts the server; health/spec/reset work; one end-to-end ClearSignal check works.
 
@@ -231,6 +231,10 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [ ] Verify concurrent slow-request limits.
 - [ ] Tag first release.
 - [ ] Record known gaps and cloud-specific limitations.
+
+## Knowledge transfer
+
+At the end of every phase, add a note under `docs/kts/` (see `docs/kts/README.md`) and review it together before starting the next phase.
 
 ## Definition of done
 

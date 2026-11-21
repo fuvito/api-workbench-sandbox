@@ -39,4 +39,4 @@ Set `ADMIN_TOKEN` when running anywhere other than your own machine.
 
 ## KT notes
 
-Planned walkthrough after each phase. Phase 1 order: `app/config.py` -> `app/store.py` -> `app/family.py` -> `app/main.py` -> `specs/*.yaml` -> `tests/`.
+Per-phase walkthroughs live in `docs/kts/` (index: `docs/kts/README.md`).

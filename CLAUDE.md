@@ -185,6 +185,8 @@ Keep README instructions accurate and concise:
 - Known gaps and local-only cases.
 - Cloud Run deployment and security notes when implemented.
 
+At the end of each phase, add a KT note under `docs/kts/` and update its index.
+
 Update `docs/TASKLIST.md` as work is completed. Do not mark tasks complete without running the relevant checks.
 
 ## Change discipline
