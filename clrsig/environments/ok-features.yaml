@@ -1,0 +1,19 @@
+schemaVersion: "1"
+name: ok-features
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/ok"
+  # Path values arrive already serialized in the style the spec declares.
+  - name: labelIds
+    value: ".1,2,3"
+  - name: matrixIds
+    value: ";matrixIds=1,2,3"
+  - name: itemId
+    value: "item-1"
+  - name: title
+    value: "First item"
+  - name: text
+    value: "a short note"
+  # Fixed fake test credentials (documented in README): the oauth2 token endpoint returns this token.
+  - name: token
+    value: "test-token"

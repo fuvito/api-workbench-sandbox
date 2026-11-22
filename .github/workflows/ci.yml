@@ -98,6 +98,8 @@ jobs:
         run: uv run python scripts/check_expectations.py --expectations expectations/ok.yaml
       - name: ok (OpenAPI 3.1 variant)
         run: uv run python scripts/check_expectations.py --expectations expectations/ok-31.yaml
+      - name: ok (OpenAPI features)
+        run: uv run python scripts/check_expectations.py --expectations expectations/ok-features.yaml
       - name: contract-fail
         run: uv run python scripts/check_expectations.py --expectations expectations/contract-fail.yaml
       - name: conform-fail

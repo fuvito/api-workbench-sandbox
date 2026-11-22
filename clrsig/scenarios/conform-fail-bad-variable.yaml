@@ -1,0 +1,15 @@
+schemaVersion: "1"
+title: conform-fail - a scenario variable with a bad function
+description: >
+  DELIBERATELY BROKEN. The scenario's own `variables:` uses {{$noSuchFunction}}, so the scenario
+  cannot start: clrsig prints the error and exits 2 before any request is sent (the catalog's
+  CS-RUN-007; a bad function in a step fails only that step, see conform-fail-bad-function.yaml).
+variables:
+  - name: broken
+    value: "{{$noSuchFunction}}"
+steps:
+  - label: never sent
+    request: { method: GET, url: "{{baseUrl}}/health" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue

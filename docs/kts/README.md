@@ -22,5 +22,6 @@ One note per phase, written when the phase completes. Each covers: what was buil
 | OpenAPI 3.1 variant of `ok` | [ok-openapi-31.md](ok-openapi-31.md) | Written |
 | 5 — Expectations and CI | [phase-5-expectations-ci.md](phase-5-expectations-ci.md) | Written |
 | ClearSignal v0.8.2 migration | [clrsig-0-8-2-migration.md](clrsig-0-8-2-migration.md) | Written |
+| Beyond the catalog: OpenAPI features and CLI commands | [beyond-the-catalog.md](beyond-the-catalog.md) | Written |
 | 6 — Cloud Run | phase-6-cloud-run.md | Pending |
 | 7 — Release readiness | phase-7-release.md | Pending |

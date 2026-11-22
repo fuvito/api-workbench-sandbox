@@ -1,0 +1,119 @@
+schemaVersion: "1"
+title: ok - OpenAPI features (links, oauth2, styles, media types)
+description: >
+  Follows what the spec says in specs/ok-features.yaml: the response link of POST /features/items
+  (the created id goes into the next request), the oauth2 token endpoint (its token goes into the
+  secured request), and a few parameter styles written out by hand. Run with
+  --spec specs/ok-features.yaml so every step is also checked against the spec.
+
+steps:
+  - label: Reset ok store
+    request: { method: POST, url: "{{baseUrl}}/__admin/reset" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  - label: Create an item
+    request:
+      method: POST
+      url: "{{baseUrl}}/features/items"
+      body:
+        type: json
+        content: '{"title":"First item"}'
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+      - { type: header, path: Location, operator: contains, expected: "/features/items/" }
+    extractions:
+      - { name: createdId, source: jsonpath, path: "$.id" }
+    failPolicy: stop
+
+  - label: Follow the GetItem link
+    request: { method: GET, url: "{{baseUrl}}/features/items/{{createdId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.title", operator: eq, expected: "First item" }
+    failPolicy: continue
+
+  - label: Get an access token (client credentials)
+    request:
+      method: POST
+      url: "{{baseUrl}}/features/oauth2/token"
+      body:
+        type: form
+        content: "grant_type=client_credentials"
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.token_type", operator: eq, expected: "Bearer" }
+    extractions:
+      - { name: accessToken, source: jsonpath, path: "$.access_token" }
+    failPolicy: stop
+
+  - label: Use the access token
+    request:
+      method: GET
+      url: "{{baseUrl}}/features/oauth2-profile"
+      headers:
+        - { name: Authorization, value: "Bearer {{accessToken}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.via", operator: eq, expected: "oauth2" }
+    failPolicy: continue
+
+  - label: No token is refused
+    request: { method: GET, url: "{{baseUrl}}/features/oauth2-profile" }
+    assertions:
+      - { type: status, operator: eq, expected: 401 }
+    failPolicy: continue
+
+  - label: Label style, written by hand
+    request: { method: GET, url: "{{baseUrl}}/features/label/.4,5,6" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.ids[2]", operator: eq, expected: "6" }
+    failPolicy: continue
+
+  - label: Matrix style, written by hand
+    request: { method: GET, url: "{{baseUrl}}/features/matrix/;matrixIds=4,5,6" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.ids[0]", operator: eq, expected: "4" }
+    failPolicy: continue
+
+  - label: Deep object, written by hand
+    request: { method: GET, url: "{{baseUrl}}/features/deep-object?filter[status]=closed&filter[min]=9" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.min", operator: eq, expected: "9" }
+    failPolicy: continue
+
+  - label: A reserved word is refused (not)
+    request:
+      method: POST
+      url: "{{baseUrl}}/features/names"
+      body:
+        type: json
+        content: '{"name":"root"}'
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue
+
+  - label: CSV content type
+    request: { method: GET, url: "{{baseUrl}}/features/report.csv" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: header, path: Content-Type, operator: contains, expected: "text/csv" }
+    failPolicy: continue
+
+  - label: PNG content type
+    request: { method: GET, url: "{{baseUrl}}/features/logo.png" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: header, path: Content-Type, operator: eq, expected: "image/png" }
+    failPolicy: continue
+
+  - label: NDJSON content type
+    request: { method: GET, url: "{{baseUrl}}/features/events.ndjson" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: header, path: Content-Type, operator: contains, expected: "application/x-ndjson" }
+    failPolicy: continue

@@ -1,0 +1,58 @@
+# Expected ClearSignal outcome for the OpenAPI feature examples of the `ok` API (specs/ok-features.yaml).
+#
+# One small operation per OpenAPI feature that specs/ok.yaml does not use: parameter styles
+# (deepObject, pipeDelimited, spaceDelimited, label, matrix), allowEmptyValue, allowReserved, int64 /
+# double / byte / password formats, multipleOf and exclusive bounds, `not`, a deprecated operation,
+# a response link, CSV / PNG / NDJSON bodies, a `components.requestBodies` reference, and oauth2 and
+# openIdConnect security. The server behaves as the spec says, so every operation ClearSignal runs
+# must conform.
+#
+# The spec declares 19 operations and ClearSignal runs 18: `TRACE /features/trace` is silently left
+# out of `conform` and `generate` (F-025). The expectations below therefore count 18.
+#
+# Run: uv run python scripts/check_expectations.py --expectations expectations/ok-features.yaml   (server on :8080)
+#
+# Holds for clrsig v0.8.3 against the standard spec (docs/clrsig-findings.md).
+
+format: 1
+family: ok-features
+spec: specs/ok-features.yaml
+prefix: /ok
+env: clrsig/environments/ok-features.yaml
+
+whole_spec:
+  reset: true
+  covers_all: true
+
+generation:
+  operations: 18
+
+scenarios:
+  - file: clrsig/scenarios/ok-features.yaml
+    env: clrsig/environments/ok-features.yaml
+    steps:
+      Reset ok store: { passed: true }
+      Create an item: { passed: true }
+      Follow the GetItem link: { passed: true }
+      Get an access token (client credentials): { passed: true }
+      Use the access token: { passed: true }
+      No token is refused: { passed: true }
+      Label style, written by hand: { passed: true }
+      Matrix style, written by hand: { passed: true }
+      Deep object, written by hand: { passed: true }
+      A reserved word is refused (not): { passed: true }
+      CSV content type: { passed: true }
+      PNG content type: { passed: true }
+      NDJSON content type: { passed: true }
+
+# `conform --negative`: 18 probes over 8 operations. The path-style and query-style operations and the
+# form-body token endpoint have no body field to drop, so they get no probe.
+probes:
+  - { op: /features/items, probes: 2, fail: [] }
+  - { op: /features/names, probes: 2, fail: [] }
+  - { op: /features/notes, probes: 2, fail: [] }
+  - { op: /features/numbers, probes: 8, fail: [] }
+  - { op: /features/oauth2-profile, probes: 1, fail: [] }
+  - { op: /features/openid-profile, probes: 1, fail: [] }
+  - { op: /features/pipe-delimited, probes: 1, fail: [] }
+  - { op: /features/space-delimited, probes: 1, fail: [] }

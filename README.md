@@ -22,6 +22,8 @@ Environment variables: `PORT` (8080), `HOST` (127.0.0.1), `PUBLIC_BASE_URL`, `DR
 
 The `ok` family also serves a small OpenAPI 3.1 variant at `GET /ok/openapi-3.1.yaml` (`specs/ok-3.1.yaml`: health, products and customers in the 3.1 dialect: type arrays with `"null"`, `const`, `examples` lists). It describes the same behavior, so it must conform too (`expectations/ok-31.yaml`).
 
+It serves a third document, `GET /ok/openapi-features.yaml` (`specs/ok-features.yaml`): one small operation per OpenAPI feature `ok.yaml` does not use (parameter styles, `not`, `multipleOf`, formats, a response link, TRACE, CSV/PNG/NDJSON bodies, `requestBodies`, oauth2 and openIdConnect). Its expectations are `expectations/ok-features.yaml`; the commands and flags pinned in `expectations/ok.yaml` are listed in `docs/commands-and-flags.md`.
+
 Reset returns `204` and is not declared in the public specs. When `ADMIN_TOKEN` is set, reset and `GET <prefix>/__admin/state` need `Authorization: Bearer <ADMIN_TOKEN>`. State is in memory, shared by all callers, and lost on restart.
 
 ## Run ClearSignal
@@ -49,6 +51,7 @@ uv run pytest                                   # unit and integration tests, no
 uv run python -m app                            # the server, then in another terminal:
 uv run python scripts/check_expectations.py --expectations expectations/ok.yaml
 uv run python scripts/check_expectations.py --expectations expectations/ok-31.yaml
+uv run python scripts/check_expectations.py --expectations expectations/ok-features.yaml
 uv run python scripts/check_expectations.py --expectations expectations/contract-fail.yaml
 uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml   # about 2 minutes
 uv run python scripts/check_expectations.py --expectations expectations/diff.yaml           # no server

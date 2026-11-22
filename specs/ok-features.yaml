@@ -1,0 +1,555 @@
+openapi: 3.0.3
+info:
+  title: ok API (OpenAPI features)
+  version: 1.0.0
+  description: >
+    The same ok API, a second document with one small operation per OpenAPI feature that
+    specs/ok.yaml does not use: parameter styles (deepObject, pipeDelimited, spaceDelimited, label,
+    matrix), allowEmptyValue, allowReserved, int64 / double / byte / password formats, multipleOf and
+    exclusive bounds, `not`, a deprecated operation, a response link, TRACE, CSV / PNG / NDJSON
+    bodies, a `components.requestBodies` reference, and oauth2 and openIdConnect security. It
+    describes behavior the server already has, so every operation must conform exactly.
+servers:
+  - url: http://localhost:8080/ok
+tags:
+  - name: styles
+    description: How array and object parameters are serialized
+    externalDocs:
+      url: https://spec.openapis.org/oas/v3.0.3#style-values
+  - name: schemas
+  - name: media
+  - name: security
+externalDocs:
+  description: The repository these fixtures belong to
+  url: https://github.com/fuvito/api-workbench-sandbox
+paths:
+  /features/deep-object:
+    get:
+      operationId: featureDeepObject
+      tags: [styles]
+      summary: "Query object, style deepObject: filter[status]=open&filter[min]=2"
+      parameters:
+        - name: filter
+          in: query
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              status: { type: string, enum: [open, closed] }
+              min: { type: integer }
+            additionalProperties: false
+      responses:
+        "200":
+          description: The parsed filter
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [open, closed] }
+                  min: { type: integer }
+                additionalProperties: false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /features/pipe-delimited:
+    get:
+      operationId: featurePipeDelimited
+      tags: [styles]
+      summary: "Query array, style pipeDelimited: ids=1|2|3"
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          style: pipeDelimited
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 20
+            items: { type: integer }
+          example: [1, 2, 3]
+      responses:
+        "200":
+          $ref: "#/components/responses/Ids"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /features/space-delimited:
+    get:
+      operationId: featureSpaceDelimited
+      tags: [styles]
+      summary: "Query array, style spaceDelimited: ids=1%202%203"
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          style: spaceDelimited
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 20
+            items: { type: integer }
+          example: [1, 2, 3]
+      responses:
+        "200":
+          $ref: "#/components/responses/Ids"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /features/label/{labelIds}:
+    get:
+      operationId: featureLabel
+      tags: [styles]
+      summary: "Path array, style label: /features/label/.1,2,3"
+      parameters:
+        - name: labelIds
+          in: path
+          required: true
+          style: label
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 20
+            items: { type: integer }
+          example: [1, 2, 3]
+      responses:
+        "200":
+          $ref: "#/components/responses/Ids"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /features/matrix/{matrixIds}:
+    get:
+      operationId: featureMatrix
+      tags: [styles]
+      summary: "Path array, style matrix: /features/matrix/;matrixIds=1,2,3"
+      parameters:
+        - name: matrixIds
+          in: path
+          required: true
+          style: matrix
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 20
+            items: { type: integer }
+          example: [1, 2, 3]
+      responses:
+        "200":
+          $ref: "#/components/responses/Ids"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /features/flags:
+    get:
+      operationId: featureFlags
+      tags: [styles]
+      summary: allowEmptyValue and allowReserved query parameters
+      parameters:
+        - name: flag
+          in: query
+          description: May be sent empty (`?flag=`)
+          allowEmptyValue: true
+          schema: { type: string, maxLength: 40 }
+        - name: path
+          in: query
+          description: May contain reserved characters such as `/` and `:` unencoded
+          allowReserved: true
+          schema: { type: string, maxLength: 100 }
+          example: "a/b:c"
+      responses:
+        "200":
+          description: What the server received (absent parameters are null)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [flag, path]
+                properties:
+                  flag: { type: string, nullable: true }
+                  path: { type: string, nullable: true }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /features/numbers:
+    post:
+      operationId: featureNumbers
+      tags: [schemas]
+      summary: int64, multipleOf, exclusive bounds, double, password and byte formats
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [count, ratio, secret, blob]
+              additionalProperties: false
+              properties:
+                count:
+                  type: integer
+                  format: int64
+                  multipleOf: 5
+                  minimum: 0
+                  exclusiveMinimum: true
+                  maximum: 1000000
+                  example: 15
+                ratio:
+                  type: number
+                  format: double
+                  minimum: 0
+                  exclusiveMinimum: true
+                  maximum: 1
+                  exclusiveMaximum: true
+                  example: 0.25
+                secret:
+                  type: string
+                  format: password
+                  minLength: 8
+                  maxLength: 100
+                  writeOnly: true
+                  example: correct-horse
+                blob:
+                  type: string
+                  format: byte
+                  maxLength: 1000
+                  description: Base64
+                  example: aGVsbG8=
+      responses:
+        "200":
+          description: What the server read
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count, ratio, secretLength, blobBytes]
+                properties:
+                  count: { type: integer, format: int64 }
+                  ratio: { type: number, format: double }
+                  secretLength: { type: integer }
+                  blobBytes: { type: integer }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /features/names:
+    post:
+      operationId: featureNames
+      tags: [schemas]
+      summary: A string that must not be one of the reserved words (`not`)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 20
+                  not:
+                    enum: [admin, root]
+                  example: alice
+      responses:
+        "200":
+          description: The accepted name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name: { type: string }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /features/greeting:
+    get:
+      operationId: featureGreeting
+      tags: [schemas]
+      summary: A deprecated operation that still works
+      deprecated: true
+      responses:
+        "200":
+          description: A greeting
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message: { type: string, enum: [hello] }
+
+  /features/items:
+    post:
+      operationId: featureCreateItem
+      tags: [schemas]
+      summary: Create an item (the response links to the item)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 40 }
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location:
+              required: true
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeatureItem"
+          links:
+            GetItem:
+              operationId: featureGetItem
+              parameters:
+                itemId: $response.body#/id
+              description: The created item
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /features/items/{itemId}:
+    get:
+      operationId: featureGetItem
+      tags: [schemas]
+      summary: Read an item
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string, maxLength: 40 }
+          example: item-1
+      responses:
+        "200":
+          description: The item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeatureItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /features/trace:
+    trace:
+      operationId: featureTrace
+      tags: [schemas]
+      summary: The TRACE method
+      responses:
+        "200":
+          description: Always the same text
+          content:
+            text/plain:
+              schema: { type: string, enum: [trace ok] }
+
+  /features/report.csv:
+    get:
+      operationId: featureCsv
+      tags: [media]
+      summary: A CSV body (text/csv has no decoder in ClearSignal, so it is not compared)
+      responses:
+        "200":
+          description: Two rows
+          content:
+            text/csv:
+              schema: { type: string }
+
+  /features/logo.png:
+    get:
+      operationId: featureLogo
+      tags: [media]
+      summary: A binary image
+      responses:
+        "200":
+          description: A 1x1 PNG
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+
+  /features/events.ndjson:
+    get:
+      operationId: featureNdjson
+      tags: [media]
+      summary: Newline-delimited JSON
+      responses:
+        "200":
+          description: Three JSON objects, one per line
+          content:
+            application/x-ndjson:
+              schema: { type: string }
+
+  /features/notes:
+    post:
+      operationId: featureNotes
+      tags: [schemas]
+      summary: A request body taken from components.requestBodies
+      requestBody:
+        $ref: "#/components/requestBodies/Note"
+      responses:
+        "200":
+          description: The note and its length
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [text, length]
+                properties:
+                  text: { type: string }
+                  length: { type: integer }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /features/oauth2/token:
+    post:
+      operationId: featureOauth2Token
+      tags: [security]
+      summary: Token endpoint of the oauth2 scheme (client credentials, fake client)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type]
+              properties:
+                grant_type: { type: string, enum: [client_credentials] }
+                scope: { type: string }
+      responses:
+        "200":
+          description: The fixed test token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in]
+                properties:
+                  access_token: { type: string }
+                  token_type: { type: string, enum: [Bearer] }
+                  expires_in: { type: integer }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /features/oauth2-profile:
+    get:
+      operationId: featureOauth2Profile
+      tags: [security]
+      summary: Secured by the oauth2 scheme
+      security:
+        - oauth2Auth: [read]
+      responses:
+        "200":
+          $ref: "#/components/responses/Profile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /features/openid-profile:
+    get:
+      operationId: featureOpenidProfile
+      tags: [security]
+      summary: Secured by the openIdConnect scheme
+      security:
+        - oidcAuth: [openid]
+      responses:
+        "200":
+          $ref: "#/components/responses/Profile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    oauth2Auth:
+      type: oauth2
+      description: "Client credentials; the token endpoint returns the fixed test token"
+      flows:
+        clientCredentials:
+          tokenUrl: http://localhost:8080/ok/features/oauth2/token
+          scopes:
+            read: Read access
+    oidcAuth:
+      type: openIdConnect
+      description: "Discovery document of the fake provider (the same fixed test token)"
+      openIdConnectUrl: http://localhost:8080/ok/features/.well-known/openid-configuration
+
+  requestBodies:
+    Note:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [text]
+            additionalProperties: false
+            properties:
+              text: { type: string, minLength: 1, maxLength: 200 }
+
+  responses:
+    BadRequest:
+      description: Malformed or invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid credentials
+      headers:
+        WWW-Authenticate:
+          required: true
+          schema: { type: string }
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Ids:
+      description: The parsed integers
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [ids]
+            properties:
+              ids:
+                type: array
+                items: { type: integer }
+    Profile:
+      description: Authenticated response
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [user, via]
+            properties:
+              user: { type: string }
+              via: { type: string, enum: [oauth2, openIdConnect] }
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+    FeatureItem:
+      type: object
+      required: [id, title]
+      properties:
+        id: { type: string }
+        title: { type: string }

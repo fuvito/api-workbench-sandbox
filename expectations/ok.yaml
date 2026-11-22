@@ -174,3 +174,131 @@ probes:
   - { op: '/projects/{projectId}/tasks/{taskId}', probes: 2, fail: [] }
   - { op: '/reports', probes: 2, fail: [] }
   - { op: '/stats', probes: 1, fail: [] }
+
+# clrsig commands and flags the fixtures exercise beyond the check catalog (docs/commands-and-flags.md).
+# Each entry is one command with its exit code and a regex over what it prints; `not_output` must NOT match.
+# Everything here is pinned for the clrsig release in CI: when a flag changes, the entry flips.
+runs:
+  # ---- conform: choosing what is sent ----
+  - name: conform-read-only
+    reference: null
+    note: "--read-only sends GET and HEAD only; every other operation is skipped and never sent"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --read-only]
+    exit: 0
+    output: 'PASSED\s+65 operations\s+·\s+33 passed\s+·\s+0 failed\s+·\s+32 skipped'
+  - name: conform-tags
+    reference: null
+    note: "--tags products runs the operations tagged products only"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --tags, products]
+    exit: 0
+    output: 'PASSED\s+65 operations\s+·\s+12 passed\s+·\s+0 failed\s+·\s+53 skipped'
+  - name: conform-explain
+    reference: CS-RESP-001
+    note: "--explain adds the catalog ID and a plain-language reason under each failure"
+    args: [conform, "{root}/specs/contract-fail.yaml", -b, "{base}/contract-fail", --paths, "/cases/resp-001", --explain]
+    exit: 1
+    output: '\[CS-RESP-001\] Status 500 is not declared for GET /cases/resp-001-undeclared-status'
+  - name: conform-fail-fast
+    reference: null
+    note: "--fail-fast stops at the first violation (contract-fail: 25 of 36 fail without it)"
+    args: [conform, "{root}/specs/contract-fail.yaml", -b, "{base}/contract-fail", --fail-fast]
+    exit: 1
+    output: 'FAILED\s+8 operations\s+·\s+7 passed\s+·\s+1 failed\s+·\s+0 skipped'
+
+  # ---- run: seeds, variables, reports ----
+  - name: run-seed-is-reported
+    reference: null
+    note: "the report echoes --seed; the random VALUES are not pinned because they depend on the scenario's path spelling (F-024)"
+    args: [run, "{root}/clrsig/scenarios/ok-dynamic-values.yaml", --env, "{root}/clrsig/environments/ok.yaml", --spec, "{spec}", --seed, "7", --format, json]
+    exit: 0
+    output: '"seed": 7'
+  - name: run-var-overrides-the-environment
+    reference: CS-RUN-003
+    note: "--var baseUrl=... replaces the environment value for this run: a closed port gives no response"
+    args: [run, "{root}/clrsig/scenarios/ok-dynamic-values.yaml", --env, "{root}/clrsig/environments/ok.yaml", --spec, "{spec}", --seed, "7", --var, "baseUrl=http://localhost:1"]
+    exit: 1
+    output: 'executing request.*localhost:1/ok-slow/\d+'
+  - name: run-timeout-flag
+    reference: CS-RUN-003
+    note: "--timeout 100 overrides every step timeout: the slow steps get no response"
+    args: [run, "{root}/clrsig/scenarios/ok-latency.yaml", --env, "{root}/clrsig/environments/ok.yaml", --spec, "{spec}", --timeout, "100"]
+    exit: 1
+    output: 'context deadline exceeded'
+  - name: run-coverage
+    reference: null
+    note: "--coverage appends the operations the scenario exercised"
+    args: [run, "{root}/clrsig/scenarios/ok-crud.yaml", --env, "{root}/clrsig/environments/ok.yaml", --spec, "{spec}", --coverage]
+    exit: 0
+    output: 'Spec coverage: 16 / 65 operations \(25%\)'
+  - name: run-format-markdown
+    reference: null
+    args: [run, "{root}/clrsig/scenarios/ok-dynamic-values.yaml", --env, "{root}/clrsig/environments/ok.yaml", --spec, "{spec}", --seed, "7", --format, markdown]
+    exit: 0
+    output: '✅ \*\*PASSED\*\* — 1 passed'
+  - name: run-format-html
+    reference: null
+    args: [run, "{root}/clrsig/scenarios/ok-dynamic-values.yaml", --env, "{root}/clrsig/environments/ok.yaml", --spec, "{spec}", --seed, "7", --format, html]
+    exit: 0
+    output: '<!DOCTYPE html>[\s\S]*ok - dynamic values and variables'
+  - name: run-format-junit
+    reference: null
+    args: [run, "{root}/clrsig/scenarios/ok-dynamic-values.yaml", --env, "{root}/clrsig/environments/ok.yaml", --spec, "{spec}", --seed, "7", --format, junit]
+    exit: 0
+    output: '<testsuites name="ok - dynamic values and variables" tests="1" failures="0"'
+  - name: run-fail-fast-stops-after-the-first-failing-scenario
+    reference: null
+    note: "two scenarios are given; the first fails, so --fail-fast does not run the second"
+    args: [run, "{root}/clrsig/scenarios/conform-fail-routes.yaml", "{root}/clrsig/scenarios/conform-fail-write-bugs.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml", --spec, "{root}/specs/conform-fail.yaml", --fail-fast]
+    exit: 1
+    output: 'Run FAILED\s+0/1 scenarios passed'
+    not_output: 'write bugs that only a scenario can see'
+
+  # ---- validate ----
+  - name: validate-a-good-scenario
+    reference: null
+    args: [validate, "{root}/clrsig/scenarios/ok-crud.yaml"]
+    exit: 0
+    output: 'ok-crud.yaml\s+OK'
+  - name: validate-a-bad-step-function
+    reference: CS-RUN-007
+    args: [validate, "{root}/clrsig/scenarios/conform-fail-bad-function.yaml"]
+    exit: 1
+    output: '\[step 1\] bad function: .*unknown function \$noSuchFunction'
+  - name: validate-a-bad-scenario-variable
+    reference: CS-RUN-007
+    args: [validate, "{root}/clrsig/scenarios/conform-fail-bad-variable.yaml"]
+    exit: 1
+    output: 'variable "broken": .*unknown function \$noSuchFunction'
+
+  # ---- request, import, bundle ----
+  - name: request-a-saved-request-file
+    reference: null
+    args: [request, "{root}/clrsig/requests/ok-version.yaml", --env, "{root}/clrsig/environments/ok.yaml"]
+    exit: 0
+    output: '(?s)GET http://localhost:8080/ok/version.*200 OK.*1\.0\.0'
+  - name: import-postman-dry-run
+    reference: null
+    note: "3 requests, one folder; nothing is written"
+    args: [import, postman, "{root}/clrsig/fixtures/postman-collection.json", --dry-run]
+    exit: 0
+    output: '(?s)Would write 3 request files from "ok sample".*Health\.yaml.*List-products\.yaml.*Create-product\.yaml'
+  - name: import-postman-rejects-a-non-collection
+    reference: CS-RUN-004
+    args: [import, postman, "{root}/clrsig/fixtures/not-openapi.yaml", --dry-run]
+    exit: 2
+    output: 'parsing postman collection'
+  - name: bundle-validate
+    reference: null
+    args: [bundle, validate, "{root}/clrsig/bundles/ok-smoke.yaml"]
+    exit: 0
+    output: 'Bundle is valid: 1 environment\(s\), 1 request\(s\), 1 scenario\(s\), 0 warning\(s\)'
+  - name: bundle-validate-rejects-an-unknown-field
+    reference: CS-RUN-004
+    args: [bundle, validate, "{root}/clrsig/bundles/invalid-unknown-field.yaml"]
+    exit: 2
+    output: 'unknown field "queryParam"'
+  - name: bundle-run
+    reference: null
+    args: [bundle, run, "{root}/clrsig/bundles/ok-smoke.yaml"]
+    exit: 0
+    output: 'Bundle PASSED\s+1/1 scenarios passed\s+\(2 steps, 2/2 assertions passed\)'

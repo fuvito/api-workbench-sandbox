@@ -1,0 +1,9 @@
+schemaVersion: "1"
+# DELIBERATELY INVALID: `queryParam` is not a field of a request, and a bundle is checked strictly.
+title: invalid bundle
+requests:
+  - file: check-health
+    title: Check health
+    method: GET
+    url: "http://localhost:8080/ok/health"
+    queryParam: oops

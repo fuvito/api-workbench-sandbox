@@ -308,6 +308,25 @@ paths:
           $ref: '#/components/responses/Problem'
         default:
           $ref: '#/components/responses/Problem'
+webhooks:
+  customerCreated:
+    post:
+      operationId: customerCreatedWebhook
+      tags:
+      - customers
+      summary: Sent by the provider when a customer is created (documentation only)
+      description: A 3.1 webhook is a request the API sends, so ClearSignal has nothing to call; the
+        document must still load and the 15 operations under `paths` are unchanged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Customer'
+      responses:
+        '204':
+          description: The receiver accepted the event
+
 components:
   headers:
     Allow:

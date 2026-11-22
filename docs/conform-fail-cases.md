@@ -62,7 +62,7 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `req-002-wrong-body-value` | CS-REQ-002 | 1 | request body field "amount" takes its value from \{\{amount\}\}, which is "cheap" |
 | `run-001-missing-placeholder` | CS-RUN-001 | 1 | not sent: no value for \{\{itemId\}\} |
 | `run-002-bad-dynamic-function-in-environment` | CS-RUN-002 | 1 | unknown function \$noSuchFunction |
-| `run-002b-bad-dynamic-function-in-scenario` | CS-RUN-002 | 1 | (?s)unknown function \$noSuchFunction.*PASS\s+good step (since v0.8.3 only that step fails (not sent) and the good step still runs; exit 1 (F-016)) |
+| `run-002b-bad-dynamic-function-in-scenario` | CS-RUN-007 | 1 | (?s)unknown function \$noSuchFunction.*PASS\s+good step (since v0.8.3 only that step fails (not sent) and the good step still runs; exit 1 (F-016)) |
 | `run-003-server-down-wrong-base-url` | CS-RUN-003 | 1 | executing request |
 | `run-004a-unreadable-yaml` | CS-RUN-004 | 2 | parsing spec: loading spec: failed to unmarshal data |
 | `run-004b-not-an-openapi-document` | CS-RUN-004 | 2 | invalid OpenAPI spec: value of openapi must be a non-empty string |
@@ -76,3 +76,10 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `large-json-near-the-cap` | none | 0 |  |
 | `large-json-over-the-cap` | CS-RESP-013 | 1 | larger than the 50 MB Clear Signal reads (valid JSON over the 50 MB read limit is reported as too large, not as a syntax error) |
 | `run-005-unset-environment-variable` | CS-RUN-005 | 0 | environment variable CLRSIG_UNSET_FIXTURE_VAR is not set |
+| `run-007-bad-function-in-a-scenario-variable` | CS-RUN-007 | 2 | variable "broken".*unknown function \$noSuchFunction |
+| `nc-004-validate-spec-off` | none | 1 | (?s)PASS\s+validation off\s+404.*FAIL\s+ghost checked.*declares only 200.*spec validation is turned off for this step: 1 |
+| `nc-006-step-did-not-complete` | none | 1 | the step did not complete: 1 |
+| `nc-005-no-spec` | none | 1 | (?s)PASS\s+ghost checked\s+404 (without --spec the same /ghost step passes and no 'Spec:' summary line is printed) |
+| `probe-005-paths-limit-the-probes` | none | 0 | PASSED\s+2 probes |
+| `probe-005-json-report-has-the-probes` | none | 0 | "kind": "drop_required_field" |
+| `probe-005-junit-report-has-the-probes` | none | 0 | missing required field (&#39;/')name |

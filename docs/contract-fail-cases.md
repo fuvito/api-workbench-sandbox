@@ -31,7 +31,7 @@ Generated from `expectations/contract-fail.yaml` by `uv run python scripts/check
 | `resp-poly-discriminator-wrong` | `/cases/resp-poly-discriminator-wrong` | fails | CS-RESP-009 | 1 | matches none of the 2 shapes |
 | `resp-010-extra-property-closed` | `/cases/resp-010-extra-property-closed` | fails | CS-RESP-010 | 1 | property "extra" is unsupported |
 | `resp-011-writeonly-leak` | `/cases/resp-011-writeonly-leak` | fails | CS-RESP-011 | 1 | writeOnly property "password" in response |
-| `resp-012-xml-valid` | `/cases/resp-012-xml-valid` | passes | CS-NC-009 | 0 | application/xml has no decoder: the body is not compared and nothing is reported |
+| `resp-012-xml-valid` | `/cases/resp-012-xml-valid` | passes | CS-NC-009 | 0 | (also CS-GAP-004) application/xml has no decoder: the body is not compared and nothing is reported |
 | `resp-multi-problem` | `/cases/resp-multi-problem` | fails | CS-RESP-003 | 1 | header "X-Total-Count" is required |
 | `gap-format-email-uuid` | `/cases/gap-format-email-uuid` | passes | CS-GAP-001 | 0 | formats other than date-time are not validated |
 | `gap-undeclared-header` | `/cases/gap-undeclared-header` | passes | CS-GAP-003 | 0 | a header the spec never mentions is not reported |

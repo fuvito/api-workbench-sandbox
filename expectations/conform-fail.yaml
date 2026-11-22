@@ -147,7 +147,7 @@ runs:
     exit: 1
     finding: { kind: dynamic-value-failed, check: CS-RUN-002, message: 'unknown function \$noSuchFunction' }
   - name: run-002b-bad-dynamic-function-in-scenario
-    check: CS-RUN-002
+    check: CS-RUN-007
     note: "since v0.8.3 only that step fails (not sent) and the good step still runs; exit 1 (F-016)"
     args: [run, "{root}/clrsig/scenarios/conform-fail-bad-function.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml", --spec, "{spec}"]
     exit: 1
@@ -240,6 +240,54 @@ runs:
     exit: 0
     passed: true
     output: 'environment variable CLRSIG_UNSET_FIXTURE_VAR is not set'
+
+  # CS-RUN-007, the other half: a bad function in the scenario's own `variables:` means the scenario
+  # cannot start (exit 2, nothing sent), unlike a bad function in a step (run-002b).
+  - name: run-007-bad-function-in-a-scenario-variable
+    check: CS-RUN-007
+    args: [run, "{root}/clrsig/scenarios/conform-fail-bad-variable.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml", --spec, "{spec}"]
+    exit: 2
+    output: 'variable "broken".*unknown function \$noSuchFunction'
+    not_output: 'never sent\s+200'
+
+  # "Not checked" states (CS-NC-004 to 006): a response that is not compared with the spec. The same
+  # /ghost request is a violation when checked (`ghost checked`), and clrsig counts the others in
+  # its summary line.
+  - name: nc-004-validate-spec-off
+    reference: CS-NC-004
+    args: [run, "{root}/clrsig/scenarios/conform-fail-spec-check-states.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml", --spec, "{spec}"]
+    exit: 1
+    output: '(?s)PASS\s+validation off\s+404.*FAIL\s+ghost checked.*declares only 200.*spec validation is turned off for this step: 1'
+  - name: nc-006-step-did-not-complete
+    reference: CS-NC-006
+    args: [run, "{root}/clrsig/scenarios/conform-fail-spec-check-states.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml", --spec, "{spec}"]
+    exit: 1
+    output: 'the step did not complete: 1'
+  - name: nc-005-no-spec
+    reference: CS-NC-005
+    note: "without --spec the same /ghost step passes and no 'Spec:' summary line is printed"
+    args: [run, "{root}/clrsig/scenarios/conform-fail-spec-check-states.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml"]
+    exit: 1
+    output: '(?s)PASS\s+ghost checked\s+404'
+    not_output: 'responses were not compared with the spec'
+
+  # CS-PROBE-005: --paths limits the probes, and the JSON and JUnit reports carry them.
+  - name: probe-005-paths-limit-the-probes
+    reference: CS-PROBE-005
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail.yaml", --negative, --paths, "/strict/missing-field"]
+    exit: 0
+    output: 'PASSED\s+2 probes'
+    not_output: '/(lenient|strict/(?!missing-field))\S+ —'
+  - name: probe-005-json-report-has-the-probes
+    reference: CS-PROBE-005
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail.yaml", --negative, --paths, "/strict/missing-field", --format, json]
+    exit: 0
+    output: '"kind": "drop_required_field"'
+  - name: probe-005-junit-report-has-the-probes
+    reference: CS-PROBE-005
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail.yaml", --negative, --paths, "/strict/missing-field", --format, junit]
+    exit: 0
+    output: "missing required field (&#39;|')name"
 
 # Coverage signals (catalog 2.3): a scenario that deliberately leaves one gap of each kind, run into
 # a fresh workspace, then `clrsig coverage quality --format json`. The spec is the four-operation

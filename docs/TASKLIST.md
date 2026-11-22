@@ -234,6 +234,16 @@ Why: `ok` is the baseline for what ClearSignal must handle, and valid OpenAPI 3.
 - [x] Verify with ClearSignal (generate, conform, probes) outcome in `expectations/ok-31.yaml`: 15 of 15 operations pass and 16 of 16 probes (F-021 closed with v0.8.2).
 - [x] Add to CI, README and a KT note (`docs/kts/ok-openapi-31.md`).
 
+## Beyond the catalog (added scope, decided 2026-11-22)
+
+Why: the catalog was fully mentioned except six IDs, and neither the OpenAPI features nor the CLI commands outside the checks were exercised. See `docs/kts/beyond-the-catalog.md`.
+- [x] Close the six catalog IDs with no case (CS-NC-004, -005, -006, CS-PROBE-005, CS-RUN-007, CS-GAP-004); the runner learns `not_output`.
+- [x] Pin the commands and flags (`runs` in `expectations/ok.yaml`, `docs/commands-and-flags.md`): read-only, tags, explain, fail-fast, seed, var, timeout, coverage, formats, validate, request, import, bundle.
+- [x] Write `specs/ok-features.yaml` (19 operations) with handlers, tests (`tests/test_ok_features.py`), environment, scenario and `expectations/ok-features.yaml`; serve it at `GET /ok/openapi-features.yaml`; add to CI and README.
+- [x] Add a 3.1 `webhooks` entry to `specs/ok-3.1.yaml`.
+- [x] Record what the pass found: F-023 (`run` sends an undefined placeholder), F-024 (`--seed` depends on the path spelling), F-025 (a TRACE operation is dropped).
+- [ ] Decide the oauth2 / openIdConnect URLs under `PUBLIC_BASE_URL` (Phase 6); see the KT note.
+
 ## Phase 7 — Release readiness
 
 - [x] Complete README with architecture, startup, reset, scenarios, and troubleshooting.

@@ -108,7 +108,7 @@ def test_not_openapi_parses_as_yaml_but_is_not_a_spec():
 def test_fixtures_are_not_served_as_specs(client):
     # They live under clrsig/fixtures and are never reachable through the server.
     assert not (ROOT / "specs" / "unreadable-yaml.yaml").exists()
-    assert json.dumps(sorted(p.name for p in (ROOT / "specs").glob("*.yaml"))) == '["conform-fail.yaml", "contract-fail.yaml", "ok-3.1.yaml", "ok.yaml"]'
+    assert json.dumps(sorted(p.name for p in (ROOT / "specs").glob("*.yaml"))) == '["conform-fail.yaml", "contract-fail.yaml", "ok-3.1.yaml", "ok-features.yaml", "ok.yaml"]'
 
 
 # ---- the spec describes these operations as correct ----

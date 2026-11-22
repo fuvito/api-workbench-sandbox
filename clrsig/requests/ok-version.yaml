@@ -1,0 +1,4 @@
+schemaVersion: "1"
+title: ok - API version (plain text)
+method: GET
+url: "{{baseUrl}}/version"

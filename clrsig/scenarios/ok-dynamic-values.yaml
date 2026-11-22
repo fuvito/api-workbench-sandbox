@@ -1,0 +1,15 @@
+schemaVersion: "1"
+title: ok - dynamic values and variables
+description: >
+  Shows `--seed` (the same seed gives the same random values) and `--var` (replaces `baseUrl` for one
+  run: pointed at a closed port the step gets no response, CS-RUN-003). The delay comes from a random function, so the resolved URL differs per seed.
+variables:
+  - name: pause
+    value: "{{$randomInt 1 40}}"
+steps:
+  - label: random pause
+    request: { method: GET, url: "{{baseUrl}}/ok-slow/{{pause}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    extract:
+      - { name: requested, from: jsonpath, path: "$.requestedMs" }

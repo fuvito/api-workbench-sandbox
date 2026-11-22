@@ -63,7 +63,7 @@ cases:
   - { case: resp-011-writeonly-leak, expect: fail, check: CS-RESP-011, kind: write-only-property, message: 'writeOnly property "password" in response' }
 
   # ---- XML: no decoder, so not checked (CS-NC-009; the notes expected CS-RESP-012) ----
-  - { case: resp-012-xml-valid, expect: pass, reference: CS-NC-009, why: "application/xml has no decoder: the body is not compared and nothing is reported" }
+  - { case: resp-012-xml-valid, expect: pass, reference: CS-NC-009, why: "(also CS-GAP-004) application/xml has no decoder: the body is not compared and nothing is reported" }
 
   # ---- two problems: only the first is reported (CS-GAP-011) ----
   - { case: resp-multi-problem, expect: fail, check: CS-RESP-003, message: 'header "X-Total-Count" is required' }

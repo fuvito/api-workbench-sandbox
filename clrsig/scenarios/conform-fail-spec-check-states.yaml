@@ -1,0 +1,30 @@
+schemaVersion: "1"
+title: conform-fail - steps whose response is not compared with the spec
+description: >
+  Three of the four steps are not compared with the spec, and clrsig says so in its summary line.
+  `ghost checked` is the control: the server answers 404 for a path the spec declares only as 200,
+  so it is a violation (CS-RESP-001). `validation off` asks the same thing with `validateSpec:
+  false` (CS-NC-004: not compared). `no response` never gets an answer (CS-NC-006). Run without
+  --spec, nothing is compared at all (CS-NC-005). The `no response` step fails the run on purpose.
+steps:
+  - label: normal
+    request: { method: GET, url: "{{baseUrl}}/health" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue
+  - label: validation off
+    validateSpec: false
+    request: { method: GET, url: "{{baseUrl}}/ghost" }
+    assertions:
+      - { type: status, operator: eq, expected: 404 }
+    failPolicy: continue
+  - label: ghost checked
+    request: { method: GET, url: "{{baseUrl}}/ghost" }
+    assertions:
+      - { type: status, operator: eq, expected: 404 }
+    failPolicy: continue
+  - label: no response
+    request: { method: GET, url: "http://localhost:1/health" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue

@@ -1,0 +1,25 @@
+schemaVersion: "1"
+title: ok smoke bundle
+description: One environment, one reusable request and one scenario against the ok family.
+specFile: specs/ok.yaml
+environments:
+  - name: local
+    variables:
+      - { name: baseUrl, value: "http://localhost:8080/ok" }
+requests:
+  - file: check-health
+    title: Check health
+    method: GET
+    url: "{{baseUrl}}/health"
+scenarios:
+  - title: Smoke
+    file: smoke
+    steps:
+      - label: Health
+        requestRef: check-health
+        assertions:
+          - { type: status, operator: eq, expected: 200 }
+      - label: Version
+        request: { method: GET, url: "{{baseUrl}}/version" }
+        assertions:
+          - { type: status, operator: eq, expected: 200 }

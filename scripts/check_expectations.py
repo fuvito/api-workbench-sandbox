@@ -259,7 +259,7 @@ def check_run(entry: dict, spec_file: Path, base_url: str, prefix: str = "") -> 
     with the family prefix) and {root} (the repo).
     `unset` lists process variables removed from the command's environment. `finding` applies to
     the one operation that ran (kind, and a regex over its messages); `output` is a regex over
-    everything the command printed.
+    everything the command printed and `not_output` one that must NOT match it.
     """
     args = [a.format(spec=str(spec_file), base=base_url, fbase=base_url + prefix, root=str(ROOT)) for a in entry["args"]]
     code, out, err = clrsig(*args, unset=tuple(entry.get("unset") or ()))
@@ -269,6 +269,8 @@ def check_run(entry: dict, spec_file: Path, base_url: str, prefix: str = "") -> 
     text = out + "\n" + err
     if "output" in entry and not re.search(entry["output"], text):
         problems.append(f"output does not match /{entry['output']}/: {' '.join(text.split())[:180]}")
+    if "not_output" in entry and re.search(entry["not_output"], text):
+        problems.append(f"output matches /{entry['not_output']}/ but must not")
     if "finding" in entry or "passed" in entry:
         try:
             ran = [o for o in json.loads(out)["operations"] if not o.get("skipped")]
