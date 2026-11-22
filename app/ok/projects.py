@@ -1,9 +1,9 @@
 """Projects and their tasks (a task belongs to exactly one project)."""
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Depends, Response
 from pydantic import Field
 
-from app.ok.common import StrictModel, not_found
+from app.ok.common import BoolText, Page, PatchModel, StrictModel, as_bool, not_found, paged
 from app.store import Store
 
 
@@ -12,9 +12,19 @@ class ProjectInput(StrictModel):
     description: str | None = Field(default=None, max_length=500)
 
 
+class ProjectPatch(PatchModel):
+    name: str = Field(default=None, min_length=1, max_length=100)
+    description: str = Field(default=None, max_length=500)
+
+
 class TaskInput(StrictModel):
     title: str = Field(min_length=1, max_length=200)
     done: bool = False
+
+
+class TaskPatch(PatchModel):
+    title: str = Field(default=None, min_length=1, max_length=200)
+    done: bool = Field(default=None)
 
 
 def build(store: Store) -> APIRouter:
@@ -38,9 +48,8 @@ def build(store: Store) -> APIRouter:
     # --- projects ---
 
     @router.get("/projects")
-    async def list_projects() -> dict:
-        items = await store.list("projects")
-        return {"items": items, "total": len(items)}
+    async def list_projects(response: Response, page: Page = Depends()) -> dict:
+        return paged(await store.list("projects"), page, response)
 
     @router.post("/projects", status_code=201)
     async def create_project(body: ProjectInput) -> dict:
@@ -60,6 +69,15 @@ def build(store: Store) -> APIRouter:
             raise not_found("project", project_id)
         return record
 
+    @router.patch("/projects/{project_id}")
+    async def update_project(project_id: str, body: ProjectPatch) -> dict:
+        project = await store.get("projects", project_id)
+        if project is None:
+            raise not_found("project", project_id)
+        project.update(body.changes())
+        await store.update("projects", project_id, project)
+        return project
+
     @router.delete("/projects/{project_id}", status_code=204)
     async def delete_project(project_id: str) -> Response:
         if not await store.delete("projects", project_id):
@@ -74,10 +92,17 @@ def build(store: Store) -> APIRouter:
     # --- tasks ---
 
     @router.get("/projects/{project_id}/tasks")
-    async def list_tasks(project_id: str) -> dict:
+    async def list_tasks(
+        project_id: str,
+        response: Response,
+        page: Page = Depends(),
+        done: BoolText | None = None,
+    ) -> dict:
         await require_project(project_id)
         items = [t for t in await store.list("tasks") if t["projectId"] == project_id]
-        return {"items": items, "total": len(items)}
+        if as_bool(done) is not None:
+            items = [t for t in items if t["done"] == as_bool(done)]
+        return paged(items, page, response)
 
     @router.post("/projects/{project_id}/tasks", status_code=201)
     async def create_task(project_id: str, body: TaskInput) -> dict:
@@ -94,6 +119,13 @@ def build(store: Store) -> APIRouter:
         record = {"id": task_id, "projectId": project_id, **body.model_dump()}
         await store.update("tasks", task_id, record)
         return record
+
+    @router.patch("/projects/{project_id}/tasks/{task_id}")
+    async def update_task(project_id: str, task_id: str, body: TaskPatch) -> dict:
+        task = await require_task(project_id, task_id)
+        task.update(body.changes())
+        await store.update("tasks", task_id, task)
+        return task
 
     @router.delete("/projects/{project_id}/tasks/{task_id}", status_code=204)
     async def delete_task(project_id: str, task_id: str) -> Response:

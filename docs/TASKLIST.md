@@ -68,15 +68,15 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 
 ### Expand breadth and schema coverage
 - [ ] Add remaining resource families from PRD.
-- [ ] Add HTTP methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS.
-- [ ] Add path, query, header, and cookie parameters.
+- [x] Add HTTP methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS (HEAD and OPTIONS on products only; PATCH on all four resources).
+- [ ] Add path, query, header, and cookie parameters. (Done: path, query for paging/filter/sort. Missing: header, cookie, array/date-time/uuid parameter types.)
 - [ ] Add request-body constraints and formats.
 - [ ] Add response codes, default responses, and status ranges.
-- [ ] Add response headers.
+- [ ] Add response headers. (Done: `X-Total-Count`, `Allow`. Missing: `Location`, `ETag`, `X-Request-Id`, rate-limit headers, optional headers.)
 - [ ] Add `$ref`, `allOf`, `oneOf`, `anyOf`, discriminators, nullable/type arrays, maps, and additionalProperties cases.
 - [ ] Add JSON, problem+json, and text/plain media types.
 - [ ] Add bearer, basic, and API-key security examples.
-- [ ] Add pagination, filtering, sorting, bulk operations, sub-resources, and actions.
+- [ ] Add pagination, filtering, sorting, bulk operations, sub-resources, and actions. (Done: offset pagination, filters, sorting, tasks sub-resource. Missing: cursor pagination, bulk operations, actions.)
 - [ ] Add idempotency and ETag/If-Match examples.
 - [ ] Grow toward the agreed operation target (source proposal: 80–120).
 - [ ] Verify every valid operation conforms.

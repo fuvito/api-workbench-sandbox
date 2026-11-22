@@ -37,14 +37,39 @@ paths:
     get:
       operationId: listProducts
       tags: [products]
-      summary: List products
+      summary: List products (filter, sort, paginate)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - name: q
+          in: query
+          description: Case-insensitive substring of the product name
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: minPrice
+          in: query
+          schema: { type: number, minimum: 0 }
+        - name: maxPrice
+          in: query
+          schema: { type: number, minimum: 0 }
+        - name: inStock
+          in: query
+          description: true = stock above zero, false = stock is zero
+          schema: { type: boolean }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [name, -name, price, -price] }
       responses:
         "200":
-          description: All products
+          description: Matching products (one page)
+          headers:
+            X-Total-Count:
+              $ref: "#/components/headers/TotalCount"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProductList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
     post:
       operationId: createProduct
       tags: [products]
@@ -64,6 +89,26 @@ paths:
                 $ref: "#/components/schemas/Product"
         "400":
           $ref: "#/components/responses/BadRequest"
+    head:
+      operationId: headProducts
+      tags: [products]
+      summary: Total number of products, headers only
+      responses:
+        "200":
+          description: Headers only
+          headers:
+            X-Total-Count:
+              $ref: "#/components/headers/TotalCount"
+    options:
+      operationId: optionsProducts
+      tags: [products]
+      summary: Methods allowed on this resource
+      responses:
+        "204":
+          description: No content
+          headers:
+            Allow:
+              $ref: "#/components/headers/Allow"
 
   /products/{productId}:
     parameters:
@@ -102,6 +147,27 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateProduct
+      tags: [products]
+      summary: Partially update product (at least one field)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductPatch"
+      responses:
+        "200":
+          description: The updated product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
       operationId: deleteProduct
       tags: [products]
@@ -111,19 +177,53 @@ paths:
           description: Deleted
         "404":
           $ref: "#/components/responses/NotFound"
+    head:
+      operationId: headProduct
+      tags: [products]
+      summary: Check that a product exists, headers only
+      responses:
+        "200":
+          description: The product exists
+        "404":
+          description: Resource does not exist
+    options:
+      operationId: optionsProduct
+      tags: [products]
+      summary: Methods allowed on this resource
+      responses:
+        "204":
+          description: No content
+          headers:
+            Allow:
+              $ref: "#/components/headers/Allow"
 
   /orders:
     get:
       operationId: listOrders
       tags: [orders]
-      summary: List orders
+      summary: List orders (filter, paginate)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/OrderStatus"
+        - name: productId
+          in: query
+          schema: { type: string, minLength: 1 }
       responses:
         "200":
-          description: All orders
+          description: Matching orders (one page)
+          headers:
+            X-Total-Count:
+              $ref: "#/components/headers/TotalCount"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/OrderList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
     post:
       operationId: createOrder
       tags: [orders]
@@ -185,6 +285,29 @@ paths:
           $ref: "#/components/responses/NotFound"
         "422":
           $ref: "#/components/responses/Unprocessable"
+    patch:
+      operationId: updateOrder
+      tags: [orders]
+      summary: Partially update order (at least one field)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderPatch"
+      responses:
+        "200":
+          description: The updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
     delete:
       operationId: deleteOrder
       tags: [orders]
@@ -199,14 +322,22 @@ paths:
     get:
       operationId: listProjects
       tags: [projects]
-      summary: List projects
+      summary: List projects (paginate)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
       responses:
         "200":
-          description: All projects
+          description: Projects (one page)
+          headers:
+            X-Total-Count:
+              $ref: "#/components/headers/TotalCount"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
     post:
       operationId: createProject
       tags: [projects]
@@ -264,6 +395,27 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Partially update project (at least one field)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectPatch"
+      responses:
+        "200":
+          description: The updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
       operationId: deleteProject
       tags: [projects]
@@ -280,14 +432,25 @@ paths:
     get:
       operationId: listTasks
       tags: [tasks]
-      summary: List the tasks of a project
+      summary: List the tasks of a project (filter, paginate)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - name: done
+          in: query
+          schema: { type: boolean }
       responses:
         "200":
-          description: Tasks of the project
+          description: Tasks of the project (one page)
+          headers:
+            X-Total-Count:
+              $ref: "#/components/headers/TotalCount"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/TaskList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
     post:
@@ -350,6 +513,27 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Partially update task (at least one field)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskPatch"
+      responses:
+        "200":
+          description: The updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
       operationId: deleteTask
       tags: [tasks]
@@ -362,6 +546,16 @@ paths:
 
 components:
   parameters:
+    Limit:
+      name: limit
+      in: query
+      description: Page size
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Offset:
+      name: offset
+      in: query
+      description: Number of records to skip
+      schema: { type: integer, minimum: 0, default: 0 }
     ProductId:
       name: productId
       in: path
@@ -382,6 +576,16 @@ components:
       in: path
       required: true
       schema: { type: string, example: t-1 }
+
+  headers:
+    TotalCount:
+      description: Number of records matching the filters, before pagination
+      required: true
+      schema: { type: integer, minimum: 0 }
+    Allow:
+      description: Comma-separated list of allowed methods
+      required: true
+      schema: { type: string }
 
   responses:
     BadRequest:
@@ -430,6 +634,14 @@ components:
         name: { type: string, minLength: 1, maxLength: 100, example: Gadget }
         price: { type: number, minimum: 0, example: 9.99 }
         stock: { type: integer, minimum: 0, example: 10 }
+    ProductPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100, example: Renamed }
+        price: { type: number, minimum: 0, example: 11.5 }
+        stock: { type: integer, minimum: 0, example: 8 }
     ProductList:
       type: object
       required: [items, total]
@@ -440,6 +652,9 @@ components:
             $ref: "#/components/schemas/Product"
         total: { type: integer }
 
+    OrderStatus:
+      type: string
+      enum: [pending, paid, shipped, delivered, cancelled]
     Order:
       type: object
       required: [id, productId, quantity, status]
@@ -448,8 +663,7 @@ components:
         productId: { type: string }
         quantity: { type: integer }
         status:
-          type: string
-          enum: [pending, paid, shipped, delivered, cancelled]
+          $ref: "#/components/schemas/OrderStatus"
     OrderInput:
       type: object
       additionalProperties: false
@@ -457,6 +671,13 @@ components:
       properties:
         productId: { type: string, minLength: 1, example: p-1 }
         quantity: { type: integer, minimum: 1, example: 2 }
+    OrderPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        productId: { type: string, minLength: 1, example: p-1 }
+        quantity: { type: integer, minimum: 1, example: 3 }
     OrderList:
       type: object
       required: [items, total]
@@ -481,6 +702,13 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 100, example: Launch }
         description: { type: string, maxLength: 500 }
+    ProjectPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100, example: Renamed }
+        description: { type: string, maxLength: 500, example: Updated }
     ProjectList:
       type: object
       required: [items, total]
@@ -506,6 +734,13 @@ components:
       properties:
         title: { type: string, minLength: 1, maxLength: 200, example: Write docs }
         done: { type: boolean, default: false }
+    TaskPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200, example: Renamed task }
+        done: { type: boolean, example: true }
     TaskList:
       type: object
       required: [items, total]

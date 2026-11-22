@@ -1,16 +1,31 @@
-"""Shared pieces of the strict `ok` API: error shape and request-model base."""
+"""Shared pieces of the strict `ok` API: error shape, request models, list helpers."""
 
-from fastapi import Request
+from typing import Any, Literal
+
+from fastapi import Query, Request, Response
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class StrictModel(BaseModel):
     """No type coercion ("5" is not an integer) and no unknown fields."""
 
     model_config = ConfigDict(strict=True, extra="forbid")
+
+
+class PatchModel(StrictModel):
+    """Base for PATCH bodies: every field optional (but never null), at least one present."""
+
+    @model_validator(mode="after")
+    def _not_empty(self):
+        if not self.model_fields_set:
+            raise ValueError("at least one field is required")
+        return self
+
+    def changes(self) -> dict[str, Any]:
+        return self.model_dump(exclude_unset=True)
 
 
 class ApiError(Exception):
@@ -44,3 +59,30 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
     first = exc.errors()[0]
     where = ".".join(str(p) for p in first["loc"])
     return error_body(400, "invalid_request", f"{where}: {first['msg']}")
+
+
+# ---- list helpers: pagination and boolean query values ----
+
+BoolText = Literal["true", "false"]
+
+
+class Page:
+    """`limit` / `offset` query parameters, validated as the spec declares them."""
+
+    def __init__(
+        self,
+        limit: int = Query(20, ge=1, le=100),
+        offset: int = Query(0, ge=0),
+    ) -> None:
+        self.limit, self.offset = limit, offset
+
+
+def as_bool(value: BoolText | None) -> bool | None:
+    return None if value is None else value == "true"
+
+
+def paged(items: list[dict], page: Page, response: Response) -> dict[str, Any]:
+    """Slice one page; body `total` and X-Total-Count are the count before pagination."""
+    total = len(items)
+    response.headers["X-Total-Count"] = str(total)
+    return {"items": items[page.offset : page.offset + page.limit], "total": total}
