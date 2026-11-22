@@ -27,6 +27,42 @@ probe_kinds:
   "missing required query param": CS-PROBE-003
   "no credentials": CS-PROBE-004
 
+# ---- spec and server disagree about what exists (slice 2) ----
+# Plain `conform` on each operation. A declared route the server does not serve answers 404/405/400,
+# which the spec does not declare: CS-RESP-001 every time (the notes' "and a conformance failure").
+cases:
+  - { case: ghost, path: /ghost, expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 404, but the spec declares only 200' }
+  - { case: orphan, path: /orphan, expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 405, but the spec declares only 204' }
+  - { case: wrong-method, path: /wrong-method, expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 405, but the spec declares only 200' }
+  - { case: path-param-type, path: '/path-param/{id}', expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 400, but the spec declares only 200' }
+  - { case: requires-extra-header, path: /requires-extra-header, expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 400, but the spec declares only 201' }
+  # CS-GAP-006: ClearSignal cannot build form or multipart bodies. Because the body is `required`,
+  # its own bodiless request fails validation and the operation FAILS although server and spec agree
+  # (F-015). Recorded as what happens today; the check is the request-body one (CS-REQ-002).
+  - { case: form-body, path: /form, expect: fail, check: CS-REQ-002, kind: request, message: 'request body does not fit the spec: value is required but missing', note: "consequence of CS-GAP-006, see F-015" }
+  - { case: multipart-body, path: /multipart, expect: fail, check: CS-REQ-002, kind: request, message: 'request body does not fit the spec: value is required but missing', note: "consequence of CS-GAP-006, see F-015" }
+  # CS-GAP-010: the callback is not under paths and is never exercised; the operation that declares it passes.
+  - { case: subscribe-with-callback, path: /subscribe, expect: pass, reference: CS-GAP-010, why: "the callback is not exercised and the server never contacts it" }
+
+# What ClearSignal builds from the spec (clrsig generate): pins the two request-generation gaps.
+generation:
+  operations: 23              # one per operation under paths; the callback is not among them (CS-GAP-010)
+  bodiless:                   # CS-GAP-006: the spec declares a body, ClearSignal writes none
+    - { operation: formBody, media: application/x-www-form-urlencoded }
+    - { operation: multipartBody, media: multipart/form-data }
+  with_body: [subscribe, lenientMissingField]   # control: JSON bodies are generated
+  not_generated: [onEventCallback]
+
+# The undocumented route and the step spec check (checker A) on declared-but-unserved routes.
+scenarios:
+  - file: clrsig/scenarios/conform-fail-routes.yaml
+    env: clrsig/environments/conform-fail.yaml
+    steps:
+      undocumented: { spec_check: ok, schema_assertion: none, reference: CS-NC-001, note: "the server has it, the spec does not: nothing is compared, and no report format shows 'not checked'" }
+      ghost:        { spec_check: violation, schema_assertion: none, check: CS-RESP-001 }
+      orphan:       { spec_check: violation, schema_assertion: none, check: CS-RESP-001 }
+
+# `clrsig conform --negative`: each operation's negative probes (see the header).
 probes:
   # ---- lenient: each fails exactly one probe kind ----
   - { op: /lenient/missing-field, probes: 2, fail: [{ probe: "missing required field 'name'", check: CS-PROBE-001 }] }
@@ -47,3 +83,7 @@ probes:
   - { op: /strict/wrong-auth, probes: 1, fail: [], reference: null, why: control }
   - { op: /strict/enum-and-boundary, probes: 4, fail: [], reference: null, why: control }
   - { op: /strict/unknown-fields, probes: 2, fail: [], reference: null, why: control }
+
+  # ---- slice 2 operations that generate probes ----
+  - { op: /wrong-method, probes: 2, fail: [], reference: CS-RESP-001, why: "a probe passes on any 4xx, so the 405 for the unimplemented PATCH counts as a rejection" }
+  - { op: /subscribe, probes: 2, fail: [], reference: null, why: "the server validates the callback URL strictly" }

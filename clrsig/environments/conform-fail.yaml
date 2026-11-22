@@ -6,3 +6,6 @@ variables:
   # Fixed fake credential for the secured lenient/strict operations.
   - name: token
     value: "test-token"
+  # Path parameter for GET /path-param/{id}: a valid integer, as the spec declares it.
+  - name: id
+    value: "1"

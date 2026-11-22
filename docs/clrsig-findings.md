@@ -125,11 +125,19 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Handled here instead by: the runner parses the text report (`FAIL POST <path> - <probe> (expect ...)`). Replace with JSON once it carries probes.
   - Closed: —
 
+- [ ] **F-015 — Operations with a form or multipart body fail in `conform` although server and spec agree (v0.7.1)**
+  - Type: bug (false failure). Found: 2026-11-21, `clrsig` v0.7.1, while building `conform-fail`.
+  - Behavior: `POST /form` (`application/x-www-form-urlencoded`) and `POST /multipart` (`multipart/form-data`) declare a `required: true` request body and a `400` response. The server handles both correctly. `conform` builds the request without a body (the catalog's CS-GAP-006), then checks its own request against the spec and reports "the request body does not fit the spec: value is required but missing" as a failure of the operation (finding kind `request`). The suggested fix ("Give the missing values in the environment, for example the path parameter used as {{id}}") cannot work for a body. The catalog says only that such bodies are "generated without a body", not that this fails the operation.
+  - Repro: `clrsig generate <spec copy> -o <dir>` (no `body` in `formBody.yaml`), then `conform` on `/conform-fail/form`.
+  - Expected: either generate a body from the schema (form fields, multipart parts), or skip the operation as "not exercised" and say so; never report a failure the user cannot fix.
+  - Not worked around: the spec keeps `required: true` (the correct declaration). `expectations/conform-fail.yaml` records the failure as today's behavior.
+  - Closed: —
+
 ---
 
 ## Baseline
 
-Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-014 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
+Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-015 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
 
 ## Notes
 

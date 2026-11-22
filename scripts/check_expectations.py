@@ -67,20 +67,26 @@ def case_path(spec: dict, case: dict) -> str:
 def check_case(case: dict, spec: dict, copy: Path, base_url: str) -> list[str]:
     """Return a list of problems (empty means the case behaved as expected)."""
     path = case_path(spec, case)
-    code, out, _ = clrsig(*conform_args(spec, copy, base_url), "--paths", path, "--format", "json")
+    # --paths is a prefix filter and ClearSignal writes path parameters as {{id}}, so filter on the
+    # part before the first parameter and compare the normalized path.
+    code, out, _ = clrsig(*conform_args(spec, copy, base_url), "--paths", path.split("{")[0], "--format", "json")
     report = load_json(out, case["case"])
     ran = [op for op in report["operations"] if not op.get("skipped")]
-    if len(ran) != 1 or ran[0]["path"] != path:
+    if len(ran) != 1 or ran[0]["path"].replace("{{", "{").replace("}}", "}") != path:
         return [f"expected exactly one operation to run at {path}, got {[o['path'] for o in ran]}"]
     op = ran[0]
     findings = op.get("findings") or []
     problems: list[str] = []
 
+    # Response problems are in `violations`, problems with the request ClearSignal built in
+    # `requestViolations`.
+    messages = (op.get("violations") or []) + (op.get("requestViolations") or [])
+
     if case["expect"] == "pass":
         if code != 0:
             problems.append(f"exit code {code}, expected 0")
-        if not op["passed"] or findings or op.get("violations"):
-            problems.append(f"expected a pass, got findings: {[f['kind'] for f in findings] or op.get('violations')}")
+        if not op["passed"] or findings or messages:
+            problems.append(f"expected a pass, got findings: {[f['kind'] for f in findings] or messages}")
         return problems
 
     if code != 1:
@@ -95,7 +101,7 @@ def check_case(case: dict, spec: dict, copy: Path, base_url: str) -> list[str]:
             problems.append(f"finding kind '{finding['kind']}', expected '{case['kind']}'")
         if "where" in case and finding.get("where") != case["where"]:
             problems.append(f"finding location '{finding.get('where')}', expected '{case['where']}'")
-    text = " || ".join(op.get("violations") or [])
+    text = " || ".join(messages)
     if not re.search(case["message"], text):
         problems.append(f"message does not match /{case['message']}/: {text[:160]}")
     return problems
@@ -124,7 +130,11 @@ def run_whole_spec(spec: dict, copy: Path, base_url: str) -> int:
     expected_failing = {case_path(spec, c) for c in cases if c["expect"] == "fail"}
     code, out, _ = clrsig(*conform_args(spec, copy, base_url), "--format", "json")
     report = load_json(out, "whole spec")
-    failing = {o["path"] for o in report["operations"] if not o.get("passed") and not o.get("skipped")}
+    failing = {
+        o["path"].replace("{{", "{").replace("}}", "}")
+        for o in report["operations"]
+        if not o.get("passed") and not o.get("skipped")
+    }
     problems = []
     if code != (1 if expected_failing else 0):
         problems.append(f"exit code {code}, expected {1 if expected_failing else 0}")
@@ -176,6 +186,42 @@ def run_scenarios(spec: dict, copy: Path) -> int:
                 print(f"        - {problem}")
             failures += bool(problems)
     return failures
+
+
+# ---- what `clrsig generate` builds from the spec (request generation gaps) ----
+
+
+def run_generation(spec: dict, copy: Path) -> int:
+    """Pin CS-GAP-006 (form and multipart bodies are generated without a body) and CS-GAP-010
+    (callbacks are not generated) by looking at the request files ClearSignal writes."""
+    gen = spec.get("generation")
+    if not gen:
+        return 0
+    with tempfile.TemporaryDirectory() as out:
+        code, _, err = clrsig("generate", str(copy), "-o", out, "-b", "http://localhost")
+        files = {f.stem: yaml.safe_load(f.read_text(encoding="utf-8")) for f in Path(out).glob("*.yaml")}
+    problems = []
+    if code != 0:
+        problems.append(f"clrsig generate exited {code}: {err[:200]}")
+    if "operations" in gen and len(files) != gen["operations"]:
+        problems.append(f"{len(files)} requests generated, expected {gen['operations']}")
+    for item in gen.get("bodiless") or []:
+        request = files.get(item["operation"])
+        if request is None:
+            problems.append(f"no generated request for {item['operation']}")
+        elif request.get("body"):
+            problems.append(f"{item['operation']} ({item['media']}) was generated WITH a body; CS-GAP-006 may be fixed")
+    for opid in gen.get("with_body") or []:
+        request = files.get(opid)
+        if request is None or not request.get("body"):
+            problems.append(f"{opid} was expected to be generated with a body")
+    for opid in gen.get("not_generated") or []:
+        if opid in files:
+            problems.append(f"{opid} was generated; CS-GAP-010 may be fixed")
+    print(f"\nrequest generation ({len(files)} requests)\n  {'ok  ' if not problems else 'FAIL'}  bodiless {len(gen.get('bodiless') or [])}, with body {len(gen.get('with_body') or [])}, not generated {len(gen.get('not_generated') or [])}")
+    for problem in problems:
+        print(f"        - {problem}")
+    return bool(problems)
 
 
 # ---- negative probes ----
@@ -248,9 +294,10 @@ def covered_paths(spec: dict) -> set[str]:
 
 def print_table(spec: dict) -> int:
     """Markdown table of every response case, kept in docs so it cannot drift."""
-    print("| Case (`GET " + spec["prefix"] + "/cases/<case>`) | Expected | Check | Exit code | ClearSignal reports (or why it passes) |")
-    print("|---|---|---|---|---|")
+    print("| Case | Path (under `" + spec["prefix"] + "`) | Expected | Check | Exit code | ClearSignal reports (or why it passes) |")
+    print("|---|---|---|---|---|---|")
     for case in spec["cases"]:
+        path = case.get("path") or f"/cases/{case['case']}"
         if case["expect"] == "fail":
             expected, check, exit_code = "fails", case["check"], 1
             note = case["message"].strip("^").replace("|", "/")
@@ -258,7 +305,7 @@ def print_table(spec: dict) -> int:
             expected, exit_code = "passes", 0
             check = case.get("reference") or "none"
             note = case.get("why", "").replace("|", "/")
-        print(f"| `{case['case']}` | {expected} | {check} | {exit_code} | {note} |")
+        print(f"| `{case['case']}` | `{path}` | {expected} | {check} | {exit_code} | {note} |")
     return 0
 
 
@@ -291,6 +338,7 @@ def main() -> int:
         if not only:
             failures += run_whole_spec(spec, copy, args.base_url)
             failures += run_scenarios(spec, copy)
+            failures += run_generation(spec, copy)
             if spec.get("probes"):
                 failures += run_probes(spec, copy, args.base_url)
 

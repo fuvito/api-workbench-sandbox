@@ -14,6 +14,7 @@ One note per phase, written when the phase completes. Each covers: what was buil
 | 2 — `ok` wrap-up (phase exit review) | phase-2-ok-baseline.md | Pending |
 | 3 — `contract-fail` | [phase-3-contract-fail.md](phase-3-contract-fail.md) | Written |
 | 4a — lenient server and negative probes | [phase-4a-lenient-and-probes.md](phase-4a-lenient-and-probes.md) | Written |
+| 4b — spec and server disagree | [phase-4b-spec-server-disagreement.md](phase-4b-spec-server-disagreement.md) | Written |
 | 4 — `conform-fail` (remaining slices) | phase-4-conform-fail.md | Pending |
 | 5 — Expectations and CI | phase-5-expectations-ci.md | Pending |
 | 6 — Cloud Run | phase-6-cloud-run.md | Pending |

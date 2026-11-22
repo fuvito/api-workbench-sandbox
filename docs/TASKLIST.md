@@ -64,7 +64,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
 - [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
 
-**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-014 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-015 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [x] Add remaining resource families (customers, payments, invoices, discount codes, notifications, reports, settings, secured examples), kept within the 60 to 70 operation target.
@@ -140,13 +140,13 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Implement strict control operations that correctly reject invalid requests (seven `/strict/*` twins; verified by `scripts/check_expectations.py --expectations expectations/conform-fail.yaml`: 26 probes, 4 fail, all as expected).
 
 ### Spec/server disagreement
-- [ ] Implement declared ghost route.
-- [ ] Implement orphan operation with no route.
-- [ ] Implement undocumented route for scenario-only check.
-- [ ] Implement wrong-method case.
-- [ ] Implement path-parameter type mismatch.
-- [ ] Implement undeclared extra-header requirement.
-- [ ] Add form/multipart and webhook/callback known-gap fixtures.
+- [x] Implement declared ghost route (`GET /ghost`: declared, not served; CS-RESP-001).
+- [x] Implement orphan operation (`DELETE /orphan`: the server implements only POST, so 405; CS-RESP-001).
+- [x] Implement undocumented route (`GET /undocumented`; a scenario step on it is the catalog's CS-NC-001, which no report format shows).
+- [x] Implement wrong-method case (`PATCH /wrong-method`: the server implements only PUT; CS-RESP-001).
+- [x] Implement path-parameter type mismatch (`GET /path-param/{id}`: integer in the spec, UUID on the server; CS-RESP-001).
+- [x] Implement undeclared extra-header requirement (`POST /requires-extra-header`; CS-RESP-001).
+- [x] Add form/multipart and callback known-gap fixtures: `POST /form` and `/multipart` (CS-GAP-006; they FAIL today with a request-body finding, F-015) and `POST /subscribe` with a callback (CS-GAP-010; passes). 3.1 `webhooks` are not covered (the spec is 3.0.3).
 
 ### Request construction and runtime failures
 - [ ] Add wrong parameter environment value.

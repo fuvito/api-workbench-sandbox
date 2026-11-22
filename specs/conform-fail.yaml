@@ -19,6 +19,8 @@ tags:
     description: The server accepts bad requests it should reject
   - name: strict
     description: Control group - the same shapes, correctly rejecting bad requests
+  - name: disagreement
+    description: The spec and the server disagree about what exists
 paths:
   /health:
     get:
@@ -267,6 +269,152 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
 
+  # ------------------------------------------- spec and server disagree (slice 2)
+  /ghost:
+    get:
+      operationId: ghostRoute
+      tags: [disagreement]
+      summary: Declared in the spec, no such route on the server
+      description: The spec declares GET /ghost (200). The server has no route and answers 404, which the spec does not declare.
+      responses:
+        "200":
+          description: A thing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdDoc"
+
+  /orphan:
+    delete:
+      operationId: orphanOperation
+      tags: [disagreement]
+      summary: Declared operation whose method the server does not implement
+      description: The spec declares DELETE /orphan (204). The server only implements POST /orphan, so DELETE answers 405.
+      responses:
+        "204":
+          description: Deleted
+
+  /wrong-method:
+    patch:
+      operationId: wrongMethod
+      tags: [disagreement]
+      summary: The spec says PATCH, the server only accepts PUT
+      description: The spec declares PATCH /wrong-method (200). The server implements PUT /wrong-method only, so PATCH answers 405.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NameBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkDoc"
+
+  /path-param/{id}:
+    get:
+      operationId: pathParamType
+      tags: [disagreement]
+      summary: The spec says id is an integer, the server only accepts UUIDs
+      description: ClearSignal builds an integer id from the environment; the server answers 400, which the spec does not declare.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, example: 1 }
+      responses:
+        "200":
+          description: A thing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdDoc"
+
+  /requires-extra-header:
+    post:
+      operationId: requiresExtraHeader
+      tags: [disagreement]
+      summary: The server needs a header the spec never mentions
+      description: The server requires X-Tenant and answers 400 without it. The spec declares neither the header nor the 400.
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+
+  /form:
+    post:
+      operationId: formBody
+      tags: [disagreement]
+      summary: A form-encoded request body
+      description: >
+        ClearSignal generates requests without a body for form bodies (CS-GAP-006), so the server
+        receives none and answers 400, which the spec declares. Passes today; pins the gap.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/NameBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /multipart:
+    post:
+      operationId: multipartBody
+      tags: [disagreement]
+      summary: A multipart request body
+      description: Same as /form, for multipart/form-data (CS-GAP-006). Passes today; pins the gap.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/NameBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /subscribe:
+    post:
+      operationId: subscribe
+      tags: [disagreement]
+      summary: Register a callback URL (the spec also describes a callback)
+      description: >
+        The callback below is not under paths, so ClearSignal does not exercise it (CS-GAP-010).
+        The server never contacts the callback URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscribeBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+      callbacks:
+        onEvent:
+          "{$request.body#/callbackUrl}":
+            post:
+              operationId: onEventCallback
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: "#/components/schemas/EventDoc"
+              responses:
+                "200":
+                  description: Acknowledged
+
 components:
   securitySchemes:
     bearerAuth:
@@ -360,3 +508,24 @@ components:
       required: [secret]
       properties:
         secret: { type: string }
+
+    IdDoc:
+      type: object
+      required: [id]
+      properties:
+        id: { type: integer }
+    OkDoc:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+    SubscribeBody:
+      type: object
+      required: [callbackUrl]
+      properties:
+        callbackUrl: { type: string, format: uri, example: "https://example.com/hook" }
+    EventDoc:
+      type: object
+      required: [event]
+      properties:
+        event: { type: string }
