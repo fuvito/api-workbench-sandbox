@@ -12,6 +12,12 @@ on:
   schedule:
     - cron: "17 3 * * *"   # nightly: clrsig built from api-workbench@main
   workflow_dispatch:
+    inputs:
+      clrsig:
+        description: "Which clrsig to test against"
+        type: choice
+        options: [released, main]
+        default: released
 
 permissions:
   contents: read
@@ -39,8 +45,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # nightly: clrsig built from main; every other trigger: the released one
-        clrsig: ${{ fromJSON(github.event_name == 'schedule' && '["main"]' || '["released"]') }}
+        # nightly (or a manual run that asks for it): clrsig built from main; otherwise the released one
+        clrsig: ${{ fromJSON(github.event_name == 'schedule' && '["main"]' || format('["{0}"]', inputs.clrsig || 'released')) }}
     steps:
       - uses: actions/checkout@v4
 
