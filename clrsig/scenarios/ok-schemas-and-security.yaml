@@ -1,0 +1,220 @@
+schemaVersion: "1"
+title: ok - schema features and security schemes
+description: >
+  Supplies credentials explicitly for bearer, basic and API-key operations, creates both oneOf
+  payment variants, and checks formats, nullable fields, problem+json, text/plain and the
+  settings map. Run with --spec <url>/ok/openapi.yaml so every step is also checked against
+  the spec. Fixed fake credentials: test-token, test-user/test-pass, test-api-key.
+
+steps:
+  - label: Reset ok store
+    request:
+      method: POST
+      url: "{{baseUrl}}/__admin/reset"
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  # ---- security: bearer ----
+  - label: Bearer - valid token
+    request:
+      method: GET
+      url: "{{baseUrl}}/me"
+      headers:
+        - { name: Authorization, value: "Bearer test-token" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.user", operator: eq, expected: "test-user" }
+    failPolicy: stop
+
+  - label: Bearer - missing token
+    request: { method: GET, url: "{{baseUrl}}/me" }
+    assertions:
+      - { type: status, operator: eq, expected: 401 }
+      - { type: header, path: WWW-Authenticate, operator: contains, expected: "Bearer" }
+    failPolicy: continue
+
+  - label: Bearer - wrong token
+    request:
+      method: GET
+      url: "{{baseUrl}}/me"
+      headers:
+        - { name: Authorization, value: "Bearer nope" }
+    assertions:
+      - { type: status, operator: eq, expected: 401 }
+    failPolicy: continue
+
+  # ---- security: basic ----
+  - label: Basic - valid credentials
+    request:
+      method: GET
+      url: "{{baseUrl}}/audit-events"
+      headers:
+        - { name: Authorization, value: "Basic dGVzdC11c2VyOnRlc3QtcGFzcw==" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.total", operator: eq, expected: "2" }
+    failPolicy: stop
+
+  - label: Basic - wrong password
+    request:
+      method: GET
+      url: "{{baseUrl}}/audit-events"
+      headers:
+        - { name: Authorization, value: "Basic dGVzdC11c2VyOndyb25n" }
+    assertions:
+      - { type: status, operator: eq, expected: 401 }
+      - { type: header, path: WWW-Authenticate, operator: contains, expected: "Basic" }
+    failPolicy: continue
+
+  # ---- security: API key (header and query) ----
+  - label: API key in header - valid
+    request:
+      method: GET
+      url: "{{baseUrl}}/partner-status"
+      headers:
+        - { name: X-API-Key, value: "test-api-key" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.status", operator: eq, expected: "active" }
+    failPolicy: stop
+
+  - label: API key in header - missing
+    request: { method: GET, url: "{{baseUrl}}/partner-status" }
+    assertions:
+      - { type: status, operator: eq, expected: 401 }
+    failPolicy: continue
+
+  - label: API key in query - valid
+    request: { method: GET, url: "{{baseUrl}}/feature-flags?api_key=test-api-key" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.beta", operator: eq, expected: "true" }
+    failPolicy: stop
+
+  - label: API key in query - wrong
+    request: { method: GET, url: "{{baseUrl}}/feature-flags?api_key=nope" }
+    assertions:
+      - { type: status, operator: eq, expected: 401 }
+    failPolicy: continue
+
+  # ---- oneOf / allOf / anyOf: payments ----
+  - label: Create card payment
+    request:
+      method: POST
+      url: "{{baseUrl}}/payments"
+      body:
+        type: json
+        content: '{"method":"card","amount":19.99,"currency":"USD","cardLast4":"4242"}'
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+      - { type: jsonpath, path: "$.method", operator: eq, expected: "card" }
+      - { type: jsonpath, path: "$.status", operator: eq, expected: "authorized" }
+    extractions:
+      - { name: cardPaymentId, source: jsonpath, path: "$.id" }
+    failPolicy: stop
+
+  - label: Create bank payment with a UUID reference
+    request:
+      method: POST
+      url: "{{baseUrl}}/payments"
+      body:
+        type: json
+        content: '{"method":"bank","amount":250,"currency":"EUR","iban":"DE89370400440532013000","reference":"3f2b8c1e-5d4a-4c8e-9a7b-1e2d3c4b5a69"}'
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+      - { type: jsonpath, path: "$.iban", operator: eq, expected: "DE89370400440532013000" }
+    failPolicy: stop
+
+  - label: Get the card payment
+    request: { method: GET, url: "{{baseUrl}}/payments/{{cardPaymentId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.cardLast4", operator: eq, expected: "4242" }
+    failPolicy: stop
+
+  - label: Reject unknown payment method
+    request:
+      method: POST
+      url: "{{baseUrl}}/payments"
+      body:
+        type: json
+        content: '{"method":"cash","amount":5,"currency":"USD"}'
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue
+
+  - label: Reject card payment carrying bank fields
+    request:
+      method: POST
+      url: "{{baseUrl}}/payments"
+      body:
+        type: json
+        content: '{"method":"card","amount":5,"currency":"USD","cardLast4":"4242","iban":"DE89370400440532013000"}'
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue
+
+  - label: Reject reference that is neither UUID nor positive integer
+    request:
+      method: POST
+      url: "{{baseUrl}}/payments"
+      body:
+        type: json
+        content: '{"method":"card","amount":5,"currency":"USD","cardLast4":"4242","reference":"42"}'
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue
+
+  # ---- formats, nullable, problem+json ----
+  - label: Create customer with nullable birthDate
+    request:
+      method: POST
+      url: "{{baseUrl}}/customers"
+      body:
+        type: json
+        content: '{"email":"carol@example.com","name":"Carol","birthDate":null,"tags":["new"],"preferences":{"lang":"fr"}}'
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+      - { type: header, path: Content-Type, operator: contains, expected: "application/json" }
+    failPolicy: stop
+
+  - label: Invalid email is a problem+json 400
+    request:
+      method: POST
+      url: "{{baseUrl}}/customers"
+      body:
+        type: json
+        content: '{"email":"not-an-email","name":"X"}'
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+      - { type: header, path: Content-Type, operator: contains, expected: "application/problem+json" }
+      - { type: jsonpath, path: "$.status", operator: eq, expected: "400" }
+    failPolicy: continue
+
+  - label: Unknown customer is a problem+json 404
+    request: { method: GET, url: "{{baseUrl}}/customers/nope" }
+    assertions:
+      - { type: status, operator: eq, expected: 404 }
+      - { type: header, path: Content-Type, operator: contains, expected: "application/problem+json" }
+    failPolicy: continue
+
+  # ---- map and text/plain ----
+  - label: Replace settings map
+    request:
+      method: PUT
+      url: "{{baseUrl}}/settings"
+      body:
+        type: json
+        content: '{"theme":"dark","language":"de"}'
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.theme", operator: eq, expected: "dark" }
+    failPolicy: stop
+
+  - label: Version is text/plain
+    request: { method: GET, url: "{{baseUrl}}/version" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: header, path: Content-Type, operator: contains, expected: "text/plain" }
+    failPolicy: continue

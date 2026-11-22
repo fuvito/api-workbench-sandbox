@@ -16,7 +16,7 @@ Environment variables: `PORT` (8080), `HOST` (127.0.0.1), `PUBLIC_BASE_URL`, `DR
 
 | Family | Base path | Spec | Health | Reset |
 |---|---|---|---|---|
-| ok | `/ok` (products, orders, projects, tasks) | `/ok/openapi.yaml` | `GET /ok/health` | `POST /ok/__admin/reset` |
+| ok | `/ok` (products, orders, projects/tasks, customers, payments, settings, version, secured examples) | `/ok/openapi.yaml` | `GET /ok/health` | `POST /ok/__admin/reset` |
 | contract-fail | `/contract-fail` | `/contract-fail/openapi.yaml` | `GET /contract-fail/health` | `POST /contract-fail/__admin/reset` |
 | conform-fail | `/conform-fail` | `/conform-fail/openapi.yaml` | `GET /conform-fail/health` | `POST /conform-fail/__admin/reset` |
 
@@ -30,9 +30,23 @@ Start the server, then (the scenario resets the `ok` store itself; reset before 
 curl -X POST http://localhost:8080/ok/__admin/reset
 clrsig conform http://localhost:8080/ok/openapi.yaml --env clrsig/environments/ok.yaml --negative
 clrsig run clrsig/scenarios/ok-crud.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
+clrsig run clrsig/scenarios/ok-schemas-and-security.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 ```
 
 Verified with released `clrsig` v0.7.1 (earlier versions have known issues; see `docs/clrsig-findings.md`).
+
+## Test credentials (fake fixtures, not secrets)
+
+Only the secured example operations of the `ok` API use them (`/me`, `/audit-events`, `/feature-flags`, `/partner-status`). Everything else is public.
+
+| Scheme | Operation | Credential |
+|---|---|---|
+| HTTP bearer | `GET /ok/me` | `Authorization: Bearer test-token` |
+| HTTP basic | `GET /ok/audit-events` | `test-user` / `test-pass` |
+| API key (header) | `GET /ok/partner-status` | `X-API-Key: test-api-key` |
+| API key (query) | `GET /ok/feature-flags` | `?api_key=test-api-key` |
+
+The admin token (`ADMIN_TOKEN`) is separate and only protects `__admin` routes.
 
 ## Docker
 

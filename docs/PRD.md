@@ -247,7 +247,7 @@ Cloud deployment follows a successful local implementation.
 Resolve these before or during the first implementation slice:
 1. ~~Python version~~ — decided: 3.13.1. Dependency management: `uv` with `pyproject.toml` and a committed `uv.lock` (decided).
 2. ~~Repository name~~ — decided: `api-workbench-sandbox`.
-3. Fixed credentials for bearer, basic, and API-key examples.
+3. Fixed credentials for bearer, basic, and API-key examples. (Implemented with `test-token`, `test-user`/`test-pass`, `test-api-key`; awaiting confirmation.)
 4. Whether `ok` ships OpenAPI 3.0 and 3.1 variants.
 5. Confirm the 80–120 operation target.
 6. Keep `contract-fail` and `conform-fail` specifications separate (current proposal).

@@ -11,3 +11,21 @@ variables:
     value: "pr-1"
   - name: taskId
     value: "t-1"
+  - name: paymentId
+    value: "pay-1"
+  - name: customerId
+    value: "c-1"
+  # Placeholders clrsig leaves in the generated POST /payments body (card variant).
+  - name: amount
+    value: "19.99"
+  - name: cardLast4
+    value: "4242"
+  # Fixed fake test credentials (documented in README).
+  - name: token
+    value: "test-token"
+  - name: apiKey
+    value: "test-api-key"
+  - name: basicUser
+    value: "test-user"
+  - name: basicPass
+    value: "test-pass"

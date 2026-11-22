@@ -10,6 +10,10 @@ servers:
   - url: http://localhost:8080/ok
 tags:
   - name: system
+  - name: customers
+  - name: settings
+  - name: payments
+  - name: security
   - name: products
   - name: orders
   - name: projects
@@ -544,7 +548,270 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [customers]
+      summary: List customers (paginate)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Customers (one page)
+          headers:
+            X-Total-Count:
+              $ref: "#/components/headers/TotalCount"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerList"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createCustomer
+      tags: [customers]
+      summary: Create a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        4XX:
+          $ref: "#/components/responses/Problem"
+
+  /customers/{customerId}:
+    parameters:
+      - $ref: "#/components/parameters/CustomerId"
+    get:
+      operationId: getCustomer
+      tags: [customers]
+      summary: Get a customer
+      responses:
+        "200":
+          description: The customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deleteCustomer
+      tags: [customers]
+      summary: Delete a customer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get all settings as a string-to-string map
+      responses:
+        "200":
+          description: The settings map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    put:
+      operationId: replaceSettings
+      tags: [settings]
+      summary: Replace all settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Settings"
+      responses:
+        "200":
+          description: The new settings map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /version:
+    get:
+      operationId: getVersion
+      tags: [system]
+      summary: API version as plain text
+      responses:
+        "200":
+          description: Version string
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 1.0.0
+
+  /payments:
+    get:
+      operationId: listPayments
+      tags: [payments]
+      summary: List payments (paginate)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Payments (one page)
+          headers:
+            X-Total-Count:
+              $ref: "#/components/headers/TotalCount"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Create a card or bank payment (oneOf, discriminated by method)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /payments/{paymentId}:
+    parameters:
+      - $ref: "#/components/parameters/PaymentId"
+    get:
+      operationId: getPayment
+      tags: [payments]
+      summary: Get a payment
+      responses:
+        "200":
+          description: The payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [security]
+      summary: Current user (bearer token)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Authenticated response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /audit-events:
+    get:
+      operationId: listAuditEvents
+      tags: [security]
+      summary: Audit events, read-only (HTTP basic)
+      security:
+        - basicAuth: []
+      responses:
+        "200":
+          description: Authenticated response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEventList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /feature-flags:
+    get:
+      operationId: getFeatureFlags
+      tags: [security]
+      summary: Feature flags (API key in the query string)
+      security:
+        - apiKeyQuery: []
+      responses:
+        "200":
+          description: Authenticated response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeatureFlags"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /partner-status:
+    get:
+      operationId: getPartnerStatus
+      tags: [security]
+      summary: Partner status (API key in a header)
+      security:
+        - apiKeyHeader: []
+      responses:
+        "200":
+          description: Authenticated response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "Fixed test token: test-token"
+    basicAuth:
+      type: http
+      scheme: basic
+      description: "Fixed test credentials: test-user / test-pass"
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: "Fixed test key: test-api-key"
+    apiKeyQuery:
+      type: apiKey
+      in: query
+      name: api_key
+      description: "Fixed test key: test-api-key"
+
   parameters:
     Limit:
       name: limit
@@ -576,6 +843,16 @@ components:
       in: path
       required: true
       schema: { type: string, example: t-1 }
+    CustomerId:
+      name: customerId
+      in: path
+      required: true
+      schema: { type: string, example: c-1 }
+    PaymentId:
+      name: paymentId
+      in: path
+      required: true
+      schema: { type: string, example: pay-1 }
 
   headers:
     TotalCount:
@@ -606,6 +883,22 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid credentials
+      headers:
+        WWW-Authenticate:
+          required: true
+          schema: { type: string }
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Problem:
+      description: Error in RFC 7807 problem+json form
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
 
   schemas:
     Error:
@@ -750,3 +1043,211 @@ components:
           items:
             $ref: "#/components/schemas/Task"
         total: { type: integer }
+
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+
+    Customer:
+      type: object
+      required: [id, email, name, createdAt]
+      properties:
+        id: { type: string, readOnly: true }
+        email: { type: string, format: email }
+        name: { type: string }
+        phone:
+          type: string
+          pattern: '^\+?[0-9]{7,15}$'
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+        externalRef: { type: string, format: uuid }
+        tags:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items: { type: string, minLength: 1 }
+        preferences:
+          type: object
+          additionalProperties: { type: string }
+        createdAt: { type: string, format: date-time, readOnly: true }
+    CustomerInput:
+      type: object
+      additionalProperties: false
+      required: [email, name]
+      properties:
+        email: { type: string, format: email, maxLength: 254, example: new@example.com }
+        name: { type: string, minLength: 1, maxLength: 100, example: New Customer }
+        phone:
+          type: string
+          pattern: '^\+?[0-9]{7,15}$'
+          example: "+15550001111"
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+          example: "1985-03-09"
+        externalRef:
+          type: string
+          format: uuid
+          example: 3f2b8c1e-5d4a-4c8e-9a7b-1e2d3c4b5a69
+        tags:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items: { type: string, minLength: 1 }
+          example: [new]
+        preferences:
+          type: object
+          maxProperties: 20
+          additionalProperties: { type: string }
+          example: { lang: en }
+    CustomerList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Customer"
+        total: { type: integer }
+
+    Settings:
+      type: object
+      maxProperties: 20
+      additionalProperties: { type: string, maxLength: 200 }
+      example: { theme: light, language: en }
+
+    Reference:
+      description: An order reference, either a UUID string or a positive integer
+      anyOf:
+        - type: string
+          format: uuid
+        - type: integer
+          minimum: 1
+      example: 42
+
+    CardPaymentInput:
+      type: object
+      additionalProperties: false
+      required: [method, amount, currency, cardLast4]
+      properties:
+        method: { type: string, enum: [card] }
+        amount: { type: number, minimum: 0.01 }
+        currency: { $ref: "#/components/schemas/Currency" }
+        cardLast4: { type: string, pattern: '^[0-9]{4}$' }
+        reference: { $ref: "#/components/schemas/Reference" }
+    BankPaymentInput:
+      type: object
+      additionalProperties: false
+      required: [method, amount, currency, iban]
+      properties:
+        method: { type: string, enum: [bank] }
+        amount: { type: number, minimum: 0.01 }
+        currency: { $ref: "#/components/schemas/Currency" }
+        iban: { type: string, pattern: '^[A-Z]{2}[0-9]{2}[A-Z0-9]{10,30}$' }
+        reference: { $ref: "#/components/schemas/Reference" }
+    PaymentInput:
+      oneOf:
+        - $ref: "#/components/schemas/CardPaymentInput"
+        - $ref: "#/components/schemas/BankPaymentInput"
+      discriminator:
+        propertyName: method
+        mapping:
+          card: "#/components/schemas/CardPaymentInput"
+          bank: "#/components/schemas/BankPaymentInput"
+      example:
+        method: card
+        amount: 19.99
+        currency: USD
+        cardLast4: "4242"
+        reference: 42
+
+    Currency:
+      type: string
+      enum: [USD, EUR, GBP]
+
+    PaymentCommon:
+      type: object
+      required: [id, amount, currency, status]
+      properties:
+        id: { type: string }
+        amount: { type: number }
+        currency: { $ref: "#/components/schemas/Currency" }
+        status: { type: string, enum: [authorized] }
+        reference: { $ref: "#/components/schemas/Reference" }
+    CardPayment:
+      allOf:
+        - $ref: "#/components/schemas/PaymentCommon"
+        - type: object
+          required: [method, cardLast4]
+          properties:
+            method: { type: string, enum: [card] }
+            cardLast4: { type: string }
+    BankPayment:
+      allOf:
+        - $ref: "#/components/schemas/PaymentCommon"
+        - type: object
+          required: [method, iban]
+          properties:
+            method: { type: string, enum: [bank] }
+            iban: { type: string }
+    Payment:
+      oneOf:
+        - $ref: "#/components/schemas/CardPayment"
+        - $ref: "#/components/schemas/BankPayment"
+      discriminator:
+        propertyName: method
+        mapping:
+          card: "#/components/schemas/CardPayment"
+          bank: "#/components/schemas/BankPayment"
+    PaymentList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
+        total: { type: integer }
+
+    Me:
+      type: object
+      required: [user, scopes]
+      properties:
+        user: { type: string }
+        scopes:
+          type: array
+          items: { type: string }
+    AuditEvent:
+      type: object
+      required: [id, action, actor, at]
+      properties:
+        id: { type: string }
+        action: { type: string }
+        actor: { type: string }
+        at: { type: string, format: date-time }
+    AuditEventList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+        total: { type: integer }
+    FeatureFlags:
+      type: object
+      additionalProperties: { type: boolean }
+    PartnerStatus:
+      type: object
+      required: [partner, status]
+      properties:
+        partner: { type: string }
+        status: { type: string, enum: [active] }

@@ -7,6 +7,7 @@ One note per phase, written when the phase completes. Each covers: what was buil
 | 1 — Server skeleton | [phase-1-server-skeleton.md](phase-1-server-skeleton.md) | Written |
 | 2a — `ok` first three resources | [phase-2a-ok-first-resources.md](phase-2a-ok-first-resources.md) | Written |
 | 2b — methods, queries, headers | [phase-2b-methods-and-queries.md](phase-2b-methods-and-queries.md) | Written |
+| 2c — schema features and security | [phase-2c-schemas-and-security.md](phase-2c-schemas-and-security.md) | Written |
 | 2 — `ok` remaining breadth, rules, latency | phase-2-ok-baseline.md | Pending |
 | 3 — `contract-fail` | phase-3-contract-fail.md | Pending |
 | 4 — `conform-fail` | phase-4-conform-fail.md | Pending |

@@ -41,16 +41,30 @@ def unprocessable(message: str) -> ApiError:
     return ApiError(422, "unprocessable", message)
 
 
-def error_body(status: int, code: str, message: str) -> JSONResponse:
+# Paths whose error responses are RFC 7807 problem+json (declared that way in the spec).
+PROBLEM_PREFIXES = ("/ok/customers",)
+
+_TITLES = {400: "Bad Request", 404: "Not Found", 409: "Conflict", 422: "Unprocessable Entity"}
+
+
+def error_body(request: Request, status: int, code: str, message: str) -> JSONResponse:
+    if request.url.path.startswith(PROBLEM_PREFIXES):
+        body = {
+            "type": "about:blank",
+            "title": _TITLES.get(status, "Error"),
+            "status": status,
+            "detail": message,
+        }
+        return JSONResponse(status_code=status, content=body, media_type="application/problem+json")
     return JSONResponse(status_code=status, content={"code": code, "message": message})
 
 
-async def api_error_handler(_: Request, exc: ApiError) -> JSONResponse:
-    return error_body(exc.status, exc.code, exc.message)
+async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
+    return error_body(request, exc.status, exc.code, exc.message)
 
 
 async def validation_error_handler(request: Request, exc: RequestValidationError):
-    """Malformed input on /ok is 400 with the declared Error shape.
+    """Malformed input on /ok is 400 with the declared error shape.
 
     FastAPI's default is 422 with a different body, so it is kept for other families.
     """
@@ -58,7 +72,7 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
         return await request_validation_exception_handler(request, exc)
     first = exc.errors()[0]
     where = ".".join(str(p) for p in first["loc"])
-    return error_body(400, "invalid_request", f"{where}: {first['msg']}")
+    return error_body(request, 400, "invalid_request", f"{where}: {first['msg']}")
 
 
 # ---- list helpers: pagination and boolean query values ----
