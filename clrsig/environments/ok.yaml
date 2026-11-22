@@ -29,3 +29,9 @@ variables:
     value: "test-user"
   - name: basicPass
     value: "test-pass"
+  - name: invoiceId
+    value: "inv-1"
+  - name: code
+    value: "SAVE10"
+  - name: reportId
+    value: "rep-1"

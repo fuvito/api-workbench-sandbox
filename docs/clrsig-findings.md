@@ -47,11 +47,19 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Covered here instead by: `clrsig/scenarios/ok-schemas-and-security.yaml`, which sets credentials explicitly per step.
   - Closed: —
 
+- [ ] **F-006 — `--negative` does not probe a missing required header (v0.7.1)**
+  - Type: limitation / enhancement. Found: 2026-11-21, `clrsig` v0.7.1.
+  - Behavior: `PUT` and `PATCH /orders/{orderId}` declare `If-Match` as a required header; the correct server answer to its absence is `428`. `--negative` generates probes that drop required body fields and send wrong types, plus "no credentials" probes, but none that omit a required header. Its help text promises "missing params".
+  - Repro: `clrsig conform http://localhost:8080/ok/openapi.yaml --env clrsig/environments/ok.yaml --negative` and list the probes for `PUT /orders/{orderId}` (only `missing required field` and `wrong type` probes appear).
+  - Expected: one probe per required header (and per required query parameter), passing on any 4xx.
+  - Covered here instead by: pytest (`tests/test_ok_preconditions.py`) and the `ok-business-rules` scenario ("Edit without If-Match is 428").
+  - Closed: —
+
 ---
 
 ## Baseline
 
-Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003, F-004, F-005 (all found with v0.7.1).
+Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003, F-004, F-005, F-006 (all found with v0.7.1).
 
 ## Notes
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.test_ok_api import assert_error
+from tests.test_ok_api import STAR, assert_error
 
 
 def ids(r):
@@ -131,17 +131,18 @@ async def test_patch_product_invalid_is_400(client, body):
 
 async def test_patch_unknown_ids_are_404(client):
     assert_error(await client.patch("/ok/products/nope", json={"stock": 1}), 404)
-    assert_error(await client.patch("/ok/orders/nope", json={"quantity": 1}), 404)
+    assert_error(await client.patch("/ok/orders/nope", json={"quantity": 1}, headers=STAR), 404)
     assert_error(await client.patch("/ok/projects/nope", json={"name": "x"}), 404)
     assert_error(await client.patch("/ok/projects/pr-1/tasks/nope", json={"done": True}), 404)
     assert_error(await client.patch("/ok/projects/pr-2/tasks/t-1", json={"done": True}), 404)
 
 
 async def test_patch_order_keeps_status_and_checks_product(client):
-    r = await client.patch("/ok/orders/o-2", json={"quantity": 4})
-    assert r.json() == {"id": "o-2", "productId": "p-2", "quantity": 4, "status": "paid"}
-    assert_error(await client.patch("/ok/orders/o-2", json={"productId": "nope"}), 422)
-    assert_error(await client.patch("/ok/orders/o-2", json={"status": "shipped"}), 400)
+    r = await client.patch("/ok/orders/o-1", json={"quantity": 4}, headers=STAR)
+    assert r.status_code == 200
+    assert (r.json()["quantity"], r.json()["status"], r.json()["total"]) == (4, "pending", 43.96)
+    assert_error(await client.patch("/ok/orders/o-1", json={"productId": "nope"}, headers=STAR), 422)
+    assert_error(await client.patch("/ok/orders/o-1", json={"status": "shipped"}, headers=STAR), 400)
 
 
 async def test_patch_project_and_task(client):

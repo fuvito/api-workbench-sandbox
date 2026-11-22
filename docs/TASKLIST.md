@@ -64,35 +64,35 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
 - [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
 
-**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003, F-004, F-005 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-006 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [ ] Add remaining resource families from PRD.
 - [x] Add HTTP methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS (HEAD and OPTIONS on products only; PATCH on all four resources).
 - [ ] Add path, query, header, and cookie parameters. (Done: path, query for paging/filter/sort. Missing: header, cookie, array/date-time/uuid parameter types.)
 - [x] Add request-body constraints and formats (email, date, uuid, pattern, min/max, minItems/maxItems, uniqueItems, maxProperties).
-- [ ] Add response codes, default responses, and status ranges. (Done: 200, 201, 204, 400, 401, 404, 422, `default`, `4XX`. Missing: 202, 403, 409, 410, 412, 428, 429 with the business rules, and a `2XX` case.)
-- [ ] Add response headers. (Done: `X-Total-Count`, `Allow`. Missing: `Location`, `ETag`, `X-Request-Id`, rate-limit headers, optional headers.)
+- [ ] Add response codes, default responses, and status ranges. (Done: 200, 201, 202, 204, 400, 401, 404, 409, 410, 412, 422, 428, 429, `default`, `4XX`. Missing: 403 and a `2XX` case.)
+- [ ] Add response headers. (Done: `X-Total-Count`, `Allow`, `ETag`, `Location`, `Retry-After`, `WWW-Authenticate`, `X-RateLimit-*`. Missing: `X-Request-Id` and more optional response headers.)
 - [ ] Add `$ref`, `allOf`, `oneOf`, `anyOf`, discriminators, nullable/type arrays, maps, and additionalProperties cases. (Done: all except 3.1 type arrays, which wait for the 3.0/3.1 decision; `nullable` uses 3.0.)
 - [x] Add JSON, problem+json (customers), and text/plain (`GET /ok/version`) media types.
 - [x] Add bearer, basic, and API-key (header and query) security examples. Verified by `ok-schemas-and-security.yaml`; `conform` only authenticates bearer (F-005).
-- [ ] Add pagination, filtering, sorting, bulk operations, sub-resources, and actions. (Done: offset pagination, filters, sorting, tasks sub-resource. Missing: cursor pagination, bulk operations, actions.)
-- [ ] Add idempotency and ETag/If-Match examples.
-- [ ] Grow toward the agreed operation target (source proposal: 80–120).
+- [ ] Add pagination, filtering, sorting, bulk operations, sub-resources, and actions. (Done: offset pagination, filters, sorting, sub-resources, order actions. Missing: cursor pagination, bulk operations.)
+- [x] Add idempotency and ETag/If-Match examples.
+- [ ] Grow toward the agreed operation target (source proposal: 80–120). (Now 55 operations; the target itself is still an open decision.)
 - [ ] Verify every valid operation conforms.
 
 ### Light business rules
-- [ ] Unique-value conflicts (`409`).
-- [ ] Stock checks (`422`) and stock restoration/decrement behavior.
-- [ ] Order state transitions (`409` for illegal transitions).
-- [ ] Computed totals, timestamps, sequential invoice numbers.
-- [ ] Project/task ownership and cascade behavior.
-- [ ] Expiring code/token (`410`).
-- [ ] ETag/If-Match (`412`, `428`).
-- [ ] Idempotency-key behavior.
-- [ ] Async report progression (`202` then `200`).
-- [ ] Rate limiting (`429`, `Retry-After`).
-- [ ] Soft delete and include-deleted behavior.
+- [x] Unique-value conflicts (`409`): customer email, case-insensitive, freed by soft delete. (Product SKU and tag name are not modeled.)
+- [x] Stock checks (`422`) and stock restoration/decrement behavior: create checks stock, pay takes it, cancelling a paid order gives it back.
+- [x] Order state transitions (`409` for illegal transitions): `pay`, `ship`, `deliver`, `cancel` actions; only pending orders are editable.
+- [x] Computed totals (quantity x price + 10% tax), server timestamps, sequential invoice numbers (`INV-000001`...).
+- [x] Project/task ownership and cascade behavior: `409` with open tasks, `?cascade=true` deletes them too.
+- [x] Expiring code/token (`410`): discount codes, evaluated against an injectable clock.
+- [x] ETag/If-Match (`412`, `428`): required on order PUT/PATCH, optional on tasks.
+- [x] Idempotency-key behavior on `POST /payments` (replay `200`, different body `422`).
+- [x] Async report progression (`202` then `200`), computed from poll counts.
+- [x] Rate limiting (`429`, `Retry-After`) on `GET /ok/rate-limited` only: 5 calls per 60 s per client.
+- [x] Soft delete and include-deleted behavior (customers).
 
 ### Baseline latency
 - [ ] Implement bounded `GET /ok/ok-slow/{ms}` (confirm exact path against spec; source notes use `/ok-slow/{ms}` relative to `/ok`).

@@ -6,11 +6,46 @@ the dict operation itself; never await anything slow while holding it.
 
 import asyncio
 import copy
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from typing import Any
 
 Record = dict[str, Any]
 SeedData = dict[str, dict[str, Record]]
+
+
+class Tx:
+    """Lock-free view of the store, only handed out inside `Store.tx()`.
+
+    Business rules that read several records and then write (stock checks, state moves,
+    cascades) use it so the whole step is atomic. Keep the block short and never await
+    anything slow inside it.
+    """
+
+    def __init__(self, store: "Store") -> None:
+        self._store = store
+
+    def get(self, collection: str, id_: str) -> Record | None:
+        record = self._store._data.get(collection, {}).get(id_)
+        return copy.deepcopy(record) if record is not None else None
+
+    def list(self, collection: str) -> list[Record]:
+        return [copy.deepcopy(r) for r in self._store._data.get(collection, {}).values()]
+
+    def put(self, collection: str, id_: str, record: Record) -> None:
+        self._store._data.setdefault(collection, {})[id_] = copy.deepcopy(record)
+
+    def delete(self, collection: str, id_: str) -> bool:
+        return self._store._data.get(collection, {}).pop(id_, None) is not None
+
+    def next_n(self, collection: str) -> int:
+        """Next sequential number for a collection (never reused; reset with the store)."""
+        n = self._store._counters.get(collection, 0) + 1
+        self._store._counters[collection] = n
+        return n
+
+    def next_id(self, collection: str, prefix: str) -> str:
+        return f"{prefix}-{self.next_n(collection)}"
 
 
 class Store:
@@ -27,6 +62,12 @@ class Store:
     async def reset(self) -> None:
         async with self._lock:
             self._load_seed()
+
+    @asynccontextmanager
+    async def tx(self) -> AsyncIterator[Tx]:
+        """Hold the store lock for a multi-step read-modify-write."""
+        async with self._lock:
+            yield Tx(self)
 
     async def create_auto(self, collection: str, prefix: str, record: Record) -> Record:
         """Store a record under a new sequential id (`<prefix>-<n>`, never reused)."""

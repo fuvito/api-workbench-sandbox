@@ -12,6 +12,7 @@ from app.config import Settings
 from app.family import build_family_router
 from app.ok import build_ok_router
 from app.ok.common import ApiError, api_error_handler, validation_error_handler
+from app.ok.ratelimit import RateLimited, rate_limited_handler
 from app.ok.security import Unauthorized, unauthorized_handler
 from app.seeds import conform_fail_seed, contract_fail_seed, ok_seed
 from app.store import Store
@@ -55,6 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.add_exception_handler(ApiError, api_error_handler)
     app.add_exception_handler(Unauthorized, unauthorized_handler)
+    app.add_exception_handler(RateLimited, rate_limited_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
 
     @app.middleware("http")

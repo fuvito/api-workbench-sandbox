@@ -26,6 +26,7 @@ async def test_customer_create_minimal_and_full(client):
 
     full = {
         **VALID,
+        "email": "full@example.com",
         "phone": "+15550001111",
         "birthDate": "1985-03-09",
         "externalRef": "3f2b8c1e-5d4a-4c8e-9a7b-1e2d3c4b5a69",

@@ -13,6 +13,9 @@ tags:
   - name: customers
   - name: settings
   - name: payments
+  - name: invoices
+  - name: discounts
+  - name: reports
   - name: security
   - name: products
   - name: orders
@@ -241,6 +244,9 @@ paths:
       responses:
         "201":
           description: Created (status starts as pending)
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
           content:
             application/json:
               schema:
@@ -260,6 +266,9 @@ paths:
       responses:
         "200":
           description: The order
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
           content:
             application/json:
               schema:
@@ -276,9 +285,18 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/OrderInput"
+      parameters:
+        - $ref: "#/components/parameters/IfMatchRequired"
       responses:
+        "428":
+          $ref: "#/components/responses/PreconditionRequired"
+        "412":
+          $ref: "#/components/responses/PreconditionFailed"
         "200":
           description: The updated order
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
           content:
             application/json:
               schema:
@@ -287,6 +305,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/Unprocessable"
     patch:
@@ -299,9 +319,18 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/OrderPatch"
+      parameters:
+        - $ref: "#/components/parameters/IfMatchRequired"
       responses:
+        "428":
+          $ref: "#/components/responses/PreconditionRequired"
+        "412":
+          $ref: "#/components/responses/PreconditionFailed"
         "200":
           description: The updated order
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
           content:
             application/json:
               schema:
@@ -310,17 +339,292 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/Unprocessable"
     delete:
       operationId: deleteOrder
       tags: [orders]
-      summary: Delete an order
+      summary: Delete an order (only pending or cancelled orders)
       responses:
         "204":
           description: Deleted
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /orders/{orderId}/pay:
+    post:
+      operationId: payOrder
+      tags: [orders]
+      summary: "Pay an order: pending to paid, takes stock (422 if short)"
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: The order after the move
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /orders/{orderId}/ship:
+    post:
+      operationId: shipOrder
+      tags: [orders]
+      summary: "Ship an order: paid to shipped"
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: The order after the move
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /orders/{orderId}/deliver:
+    post:
+      operationId: deliverOrder
+      tags: [orders]
+      summary: "Deliver an order: shipped to delivered"
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: The order after the move
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /orders/{orderId}/cancel:
+    post:
+      operationId: cancelOrder
+      tags: [orders]
+      summary: "Cancel an order: pending or paid to cancelled; paid orders give stock back"
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: The order after the move
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /orders/{orderId}/invoice:
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Invoice a paid order (one invoice per order, sequential numbers)
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: [invoices]
+      summary: List invoices (paginate)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Invoices (one page)
+          headers:
+            X-Total-Count:
+              $ref: "#/components/headers/TotalCount"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /invoices/{invoiceId}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get an invoice
+      parameters:
+        - $ref: "#/components/parameters/InvoiceId"
+      responses:
+        "200":
+          description: The invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /discount-codes/{code}:
+    get:
+      operationId: getDiscountCode
+      tags: [discounts]
+      summary: Get a discount code (also when expired)
+      parameters:
+        - $ref: "#/components/parameters/DiscountCode"
+      responses:
+        "200":
+          description: The discount code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscountCode"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /discount-codes/{code}/redeem:
+    post:
+      operationId: redeemDiscountCode
+      tags: [discounts]
+      summary: Use a discount code (410 once it has expired)
+      parameters:
+        - $ref: "#/components/parameters/DiscountCode"
+      responses:
+        "200":
+          description: The code is valid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscountCode"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Gone"
+
+  /reports:
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Start a report (asynchronous job)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "202":
+          description: Accepted; poll the Location URL
+          headers:
+            Location:
+              $ref: "#/components/headers/Location"
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /reports/{reportId}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Poll a report (202 while running, 200 once done; progress counts polls)
+      parameters:
+        - $ref: "#/components/parameters/ReportId"
+      responses:
+        "200":
+          description: The report is done
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "202":
+          description: The report is still running
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /rate-limited:
+    get:
+      operationId: getRateLimited
+      tags: [system]
+      summary: Limited to 5 calls per 60 seconds per client (X-Client-Id or address)
+      parameters:
+        - name: X-Client-Id
+          in: header
+          required: false
+          description: Identifies the client; defaults to the caller's address
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        "200":
+          description: Within the limit
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/RateLimitLimit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/RateLimitRemaining"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, remaining]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  remaining: { type: integer, minimum: 0 }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /projects:
     get:
@@ -423,12 +727,21 @@ paths:
     delete:
       operationId: deleteProject
       tags: [projects]
-      summary: Delete a project (its tasks are deleted with it for now)
+      summary: Delete a project (409 while it has open tasks, unless cascade=true)
+      parameters:
+        - name: cascade
+          in: query
+          description: Also delete the project's open tasks
+          schema: { type: boolean, default: false }
       responses:
         "204":
-          description: Deleted
+          description: Deleted (remaining tasks are deleted with it)
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
 
   /projects/{projectId}/tasks:
     parameters:
@@ -470,6 +783,9 @@ paths:
       responses:
         "201":
           description: Created
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
           content:
             application/json:
               schema:
@@ -490,6 +806,9 @@ paths:
       responses:
         "200":
           description: The task
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
           content:
             application/json:
               schema:
@@ -506,9 +825,16 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/TaskInput"
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
       responses:
+        "412":
+          $ref: "#/components/responses/PreconditionFailed"
         "200":
           description: The updated task
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
           content:
             application/json:
               schema:
@@ -527,9 +853,16 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/TaskPatch"
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
       responses:
+        "412":
+          $ref: "#/components/responses/PreconditionFailed"
         "200":
           description: The updated task
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
           content:
             application/json:
               schema:
@@ -554,6 +887,7 @@ paths:
       tags: [customers]
       summary: List customers (paginate)
       parameters:
+        - $ref: "#/components/parameters/IncludeDeleted"
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
@@ -585,6 +919,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Customer"
+        "409":
+          description: A customer with this email already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
         4XX:
           $ref: "#/components/responses/Problem"
 
@@ -595,6 +935,8 @@ paths:
       operationId: getCustomer
       tags: [customers]
       summary: Get a customer
+      parameters:
+        - $ref: "#/components/parameters/IncludeDeleted"
       responses:
         "200":
           description: The customer
@@ -609,7 +951,7 @@ paths:
     delete:
       operationId: deleteCustomer
       tags: [customers]
-      summary: Delete a customer
+      summary: Soft-delete a customer (still readable with includeDeleted=true)
       responses:
         "204":
           description: Deleted
@@ -694,7 +1036,15 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/PaymentInput"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       responses:
+        "200":
+          description: Replay of the first request made with the same Idempotency-Key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
         "201":
           description: Created
           content:
@@ -853,8 +1203,66 @@ components:
       in: path
       required: true
       schema: { type: string, example: pay-1 }
+    InvoiceId:
+      name: invoiceId
+      in: path
+      required: true
+      schema: { type: string, example: inv-1 }
+    IfMatchRequired:
+      name: If-Match
+      in: header
+      required: true
+      description: ETag of the version being changed (or *). Missing is 428, stale is 412.
+      schema: { type: string, example: "*" }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: Optional ETag of the version being changed. When sent and stale, 412.
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Same key and body replays the first result; same key with another body is 422.
+      schema: { type: string, minLength: 1, maxLength: 64 }
+    IncludeDeleted:
+      name: includeDeleted
+      in: query
+      description: Also return soft-deleted records
+      schema: { type: boolean, default: false }
+    DiscountCode:
+      name: code
+      in: path
+      required: true
+      schema: { type: string, example: SAVE10 }
+    ReportId:
+      name: reportId
+      in: path
+      required: true
+      schema: { type: string, example: rep-1 }
 
   headers:
+    Location:
+      description: Where to poll for the result
+      required: true
+      schema: { type: string }
+    RetryAfter:
+      description: Seconds to wait before asking again
+      required: true
+      schema: { type: integer, minimum: 1 }
+    RateLimitLimit:
+      description: Calls allowed per window
+      required: true
+      schema: { type: integer }
+    RateLimitRemaining:
+      description: Calls left in the current window
+      required: true
+      schema: { type: integer, minimum: 0 }
+    ETag:
+      description: Version of the returned representation, for If-Match
+      required: true
+      schema: { type: string }
     TotalCount:
       description: Number of records matching the filters, before pagination
       required: true
@@ -873,6 +1281,43 @@ components:
             $ref: "#/components/schemas/Error"
     NotFound:
       description: Resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: The request conflicts with the current state of the resource
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    PreconditionFailed:
+      description: The If-Match value does not match the current version
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    PreconditionRequired:
+      description: An If-Match header is required for this change
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: Rate limit reached
+      headers:
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+        X-RateLimit-Limit:
+          $ref: "#/components/headers/RateLimitLimit"
+        X-RateLimit-Remaining:
+          $ref: "#/components/headers/RateLimitRemaining"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Gone:
+      description: The resource existed but has expired
       content:
         application/json:
           schema:
@@ -950,13 +1395,21 @@ components:
       enum: [pending, paid, shipped, delivered, cancelled]
     Order:
       type: object
-      required: [id, productId, quantity, status]
+      required: [id, productId, quantity, status, unitPrice, total, createdAt, updatedAt]
       properties:
         id: { type: string }
         productId: { type: string }
         quantity: { type: integer }
         status:
           $ref: "#/components/schemas/OrderStatus"
+        unitPrice:
+          type: number
+          description: Product price when the order was created or last edited
+        total:
+          type: number
+          description: Quantity x unit price plus 10% tax, rounded to cents
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     OrderInput:
       type: object
       additionalProperties: false
@@ -1077,6 +1530,7 @@ components:
           type: object
           additionalProperties: { type: string }
         createdAt: { type: string, format: date-time, readOnly: true }
+        deletedAt: { type: string, format: date-time, readOnly: true }
     CustomerInput:
       type: object
       additionalProperties: false
@@ -1251,3 +1705,54 @@ components:
       properties:
         partner: { type: string }
         status: { type: string, enum: [active] }
+
+    Invoice:
+      type: object
+      required: [id, number, orderId, total, issuedAt]
+      properties:
+        id: { type: string }
+        number:
+          type: string
+          pattern: '^INV-[0-9]{6}$'
+          description: Sequential invoice number
+        orderId: { type: string }
+        total: { type: number }
+        issuedAt: { type: string, format: date-time }
+    InvoiceList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        total: { type: integer }
+
+    DiscountCode:
+      type: object
+      required: [id, code, percentOff, expiresAt]
+      properties:
+        id: { type: string }
+        code: { type: string }
+        percentOff: { type: integer, minimum: 1, maximum: 100 }
+        expiresAt: { type: string, format: date-time }
+
+    ReportInput:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type: { type: string, enum: [sales, inventory] }
+    Report:
+      type: object
+      required: [id, type, status]
+      properties:
+        id: { type: string }
+        type: { type: string, enum: [sales, inventory] }
+        status: { type: string, enum: [running, done] }
+        result:
+          type: object
+          description: Present once status is done
+          properties:
+            rows: { type: integer }
+            report: { type: string }

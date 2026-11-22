@@ -1,0 +1,380 @@
+schemaVersion: "1"
+title: ok - business rules
+description: >
+  Walks through the light business rules: stock and computed totals, order states, ETag and
+  If-Match, invoices, unique emails, soft delete, project ownership, idempotency keys, expiring
+  codes, the async report and the rate limit. Run with --spec <url>/ok/openapi.yaml.
+
+steps:
+  - label: Reset ok store
+    request: { method: POST, url: "{{baseUrl}}/__admin/reset" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  # ---- stock and computed fields ----
+  - label: Order above stock is refused
+    request:
+      method: POST
+      url: "{{baseUrl}}/orders"
+      body: { type: json, content: '{"productId":"p-2","quantity":6}' }
+    assertions:
+      - { type: status, operator: eq, expected: 422 }
+    failPolicy: continue
+
+  - label: Create order (3 x 24.50 + 10% tax)
+    request:
+      method: POST
+      url: "{{baseUrl}}/orders"
+      body: { type: json, content: '{"productId":"p-2","quantity":3}' }
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+      - { type: jsonpath, path: "$.total", operator: eq, expected: "80.85" }
+      - { type: jsonpath, path: "$.status", operator: eq, expected: "pending" }
+    extractions:
+      - { name: orderId, source: jsonpath, path: "$.id" }
+      - { name: orderEtag, source: header, path: ETag }
+    failPolicy: stop
+
+  # ---- ETag / If-Match ----
+  - label: Edit without If-Match is 428
+    request:
+      method: PATCH
+      url: "{{baseUrl}}/orders/{{orderId}}"
+      body: { type: json, content: '{"quantity":2}' }
+    assertions:
+      - { type: status, operator: eq, expected: 428 }
+    failPolicy: continue
+
+  - label: Edit with a stale If-Match is 412
+    request:
+      method: PATCH
+      url: "{{baseUrl}}/orders/{{orderId}}"
+      headers:
+        - { name: If-Match, value: '"stale"' }
+      body: { type: json, content: '{"quantity":2}' }
+    assertions:
+      - { type: status, operator: eq, expected: 412 }
+    failPolicy: continue
+
+  - label: Edit with the current ETag
+    request:
+      method: PATCH
+      url: "{{baseUrl}}/orders/{{orderId}}"
+      headers:
+        - { name: If-Match, value: "{{orderEtag}}" }
+      body: { type: json, content: '{"quantity":2}' }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.total", operator: eq, expected: "53.9" }
+    extractions:
+      - { name: newEtag, source: header, path: ETag }
+    failPolicy: stop
+
+  - label: The old ETag no longer works (lost update prevented)
+    request:
+      method: PATCH
+      url: "{{baseUrl}}/orders/{{orderId}}"
+      headers:
+        - { name: If-Match, value: "{{orderEtag}}" }
+      body: { type: json, content: '{"quantity":1}' }
+    assertions:
+      - { type: status, operator: eq, expected: 412 }
+    failPolicy: continue
+
+  # ---- order states and stock ----
+  - label: Pay takes stock
+    request: { method: POST, url: "{{baseUrl}}/orders/{{orderId}}/pay" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.status", operator: eq, expected: "paid" }
+    failPolicy: stop
+
+  - label: Stock went from 5 to 3
+    request: { method: GET, url: "{{baseUrl}}/products/p-2" }
+    assertions:
+      - { type: jsonpath, path: "$.stock", operator: eq, expected: "3" }
+    failPolicy: continue
+
+  - label: Paying twice is 409
+    request: { method: POST, url: "{{baseUrl}}/orders/{{orderId}}/pay" }
+    assertions:
+      - { type: status, operator: eq, expected: 409 }
+    failPolicy: continue
+
+  - label: A paid order is no longer editable (409, precondition passes)
+    request:
+      method: PATCH
+      url: "{{baseUrl}}/orders/{{orderId}}"
+      headers:
+        - { name: If-Match, value: "*" }
+      body: { type: json, content: '{"quantity":1}' }
+    assertions:
+      - { type: status, operator: eq, expected: 409 }
+    failPolicy: continue
+
+  - label: Cancel a paid order gives stock back
+    request: { method: POST, url: "{{baseUrl}}/orders/{{orderId}}/cancel" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.status", operator: eq, expected: "cancelled" }
+    failPolicy: stop
+
+  - label: Stock is back to 5
+    request: { method: GET, url: "{{baseUrl}}/products/p-2" }
+    assertions:
+      - { type: jsonpath, path: "$.stock", operator: eq, expected: "5" }
+    failPolicy: continue
+
+  - label: A cancelled order cannot ship
+    request: { method: POST, url: "{{baseUrl}}/orders/{{orderId}}/ship" }
+    assertions:
+      - { type: status, operator: eq, expected: 409 }
+    failPolicy: continue
+
+  # ---- invoices ----
+  - label: Create and pay another order
+    request:
+      method: POST
+      url: "{{baseUrl}}/orders"
+      body: { type: json, content: '{"productId":"p-1","quantity":1}' }
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+    extractions:
+      - { name: secondOrderId, source: jsonpath, path: "$.id" }
+    failPolicy: stop
+
+  - label: Invoice before payment is 409
+    request: { method: POST, url: "{{baseUrl}}/orders/{{secondOrderId}}/invoice" }
+    assertions:
+      - { type: status, operator: eq, expected: 409 }
+    failPolicy: continue
+
+  - label: Pay it
+    request: { method: POST, url: "{{baseUrl}}/orders/{{secondOrderId}}/pay" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: stop
+
+  - label: Invoice gets the next sequential number
+    request: { method: POST, url: "{{baseUrl}}/orders/{{secondOrderId}}/invoice" }
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+      - { type: jsonpath, path: "$.number", operator: eq, expected: "INV-000002" }
+    failPolicy: stop
+
+  - label: One invoice per order
+    request: { method: POST, url: "{{baseUrl}}/orders/{{secondOrderId}}/invoice" }
+    assertions:
+      - { type: status, operator: eq, expected: 409 }
+    failPolicy: continue
+
+  # ---- unique values and soft delete ----
+  - label: Duplicate email is a problem+json 409
+    request:
+      method: POST
+      url: "{{baseUrl}}/customers"
+      body: { type: json, content: '{"email":"ALICE@example.com","name":"Dup"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 409 }
+      - { type: header, path: Content-Type, operator: contains, expected: "application/problem+json" }
+    failPolicy: continue
+
+  - label: Soft-delete a customer
+    request: { method: DELETE, url: "{{baseUrl}}/customers/c-1" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  - label: A deleted customer is gone
+    request: { method: GET, url: "{{baseUrl}}/customers/c-1" }
+    assertions:
+      - { type: status, operator: eq, expected: 404 }
+    failPolicy: continue
+
+  - label: includeDeleted still shows it
+    request: { method: GET, url: "{{baseUrl}}/customers/c-1?includeDeleted=true" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.deletedAt", operator: matches, expected: "Z$" }
+    failPolicy: continue
+
+  - label: The email is free again
+    request:
+      method: POST
+      url: "{{baseUrl}}/customers"
+      body: { type: json, content: '{"email":"alice@example.com","name":"Alice again"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+    failPolicy: continue
+
+  # ---- ownership ----
+  - label: Project with open tasks cannot be deleted
+    request: { method: DELETE, url: "{{baseUrl}}/projects/pr-1" }
+    assertions:
+      - { type: status, operator: eq, expected: 409 }
+    failPolicy: continue
+
+  - label: cascade=true deletes it with its tasks
+    request: { method: DELETE, url: "{{baseUrl}}/projects/pr-1?cascade=true" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: continue
+
+  - label: Its tasks are gone
+    request: { method: GET, url: "{{baseUrl}}/projects/pr-1/tasks" }
+    assertions:
+      - { type: status, operator: eq, expected: 404 }
+    failPolicy: continue
+
+  # ---- idempotency ----
+  - label: First payment with a key
+    request:
+      method: POST
+      url: "{{baseUrl}}/payments"
+      headers:
+        - { name: Idempotency-Key, value: "scenario-key-1" }
+      body: { type: json, content: '{"method":"card","amount":10,"currency":"USD","cardLast4":"4242"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+    extractions:
+      - { name: paymentId, source: jsonpath, path: "$.id" }
+    failPolicy: stop
+
+  - label: Same key and body replays the first payment
+    request:
+      method: POST
+      url: "{{baseUrl}}/payments"
+      headers:
+        - { name: Idempotency-Key, value: "scenario-key-1" }
+      body: { type: json, content: '{"method":"card","amount":10,"currency":"USD","cardLast4":"4242"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.id", operator: eq, expected: "{{paymentId}}" }
+    failPolicy: continue
+
+  - label: Same key with another body is 422
+    request:
+      method: POST
+      url: "{{baseUrl}}/payments"
+      headers:
+        - { name: Idempotency-Key, value: "scenario-key-1" }
+      body: { type: json, content: '{"method":"card","amount":11,"currency":"USD","cardLast4":"4242"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 422 }
+    failPolicy: continue
+
+  # ---- expiry ----
+  - label: Valid code redeems
+    request: { method: POST, url: "{{baseUrl}}/discount-codes/SAVE10/redeem" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.percentOff", operator: eq, expected: "10" }
+    failPolicy: continue
+
+  - label: Expired code is 410
+    request: { method: POST, url: "{{baseUrl}}/discount-codes/OLD5/redeem" }
+    assertions:
+      - { type: status, operator: eq, expected: 410 }
+    failPolicy: continue
+
+  # ---- async report ----
+  - label: Start a report
+    request:
+      method: POST
+      url: "{{baseUrl}}/reports"
+      body: { type: json, content: '{"type":"sales"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 202 }
+      - { type: header, path: Location, operator: contains, expected: "/reports/" }
+    extractions:
+      - { name: newReportId, source: jsonpath, path: "$.id" }
+    failPolicy: stop
+
+  - label: Poll 1 - running
+    request: { method: GET, url: "{{baseUrl}}/reports/{{newReportId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 202 }
+      - { type: jsonpath, path: "$.status", operator: eq, expected: "running" }
+    failPolicy: continue
+
+  - label: Poll 2 - running
+    request: { method: GET, url: "{{baseUrl}}/reports/{{newReportId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 202 }
+    failPolicy: continue
+
+  - label: Poll 3 - done
+    request: { method: GET, url: "{{baseUrl}}/reports/{{newReportId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.status", operator: eq, expected: "done" }
+      - { type: jsonpath, path: "$.result.rows", operator: eq, expected: "3" }
+    failPolicy: continue
+
+  # ---- rate limit (5 calls per window per client) ----
+  - label: Rate limit call 1
+    request:
+      method: GET
+      url: "{{baseUrl}}/rate-limited"
+      headers: [{ name: X-Client-Id, value: "scenario-client" }]
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: header, path: X-RateLimit-Remaining, operator: eq, expected: "4" }
+    failPolicy: stop
+
+  - label: Rate limit call 2
+    request:
+      method: GET
+      url: "{{baseUrl}}/rate-limited"
+      headers: [{ name: X-Client-Id, value: "scenario-client" }]
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: stop
+
+  - label: Rate limit call 3
+    request:
+      method: GET
+      url: "{{baseUrl}}/rate-limited"
+      headers: [{ name: X-Client-Id, value: "scenario-client" }]
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: stop
+
+  - label: Rate limit call 4
+    request:
+      method: GET
+      url: "{{baseUrl}}/rate-limited"
+      headers: [{ name: X-Client-Id, value: "scenario-client" }]
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: stop
+
+  - label: Rate limit call 5
+    request:
+      method: GET
+      url: "{{baseUrl}}/rate-limited"
+      headers: [{ name: X-Client-Id, value: "scenario-client" }]
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: header, path: X-RateLimit-Remaining, operator: eq, expected: "0" }
+    failPolicy: stop
+
+  - label: Call 6 is throttled
+    request:
+      method: GET
+      url: "{{baseUrl}}/rate-limited"
+      headers: [{ name: X-Client-Id, value: "scenario-client" }]
+    assertions:
+      - { type: status, operator: eq, expected: 429 }
+      - { type: header, path: Retry-After, operator: matches, expected: "^(59|60)$" }
+    failPolicy: continue
+
+  - label: Another client is not throttled
+    request:
+      method: GET
+      url: "{{baseUrl}}/rate-limited"
+      headers: [{ name: X-Client-Id, value: "someone-else" }]
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue

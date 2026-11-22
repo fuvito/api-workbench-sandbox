@@ -31,9 +31,14 @@ curl -X POST http://localhost:8080/ok/__admin/reset
 clrsig conform http://localhost:8080/ok/openapi.yaml --env clrsig/environments/ok.yaml --negative
 clrsig run clrsig/scenarios/ok-crud.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 clrsig run clrsig/scenarios/ok-schemas-and-security.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
+clrsig run clrsig/scenarios/ok-business-rules.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 ```
 
 Verified with released `clrsig` v0.7.1 (earlier versions have known issues; see `docs/clrsig-findings.md`).
+
+## Business rules in the `ok` API
+
+Orders: `pending -> paid -> shipped -> delivered`, and `pending/paid -> cancelled` through `POST /orders/{id}/pay|ship|deliver|cancel`; paying takes stock, cancelling a paid order returns it; only pending orders can be edited (`PUT`/`PATCH` need `If-Match`, `428` if missing, `412` if stale). Totals are quantity x price + 10% tax. `POST /orders/{id}/invoice` issues sequential `INV-nnnnnn` numbers. Customer emails are unique (`409`) and customers are soft-deleted. A project with open tasks cannot be deleted unless `?cascade=true`. `POST /payments` honors `Idempotency-Key`. Discount code `OLD5` is expired (`410`). Reports are asynchronous (`202` twice, then `200`). `GET /ok/rate-limited` allows 5 calls per 60 s per client (`X-Client-Id`). Reset restores all of it.
 
 ## Test credentials (fake fixtures, not secrets)
 

@@ -1,9 +1,20 @@
 """Projects and their tasks (a task belongs to exactly one project)."""
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Header, Response
 from pydantic import Field
 
-from app.ok.common import BoolText, Page, PatchModel, StrictModel, as_bool, not_found, paged
+from app.ok.common import (
+    ApiError,
+    BoolText,
+    Page,
+    PatchModel,
+    StrictModel,
+    as_bool,
+    check_if_match,
+    not_found,
+    paged,
+    with_etag,
+)
 from app.store import Store
 
 
@@ -79,14 +90,23 @@ def build(store: Store) -> APIRouter:
         return project
 
     @router.delete("/projects/{project_id}", status_code=204)
-    async def delete_project(project_id: str) -> Response:
-        if not await store.delete("projects", project_id):
-            raise not_found("project", project_id)
-        # Interim rule: tasks go with their project. Phase 2 business rules
-        # replace this with 409 (open tasks) / ?cascade=true.
-        for task in await store.list("tasks"):
-            if task["projectId"] == project_id:
-                await store.delete("tasks", task["id"])
+    async def delete_project(project_id: str, cascade: BoolText | None = None) -> Response:
+        """A project with open tasks (not done) is protected: 409, unless ?cascade=true.
+        Whenever the delete goes through, the project's remaining tasks go with it."""
+        async with store.tx() as tx:
+            if tx.get("projects", project_id) is None:
+                raise not_found("project", project_id)
+            tasks = [t for t in tx.list("tasks") if t["projectId"] == project_id]
+            open_tasks = [t for t in tasks if not t["done"]]
+            if open_tasks and not as_bool(cascade):
+                raise ApiError(
+                    409,
+                    "has_open_tasks",
+                    f"project {project_id!r} has {len(open_tasks)} open task(s); use ?cascade=true",
+                )
+            for task in tasks:
+                tx.delete("tasks", task["id"])
+            tx.delete("projects", project_id)
         return Response(status_code=204)
 
     # --- tasks ---
@@ -105,27 +125,47 @@ def build(store: Store) -> APIRouter:
         return paged(items, page, response)
 
     @router.post("/projects/{project_id}/tasks", status_code=201)
-    async def create_task(project_id: str, body: TaskInput) -> dict:
+    async def create_task(project_id: str, body: TaskInput, response: Response) -> dict:
         await require_project(project_id)
-        return await store.create_auto("tasks", "t", {"projectId": project_id, **body.model_dump()})
+        task = await store.create_auto(
+            "tasks", "t", {"projectId": project_id, **body.model_dump()}
+        )
+        return with_etag(response, task)
 
     @router.get("/projects/{project_id}/tasks/{task_id}")
-    async def get_task(project_id: str, task_id: str) -> dict:
-        return await require_task(project_id, task_id)
+    async def get_task(project_id: str, task_id: str, response: Response) -> dict:
+        return with_etag(response, await require_task(project_id, task_id))
+
+    # On tasks If-Match is optional: when sent it must match (412), when absent the write
+    # goes through. Orders make it mandatory (428).
 
     @router.put("/projects/{project_id}/tasks/{task_id}")
-    async def replace_task(project_id: str, task_id: str, body: TaskInput) -> dict:
-        await require_task(project_id, task_id)
+    async def replace_task(
+        project_id: str,
+        task_id: str,
+        body: TaskInput,
+        response: Response,
+        if_match: str | None = Header(default=None),
+    ) -> dict:
+        current = await require_task(project_id, task_id)
+        check_if_match(if_match, current, required=False)
         record = {"id": task_id, "projectId": project_id, **body.model_dump()}
         await store.update("tasks", task_id, record)
-        return record
+        return with_etag(response, record)
 
     @router.patch("/projects/{project_id}/tasks/{task_id}")
-    async def update_task(project_id: str, task_id: str, body: TaskPatch) -> dict:
+    async def update_task(
+        project_id: str,
+        task_id: str,
+        body: TaskPatch,
+        response: Response,
+        if_match: str | None = Header(default=None),
+    ) -> dict:
         task = await require_task(project_id, task_id)
+        check_if_match(if_match, task, required=False)
         task.update(body.changes())
         await store.update("tasks", task_id, task)
-        return task
+        return with_etag(response, task)
 
     @router.delete("/projects/{project_id}/tasks/{task_id}", status_code=204)
     async def delete_task(project_id: str, task_id: str) -> Response:

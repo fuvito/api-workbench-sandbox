@@ -3,6 +3,7 @@
 import pytest
 
 ERROR_KEYS = {"code", "message"}
+STAR = {"If-Match": "*"}  # matches any current version of an order
 
 
 def assert_error(r, status):
@@ -73,16 +74,23 @@ async def test_product_unknown_id_is_404(client):
 async def test_order_flow_and_product_rule(client):
     r = await client.post("/ok/orders", json={"productId": "p-1", "quantity": 2})
     assert r.status_code == 201
-    assert r.json() == {"id": "o-3", "productId": "p-1", "quantity": 2, "status": "pending"}
+    order = r.json()
+    assert {k: order[k] for k in ("id", "productId", "quantity", "status")} == {
+        "id": "o-3",
+        "productId": "p-1",
+        "quantity": 2,
+        "status": "pending",
+    }
+    assert order["unitPrice"] == 9.99 and order["total"] == 21.98  # 2 x 9.99 + 10% tax
 
     assert_error(await client.post("/ok/orders", json={"productId": "nope", "quantity": 1}), 422)
     assert_error(await client.post("/ok/orders", json={"productId": "p-1", "quantity": 0}), 400)
 
-    r = await client.put("/ok/orders/o-3", json={"productId": "p-2", "quantity": 5})
+    r = await client.put("/ok/orders/o-3", json={"productId": "p-2", "quantity": 5}, headers=STAR)
     assert r.status_code == 200
     assert r.json()["status"] == "pending"  # PUT does not touch status
-    assert_error(await client.put("/ok/orders/o-3", json={"productId": "nope", "quantity": 1}), 422)
-    assert_error(await client.put("/ok/orders/nope", json={"productId": "p-1", "quantity": 1}), 404)
+    assert_error(await client.put("/ok/orders/o-3", json={"productId": "nope", "quantity": 1}, headers=STAR), 422)
+    assert_error(await client.put("/ok/orders/nope", json={"productId": "p-1", "quantity": 1}, headers=STAR), 404)
 
     assert (await client.delete("/ok/orders/o-3")).status_code == 204
     assert_error(await client.get("/ok/orders/o-3"), 404)
@@ -122,8 +130,10 @@ async def test_task_ownership(client):
     assert_error(await client.delete("/ok/projects/pr-2/tasks/t-4"), 404)
 
 
-async def test_deleting_project_removes_its_tasks(client):
-    assert (await client.delete("/ok/projects/pr-1")).status_code == 204
+async def test_deleting_project_removes_its_tasks_when_allowed(client):
+    # pr-1 has one open task (t-1), so a plain delete is refused; cascade goes through.
+    assert_error(await client.delete("/ok/projects/pr-1"), 409)
+    assert (await client.delete("/ok/projects/pr-1", params={"cascade": "true"})).status_code == 204
     assert_error(await client.get("/ok/projects/pr-1/tasks"), 404)
     state = (await client.get("/ok/__admin/state")).json()
     assert set(state["tasks"]) == {"t-3"}

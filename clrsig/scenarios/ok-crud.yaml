@@ -79,6 +79,7 @@ steps:
       - { type: jsonpath, path: "$.status", operator: eq, expected: "pending" }
     extractions:
       - { name: orderId, source: jsonpath, path: "$.id" }
+      - { name: orderEtag, source: header, path: ETag }
     failPolicy: stop
 
   - label: Reject order for unknown product
@@ -92,16 +93,32 @@ steps:
       - { type: status, operator: eq, expected: 422 }
     failPolicy: continue
 
-  - label: Update order quantity
+  - label: Reject order quantity above stock
     request:
       method: PUT
       url: "{{baseUrl}}/orders/{{orderId}}"
+      headers:
+        - { name: If-Match, value: "{{orderEtag}}" }
       body:
         type: json
-        content: '{"productId":"{{productId}}","quantity":5}'
+        content: '{"productId":"{{productId}}","quantity":4}'
+    assertions:
+      - { type: status, operator: eq, expected: 422 }
+    failPolicy: continue
+
+  - label: Update order quantity (product has stock 3)
+    request:
+      method: PUT
+      url: "{{baseUrl}}/orders/{{orderId}}"
+      headers:
+        - { name: If-Match, value: "{{orderEtag}}" }
+      body:
+        type: json
+        content: '{"productId":"{{productId}}","quantity":3}'
     assertions:
       - { type: status, operator: eq, expected: 200 }
-      - { type: jsonpath, path: "$.quantity", operator: eq, expected: "5" }
+      - { type: jsonpath, path: "$.quantity", operator: eq, expected: "3" }
+      - { type: jsonpath, path: "$.total", operator: eq, expected: "49.5" }
     failPolicy: stop
 
   - label: Delete order

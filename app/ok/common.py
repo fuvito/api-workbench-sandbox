@@ -1,5 +1,7 @@
 """Shared pieces of the strict `ok` API: error shape, request models, list helpers."""
 
+import hashlib
+import json
 from typing import Any, Literal
 
 from fastapi import Query, Request, Response
@@ -7,6 +9,8 @@ from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, model_validator
+
+from app import clock
 
 
 class StrictModel(BaseModel):
@@ -28,9 +32,41 @@ class PatchModel(StrictModel):
         return self.model_dump(exclude_unset=True)
 
 
+def utc_now() -> str:
+    """Current UTC time as an RFC 3339 string with second precision (matches `date-time`)."""
+    return clock.utcnow().replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
 class ApiError(Exception):
     def __init__(self, status: int, code: str, message: str) -> None:
         self.status, self.code, self.message = status, code, message
+
+
+def etag_of(record: dict) -> str:
+    """Strong ETag of a representation: a short hash of its canonical JSON."""
+    raw = json.dumps(record, sort_keys=True, separators=(",", ":"))
+    return '"' + hashlib.sha256(raw.encode()).hexdigest()[:16] + '"'
+
+
+def check_if_match(header: str | None, record: dict, *, required: bool) -> None:
+    """Optimistic concurrency: 428 when required and absent, 412 when it does not match.
+
+    `*` matches any existing record; several comma-separated tags are allowed; weak tags
+    (W/"...") never match, as strong comparison requires.
+    """
+    if header is None:
+        if required:
+            raise ApiError(428, "precondition_required", "an If-Match header is required")
+        return
+    tags = [t.strip() for t in header.split(",")]
+    if "*" not in tags and etag_of(record) not in tags:
+        raise ApiError(412, "precondition_failed", "the resource changed; fetch it again")
+
+
+def with_etag(response: Response, record: dict) -> dict:
+    """Set the ETag header from the representation being returned, and return it."""
+    response.headers["ETag"] = etag_of(record)
+    return record
 
 
 def not_found(what: str, id_: str) -> ApiError:

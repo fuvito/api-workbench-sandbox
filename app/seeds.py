@@ -11,8 +11,35 @@ def ok_seed() -> SeedData:
             "p-3": {"id": "p-3", "name": "Gizmo", "price": 4.0, "stock": 0},
         },
         "orders": {
-            "o-1": {"id": "o-1", "productId": "p-1", "quantity": 2, "status": "pending"},
-            "o-2": {"id": "o-2", "productId": "p-2", "quantity": 1, "status": "paid"},
+            "o-1": {
+                "id": "o-1",
+                "productId": "p-1",
+                "quantity": 2,
+                "status": "pending",
+                "unitPrice": 9.99,
+                "total": 21.98,
+                "createdAt": "2026-01-03T08:00:00Z",
+                "updatedAt": "2026-01-03T08:00:00Z",
+            },
+            "o-2": {
+                "id": "o-2",
+                "productId": "p-2",
+                "quantity": 1,
+                "status": "paid",
+                "unitPrice": 24.5,
+                "total": 26.95,
+                "createdAt": "2026-01-04T08:00:00Z",
+                "updatedAt": "2026-01-04T09:00:00Z",
+            },
+        },
+        "invoices": {
+            "inv-1": {
+                "id": "inv-1",
+                "number": "INV-000001",
+                "orderId": "o-2",
+                "total": 26.95,
+                "issuedAt": "2026-01-04T09:30:00Z",
+            },
         },
         "projects": {
             "pr-1": {"id": "pr-1", "name": "Launch", "description": "First release"},
@@ -56,6 +83,12 @@ def ok_seed() -> SeedData:
                 "iban": "DE89370400440532013000",
                 "status": "authorized",
             },
+        },
+        "reports": {"rep-1": {"id": "rep-1", "type": "sales", "polls": 0}},
+        "discount_codes": {
+            "SAVE10": {"id": "SAVE10", "code": "SAVE10", "percentOff": 10, "expiresAt": "2099-12-31T23:59:59Z"},
+            "WELCOME5": {"id": "WELCOME5", "code": "WELCOME5", "percentOff": 5, "expiresAt": "2099-06-30T23:59:59Z"},
+            "OLD5": {"id": "OLD5", "code": "OLD5", "percentOff": 5, "expiresAt": "2020-12-31T23:59:59Z"},
         },
         "audit_events": {
             "ae-1": {"id": "ae-1", "action": "login", "actor": "alice", "at": "2026-01-01T09:00:00Z"},
