@@ -400,6 +400,8 @@ Same numbers as Part 1. For each problem: **Check** (the ID in the report), **Ho
 
 Useful flags: `--paths /x,/y` and `--tags a,b` (choose operations), `--env FILE` (values for placeholders), `--var name=value` (override one), `--explain` (plain-language reason under each failure), `--fail-fast`, `--read-only` (send only GET and HEAD), `--format json|junit|html|markdown` (reports for CI), `--max-response-time MS`, `--request-timeout MS`, `--baseline FILE` and `--write-baseline FILE`, `--seed N` (repeat random values).
 
+The same checks are also available outside the terminal: `conform` is a tool of the clrsig MCP server (an AI agent can call it; it takes `spec`, `baseUrl` and `envFile`), the GitHub Action has inputs for the main flags (including `max-response-time`), and the desktop app has a Check Conformance page.
+
 **How to read a result.** A line `FAIL GET /path 200` is one operation. The lines below it start with `✗` and say what is wrong, in words. With `--format json`, each finding has a `kind` and a `checkId` (for example `CS-RESP-005`) that a script can read. The last line is a summary (`FAILED 24 operations · 0 passed · ...`) and the exit code is what CI looks at.
 
 ### Group A: The response does not match the contract
@@ -764,6 +766,8 @@ Each card gives the **goal**, the **problems** (numbers from Parts 1 and 2), the
   3. `clrsig diff openapi.yaml --against origin/main` (no breaking change);
   4. `clrsig run scenarios/ --spec openapi.yaml` (the business rules);
   5. `--baseline known.yaml` to adopt gradually.
+
+  AI agents can run step 2 through the clrsig MCP server's `conform` tool instead of the command line.
 - **Analogy:** an airport: ID check, security, boarding pass, each step catches different things.
 - **Limits:** CI needs a running test server and test data that resets (`POST /__admin/reset` in the practice server).
 - **Recap:** Which step catches a removed endpoint? Why pin the clrsig version? How do you adopt the tool on an API with many problems?
