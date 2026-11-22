@@ -126,6 +126,40 @@ docker run --rm -p 8080:8080 api-workbench-sandbox
 
 Set `ADMIN_TOKEN` when running anywhere other than your own machine.
 
+## Architecture
+
+One Python 3.13 / FastAPI process, served by Uvicorn on one port. Each family is a router under its own prefix with its own in-memory `Store` (`app/store.py`: one `asyncio.Lock` per store, atomic multi-step rules through `Store.tx()`, seed factories that reset restores). The OpenAPI specs in `specs/` are hand-written and are the source of truth: they are served as checked in, except that `servers[0].url` becomes `PUBLIC_BASE_URL` (or the request's own base URL). FastAPI's generated `/openapi.json` is not used. Layout: `app/ok/` (the conforming API), `app/contract_fail/` and `app/conform_fail/` (the deliberate deviations), `app/latency.py` (every deliberate delay), `app/limits.py` (request-body cap), `clrsig/` (environments and scenarios), `expectations/` and `scripts/` (what ClearSignal must report and the runner that checks it).
+
+## Admin token
+
+`ADMIN_TOKEN` is optional locally and mandatory anywhere shared. When set, `POST <prefix>/__admin/reset` and `GET <prefix>/__admin/state` answer `401` without `Authorization: Bearer <ADMIN_TOKEN>`; it is never logged. Generate one with `python -c "import secrets; print(secrets.token_urlsafe(32))"`, pass it as an environment variable (a Secret Manager secret on Cloud Run), and export it for the expectations runner, which resets families with it.
+
+## Limits and safety
+
+| Limit | Value | Where |
+|---|---|---|
+| request body | 1 MiB, then `413` (also for chunked bodies) | `app/limits.py` |
+| deliberate delay requested | 10 000 ms, then `400` | `app/latency.py` |
+| scaled sleep | 30 s, after `LATENCY_SCALE` (0 to 10) | `app/latency.py` |
+| simultaneous slow requests | 20, then `503` | `app/latency.py` |
+| `/conform-fail/large` response | 60 MB, then `400`; streamed, so memory stays flat (a 60 MB answer used about 43 MiB) | `app/conform_fail/timing.py` |
+| records per collection | bounded (200 in the business-rule cases), then `422` | handlers |
+
+No handler makes an outbound request from caller input: there is no HTTP client in the application, and the only redirect (`/conform-fail/redirect-loop`) points at itself. Verified by reading the code and in `tests/test_limits.py`; the caps were also exercised against the Docker container.
+
+## Troubleshooting
+
+- **A response check "passes" in a plain `clrsig conform` run:** it may have been skipped; specs with `servers` skip response validation (F-010). Use `scripts/clrsig_spec_copy.py` or `check_expectations.py`.
+- **Timing cases fail on Windows:** the host overshoots delays; run against the Docker container.
+- **Reset answers `401`:** `ADMIN_TOKEN` is set; send the bearer token, and export `ADMIN_TOKEN` for the runner.
+- **State looks wrong:** it is shared by every caller and lost on restart; reset the family first.
+- **A run reports a case mismatch after a `clrsig` upgrade:** an expectation that encodes a known bug flipped; see `docs/clrsig-findings.md` and update the expectation in the same change that bumps `CLRSIG_VERSION`.
+- **Port in use:** set `PORT`.
+
+## Known gaps and Cloud Run
+
+Known gaps: the open ClearSignal findings (F-003 to F-020, `docs/clrsig-findings.md`), the `local_only` transport and large-body cases (not verified on Cloud Run), unconfirmed fake credentials, and the report polling delay (poll-count progression, not wall-clock). Cloud Run is not deployed yet; preparation, verified settings and an unverified runbook are in `docs/cloud-run-prep.md`. On Cloud Run, scale-to-zero, a restart or an instance replacement erases all state, and simultaneous users share the same stores and can interfere with one another.
+
 ## KT notes
 
 Per-phase walkthroughs live in `docs/kts/` (index: `docs/kts/README.md`).

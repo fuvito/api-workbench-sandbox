@@ -14,7 +14,7 @@ The production image was run the way Cloud Run runs it: `PORT=9000` (not 8080), 
 - `docker stop` ends the container with exit code 0 (SIGTERM handled; Uvicorn `timeout_graceful_shutdown=10`, which matches Cloud Run's 10 s stop window).
 - `check_expectations.py --cloud --base-url http://localhost:8090` with `ADMIN_TOKEN` set: `ok`, `contract-fail` and `conform-fail` all as expected. `--cloud` skips the `local_only` entries and the whole-spec run, which include transport behavior and bodies over 32 MB.
 
-Not verified: memory use of the large-body cases at 512 MB (they are `local_only` and were skipped), and anything that depends on Cloud Run's own front end (HTTP/2, body-size limits, header handling).
+Also checked later against the container (512 MB): the 60 MB `/large` response and the 1 MiB request-body cap. Not verified: anything that depends on Cloud Run's own front end (HTTP/2, body-size limits, header handling).
 
 ## Proposed settings
 
@@ -23,7 +23,7 @@ Not verified: memory use of the large-body cases at 512 MB (they are `local_only
 | `--max-instances` | 1 | state is in memory; `min-instances` stays 0 (state is lost on scale-to-zero, by design) |
 | `--timeout` | 60s | the longest deliberate delay is 30 s (`MAX_SLEEP_SECONDS`, also `/timeout/hang`) |
 | `--concurrency` | 40 | 20 slow-request slots exist (`MAX_CONCURRENT_SLOW`); the rest is headroom for ordinary requests |
-| `--cpu` / `--memory` | 1 / 1Gi | 1Gi rather than 512Mi until the 32 MB `/large` cases are tried under a limit |
+| `--cpu` / `--memory` | 1 / 512Mi | a 60 MB `/large` response used about 43 MiB in a 512 MB container (streamed); raise it if more concurrency is wanted |
 | `PORT` | set by Cloud Run | the app already reads it; do not set it yourself |
 | `HOST` | `0.0.0.0` | already set in the image |
 | `PUBLIC_BASE_URL` | the service URL | known only after the first deploy: deploy, read the URL, update the service |
@@ -40,7 +40,7 @@ printf '%s' "<new random token>" | gcloud secrets create clearsignal-admin-token
 IMAGE=$REGION-docker.pkg.dev/$PROJECT/sandbox/$SERVICE:$(git rev-parse --short HEAD)
 gcloud builds submit --tag $IMAGE .            # or: docker build / docker push
 gcloud run deploy $SERVICE --image $IMAGE --region $REGION \
-  --max-instances 1 --min-instances 0 --concurrency 40 --timeout 60 --cpu 1 --memory 1Gi \
+  --max-instances 1 --min-instances 0 --concurrency 40 --timeout 60 --cpu 1 --memory 512Mi \
   --set-secrets ADMIN_TOKEN=clearsignal-admin-token:latest \
   --set-env-vars LATENCY_SCALE=1,DRIFT=0 --allow-unauthenticated   # or private: see the open decisions
 URL=$(gcloud run services describe $SERVICE --region $REGION --format 'value(status.url)')
@@ -70,4 +70,3 @@ ADMIN_TOKEN=<secret> uv run python scripts/check_expectations.py --expectations 
 
 - No cloud-specific expectation overrides yet (needs a real deployment to know which entries differ).
 - No scripted deploy: the runbook is commands, not a script, until it has run once.
-- Memory under limit with the largest bodies is unmeasured.

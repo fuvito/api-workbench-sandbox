@@ -12,6 +12,7 @@ from app.config import Settings
 from app.conform_fail import build_conform_fail_router
 from app.contract_fail import build_contract_fail_router
 from app.family import build_family_router
+from app.limits import BodyLimit
 from app.latency import TooManySlowRequests, new_slow_slots
 from app.ok import build_ok_router
 from app.ok.common import (
@@ -72,6 +73,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(Unauthorized, unauthorized_handler)
     app.add_exception_handler(RateLimited, rate_limited_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
+
+    app.add_middleware(BodyLimit)  # added first = inside the access log, so a 413 is logged too
 
     @app.middleware("http")
     async def access_log(request: Request, call_next):

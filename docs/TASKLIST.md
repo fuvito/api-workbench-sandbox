@@ -228,15 +228,15 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 
 ## Phase 7 — Release readiness
 
-- [ ] Complete README with architecture, startup, reset, scenarios, and troubleshooting.
-- [ ] Document all fixed test credentials (never use real secrets).
-- [ ] Document admin-token setup.
-- [ ] Document request and latency caps.
-- [ ] Verify no outbound caller-controlled requests are possible.
-- [ ] Verify request-body and response-size limits.
-- [ ] Verify concurrent slow-request limits.
+- [x] Complete README with architecture, startup, reset, scenarios, and troubleshooting.
+- [x] Document all fixed test credentials (never use real secrets). (README table; whether these are the final credentials is still an open decision).
+- [x] Document admin-token setup.
+- [x] Document request and latency caps. (README table).
+- [x] Verify no outbound caller-controlled requests are possible. (no HTTP client in `app/`; the only redirect points at itself).
+- [x] Verify request-body and response-size limits. (found no request-body cap: added a 1 MiB limit, `app/limits.py`; checked against the container; `/large` caps at 60 MB and streams).
+- [x] Verify concurrent slow-request limits. (container: 25 parallel slow requests gave 20 x 200 and 5 x 503; later requests succeed).
 - [ ] Tag first release.
-- [ ] Record known gaps and cloud-specific limitations.
+- [x] Record known gaps and cloud-specific limitations. (README section).
 
 ## Knowledge transfer
 
