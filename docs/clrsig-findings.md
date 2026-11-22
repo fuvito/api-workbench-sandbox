@@ -55,11 +55,18 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Covered here instead by: pytest (`tests/test_ok_preconditions.py`) and the `ok-business-rules` scenario ("Edit without If-Match is 428").
   - Closed: —
 
+- [ ] **F-007 — Empty base URL in `conform` output (v0.7.1)**
+  - Type: cosmetic. Found: 2026-11-21, `clrsig` v0.7.1.
+  - Behavior: `conform` prints `Base URL:` with nothing after it, and when no operation gets an answer it says "No operation got an answer from : is the server running?" (empty address). The spec was loaded from `http://localhost:8080/ok/openapi.yaml` and its `servers[0].url` is `http://localhost:8080/ok`, and requests do go there.
+  - Repro: `clrsig conform http://localhost:8080/ok/openapi.yaml --env clrsig/environments/ok.yaml` (header line), or run it against a stopped server.
+  - Expected: print the base URL actually used (the `servers[0].url` or `--base-url`).
+  - Closed: —
+
 ---
 
 ## Baseline
 
-Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003, F-004, F-005, F-006 (all found with v0.7.1).
+Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003, F-004, F-005, F-006, F-007 (all found with v0.7.1).
 
 ## Notes
 

@@ -109,6 +109,8 @@ Implement bounded, reproducible behaviors needed by the fixture:
 - Unavailable-then-OK behavior.
 - Connection/body edge cases where supported by the runtime and hosting platform.
 
+Caps (implemented in `app/latency.py`): a requested delay is at most 10000 ms; `LATENCY_SCALE` is 0 to 10; the scaled sleep is at most 30 s; at most 20 deliberately slow requests run at once (more get `503`). On `ok`, `GET /ok-slow/{ms}` and the optional `?delay=<ms>` parameter on list operations use them.
+
 The source document identifies some connection-level cases as potentially local-only on Cloud Run. Maintain local/cloud expectation differences where necessary. Bound delays and concurrent slow requests.
 
 ### 5.7 Light business rules
@@ -162,7 +164,7 @@ Read configuration from environment variables:
 - `PUBLIC_BASE_URL` — optional public server URL used to render correct OpenAPI `servers` values.
 - `DRIFT` — baseline drift level; default `0`.
 - `ADMIN_TOKEN` — protects administrative endpoints when set.
-- `LATENCY_SCALE` — optional multiplier for deliberate delays.
+- `LATENCY_SCALE` — optional multiplier for deliberate delays, 0 to 10, default 1.
 
 Also support the source document's `--drift=<n>` startup flag if the chosen implementation supports it cleanly.
 

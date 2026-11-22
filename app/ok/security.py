@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 
 from app.ok.common import ApiError, Page, paged
+from app.ok.listing import get_page
 from app.store import Store
 
 BEARER_TOKEN = "test-token"
@@ -72,7 +73,7 @@ def build(store: Store) -> APIRouter:
         return {"user": BASIC_USER, "scopes": ["read"]}
 
     @router.get("/audit-events", dependencies=[Depends(require_basic)])
-    async def list_audit_events(response: Response, page: Page = Depends()) -> dict:
+    async def list_audit_events(response: Response, page: Page = Depends(get_page)) -> dict:
         return paged(await store.list("audit_events"), page, response)
 
     @router.get("/feature-flags", dependencies=[Depends(require_key_query)])

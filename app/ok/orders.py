@@ -23,6 +23,7 @@ from app.ok.common import (
     utc_now,
     with_etag,
 )
+from app.ok.listing import get_page
 from app.store import Store, Tx
 
 COLLECTION = "orders"
@@ -93,7 +94,7 @@ def build(store: Store) -> APIRouter:
     @router.get("/orders")
     async def list_orders(
         response: Response,
-        page: Page = Depends(),
+        page: Page = Depends(get_page),
         status: Status | None = None,
         product_id: str | None = Query(None, alias="productId", min_length=1),
     ) -> dict:

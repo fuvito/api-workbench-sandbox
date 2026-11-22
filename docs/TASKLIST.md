@@ -64,7 +64,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
 - [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
 
-**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-006 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-007 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [ ] Add remaining resource families from PRD.
@@ -95,11 +95,11 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Soft delete and include-deleted behavior (customers).
 
 ### Baseline latency
-- [ ] Implement bounded `GET /ok/ok-slow/{ms}` (confirm exact path against spec; source notes use `/ok-slow/{ms}` relative to `/ok`).
-- [ ] Implement report polling delay.
-- [ ] Implement optional bounded delay on list operations.
-- [ ] Add `LATENCY_SCALE`.
-- [ ] Verify default ClearSignal timeout passes and shorter configured timeout fails as expected.
+- [x] Implement bounded `GET /ok/ok-slow/{ms}` (path confirmed: `/ok-slow/{ms}` relative to `/ok`; 0 to 10000 ms, `400` above the cap, `503` when too many slow requests run).
+- [ ] Implement report polling delay. (Reports already progress by poll count, which the source notes allow: "N seconds or N polls". No wall-clock delay was added; decision pending.)
+- [x] Implement optional bounded delay on list operations: `?delay=<ms>` (0 to 10000) on all eight list operations, declared in the spec.
+- [x] Add `LATENCY_SCALE` (0 to 10, default 1; applied to every deliberate delay; the scaled sleep is capped at 30 s).
+- [x] Verify default ClearSignal timeout passes and shorter configured timeout fails as expected: `ok-latency` passes by default; `--timeout 100` fails the two slow steps (exit 1); `conform --request-timeout 500` against a 1500 ms delay fails with `context deadline exceeded`.
 
 **Exit criteria:** Baseline `ok` conformance and CRUD scenarios pass; reset produces repeatable state.
 

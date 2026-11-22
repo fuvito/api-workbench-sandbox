@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, Response
 
 from app.ok.common import ApiError, Page, not_found, paged, utc_now
+from app.ok.listing import get_page
 from app.store import Store
 
 COLLECTION = "invoices"
@@ -34,7 +35,7 @@ def build(store: Store) -> APIRouter:
             return invoice
 
     @router.get("/invoices")
-    async def list_invoices(response: Response, page: Page = Depends()) -> dict:
+    async def list_invoices(response: Response, page: Page = Depends(get_page)) -> dict:
         return paged(await store.list(COLLECTION), page, response)
 
     @router.get("/invoices/{invoice_id}")

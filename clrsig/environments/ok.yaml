@@ -35,3 +35,5 @@ variables:
     value: "SAVE10"
   - name: reportId
     value: "rep-1"
+  - name: ms
+    value: "100"

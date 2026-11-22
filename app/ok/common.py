@@ -4,13 +4,14 @@ import hashlib
 import json
 from typing import Any, Literal
 
-from fastapi import Query, Request, Response
+from fastapi import Request, Response
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from app import clock
+from app.latency import TooManySlowRequests
 
 
 class StrictModel(BaseModel):
@@ -99,6 +100,10 @@ async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
     return error_body(request, exc.status, exc.code, exc.message)
 
 
+async def too_many_slow_handler(request: Request, _: TooManySlowRequests) -> JSONResponse:
+    return error_body(request, 503, "too_many_slow_requests", "too many slow requests in progress; retry")
+
+
 async def validation_error_handler(request: Request, exc: RequestValidationError):
     """Malformed input on /ok is 400 with the declared error shape.
 
@@ -117,13 +122,9 @@ BoolText = Literal["true", "false"]
 
 
 class Page:
-    """`limit` / `offset` query parameters, validated as the spec declares them."""
+    """Validated `limit` / `offset`; built by `app.ok.listing.get_page`."""
 
-    def __init__(
-        self,
-        limit: int = Query(20, ge=1, le=100),
-        offset: int = Query(0, ge=0),
-    ) -> None:
+    def __init__(self, limit: int, offset: int) -> None:
         self.limit, self.offset = limit, offset
 
 

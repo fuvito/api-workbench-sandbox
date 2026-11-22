@@ -11,7 +11,7 @@ class Settings(BaseModel):
     public_base_url: str | None = None
     drift: int = 0
     admin_token: str | None = None
-    latency_scale: float = Field(default=1.0, ge=0)
+    latency_scale: float = Field(default=1.0, ge=0, le=10)
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> "Settings":

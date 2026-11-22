@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from pydantic import Field
 
 from app.ok.common import BoolText, Page, PatchModel, StrictModel, as_bool, not_found, paged
+from app.ok.listing import get_page
 from app.store import Store
 
 COLLECTION = "products"
@@ -34,7 +35,7 @@ def build(store: Store) -> APIRouter:
     @router.get("/products")
     async def list_products(
         response: Response,
-        page: Page = Depends(),
+        page: Page = Depends(get_page),
         q: str | None = Query(None, min_length=1, max_length=100),
         min_price: float | None = Query(None, alias="minPrice", ge=0, allow_inf_nan=False),
         max_price: float | None = Query(None, alias="maxPrice", ge=0, allow_inf_nan=False),

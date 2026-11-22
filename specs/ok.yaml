@@ -46,6 +46,7 @@ paths:
       tags: [products]
       summary: List products (filter, sort, paginate)
       parameters:
+        - $ref: "#/components/parameters/Delay"
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
         - name: q
@@ -66,6 +67,8 @@ paths:
           in: query
           schema: { type: string, enum: [name, -name, price, -price] }
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Matching products (one page)
           headers:
@@ -210,6 +213,7 @@ paths:
       tags: [orders]
       summary: List orders (filter, paginate)
       parameters:
+        - $ref: "#/components/parameters/Delay"
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
         - name: status
@@ -220,6 +224,8 @@ paths:
           in: query
           schema: { type: string, minLength: 1 }
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Matching orders (one page)
           headers:
@@ -470,9 +476,12 @@ paths:
       tags: [invoices]
       summary: List invoices (paginate)
       parameters:
+        - $ref: "#/components/parameters/Delay"
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Invoices (one page)
           headers:
@@ -626,15 +635,44 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /ok-slow/{ms}:
+    get:
+      operationId: getSlow
+      tags: [system]
+      summary: Correct but deliberately slow (waits ms, capped at 10000, times LATENCY_SCALE)
+      parameters:
+        - name: ms
+          in: path
+          required: true
+          description: Milliseconds to wait
+          schema: { type: integer, minimum: 0, maximum: 10000, example: 100 }
+      responses:
+        "200":
+          description: Answered after the delay
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [requestedMs]
+                properties:
+                  requestedMs: { type: integer, minimum: 0, maximum: 10000 }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
   /projects:
     get:
       operationId: listProjects
       tags: [projects]
       summary: List projects (paginate)
       parameters:
+        - $ref: "#/components/parameters/Delay"
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Projects (one page)
           headers:
@@ -751,12 +789,15 @@ paths:
       tags: [tasks]
       summary: List the tasks of a project (filter, paginate)
       parameters:
+        - $ref: "#/components/parameters/Delay"
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
         - name: done
           in: query
           schema: { type: boolean }
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Tasks of the project (one page)
           headers:
@@ -887,10 +928,13 @@ paths:
       tags: [customers]
       summary: List customers (paginate)
       parameters:
+        - $ref: "#/components/parameters/Delay"
         - $ref: "#/components/parameters/IncludeDeleted"
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Customers (one page)
           headers:
@@ -1012,9 +1056,12 @@ paths:
       tags: [payments]
       summary: List payments (paginate)
       parameters:
+        - $ref: "#/components/parameters/Delay"
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Payments (one page)
           headers:
@@ -1097,7 +1144,11 @@ paths:
       summary: Audit events, read-only (HTTP basic)
       security:
         - basicAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Delay"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Authenticated response
           content:
@@ -1241,6 +1292,13 @@ components:
       in: path
       required: true
       schema: { type: string, example: rep-1 }
+    Delay:
+      name: delay
+      in: query
+      description: >
+        Optional deliberate delay in milliseconds (0 to 10000, scaled by the server's
+        LATENCY_SCALE). Absent means no delay.
+      schema: { type: integer, minimum: 0, maximum: 10000, default: 0 }
 
   headers:
     Location:
@@ -1312,6 +1370,12 @@ components:
           $ref: "#/components/headers/RateLimitLimit"
         X-RateLimit-Remaining:
           $ref: "#/components/headers/RateLimitRemaining"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServiceUnavailable:
+      description: Too many deliberately slow requests are in progress; retry
       content:
         application/json:
           schema:

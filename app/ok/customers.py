@@ -15,6 +15,7 @@ from app.ok.common import (
     paged,
     utc_now,
 )
+from app.ok.listing import get_page
 from app.store import Store
 
 COLLECTION = "customers"
@@ -59,7 +60,7 @@ def build(store: Store) -> APIRouter:
     @router.get("/customers")
     async def list_customers(
         response: Response,
-        page: Page = Depends(),
+        page: Page = Depends(get_page),
         include_deleted: BoolText | None = Query(None, alias="includeDeleted"),
     ) -> dict:
         items = await store.list(COLLECTION)

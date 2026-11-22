@@ -98,7 +98,7 @@ Read runtime configuration from environment variables:
 - `PUBLIC_BASE_URL` (optional)
 - `DRIFT` (default `0`)
 - `ADMIN_TOKEN` (optional locally; mandatory when deployed)
-- `LATENCY_SCALE` (optional)
+- `LATENCY_SCALE` (optional, 0 to 10, default 1)
 
 Use one port and path prefixes so local and Cloud Run behavior share the same routing model.
 

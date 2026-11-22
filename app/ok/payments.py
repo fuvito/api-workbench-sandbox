@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Header, Response
 from pydantic import Field, StringConstraints
 
 from app.ok.common import ApiError, Page, StrictModel, not_found, paged, unprocessable
+from app.ok.listing import get_page
 from app.store import Store
 
 COLLECTION = "payments"
@@ -43,7 +44,7 @@ def build(store: Store) -> APIRouter:
     router = APIRouter()
 
     @router.get("/payments")
-    async def list_payments(response: Response, page: Page = Depends()) -> dict:
+    async def list_payments(response: Response, page: Page = Depends(get_page)) -> dict:
         return paged(await store.list(COLLECTION), page, response)
 
     @router.post("/payments", status_code=201)

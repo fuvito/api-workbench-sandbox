@@ -15,6 +15,7 @@ from app.ok.common import (
     paged,
     with_etag,
 )
+from app.ok.listing import get_page
 from app.store import Store
 
 
@@ -59,7 +60,7 @@ def build(store: Store) -> APIRouter:
     # --- projects ---
 
     @router.get("/projects")
-    async def list_projects(response: Response, page: Page = Depends()) -> dict:
+    async def list_projects(response: Response, page: Page = Depends(get_page)) -> dict:
         return paged(await store.list("projects"), page, response)
 
     @router.post("/projects", status_code=201)
@@ -115,7 +116,7 @@ def build(store: Store) -> APIRouter:
     async def list_tasks(
         project_id: str,
         response: Response,
-        page: Page = Depends(),
+        page: Page = Depends(get_page),
         done: BoolText | None = None,
     ) -> dict:
         await require_project(project_id)

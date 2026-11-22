@@ -1,0 +1,48 @@
+schemaVersion: "1"
+title: ok - latency (slow but correct)
+description: >
+  Deliberately slow responses that are still correct. Passes with ClearSignal's default step
+  timeout. Run with a global timeout shorter than the delay (for example --timeout 100) and the
+  slow steps fail with "context deadline exceeded" (the catalog's CS-RUN-003, "No response";
+  the CLI prints the error text, not the ID); nothing else about the server changes.
+  Response time itself is not asserted: ClearSignal does not measure it today (CS-GAP-005).
+
+steps:
+  - label: Reset ok store
+    request: { method: POST, url: "{{baseUrl}}/__admin/reset" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  - label: Fast control - no delay
+    request: { method: GET, url: "{{baseUrl}}/ok-slow/0" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.requestedMs", operator: eq, expected: "0" }
+    failPolicy: stop
+
+  - label: Slow but correct - 400 ms
+    request: { method: GET, url: "{{baseUrl}}/ok-slow/400" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.requestedMs", operator: eq, expected: "400" }
+    failPolicy: continue
+
+  - label: List with an optional delay
+    request: { method: GET, url: "{{baseUrl}}/products?delay=300" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: header, path: X-Total-Count, operator: eq, expected: "3" }
+    failPolicy: continue
+
+  - label: Delay above the cap is rejected
+    request: { method: GET, url: "{{baseUrl}}/ok-slow/10001" }
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue
+
+  - label: Negative delay is rejected
+    request: { method: GET, url: "{{baseUrl}}/products?delay=-5" }
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue

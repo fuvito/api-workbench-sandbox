@@ -10,8 +10,14 @@ from fastapi.exceptions import RequestValidationError
 
 from app.config import Settings
 from app.family import build_family_router
+from app.latency import TooManySlowRequests, new_slow_slots
 from app.ok import build_ok_router
-from app.ok.common import ApiError, api_error_handler, validation_error_handler
+from app.ok.common import (
+    ApiError,
+    api_error_handler,
+    too_many_slow_handler,
+    validation_error_handler,
+)
 from app.ok.ratelimit import RateLimited, rate_limited_handler
 from app.ok.security import Unauthorized, unauthorized_handler
 from app.seeds import conform_fail_seed, contract_fail_seed, ok_seed
@@ -46,6 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="api-workbench-sandbox", openapi_url=None, docs_url=None, redoc_url=None)
     app.state.settings = settings
     app.state.stores = {}
+    app.state.slow_slots = new_slow_slots()  # caps concurrent deliberate sleeps
 
     for name, (prefix, spec_file, seed) in FAMILIES.items():
         store = Store(seed)
@@ -55,6 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.include_router(build_ok_router(store))
 
     app.add_exception_handler(ApiError, api_error_handler)
+    app.add_exception_handler(TooManySlowRequests, too_many_slow_handler)
     app.add_exception_handler(Unauthorized, unauthorized_handler)
     app.add_exception_handler(RateLimited, rate_limited_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
