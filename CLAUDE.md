@@ -24,6 +24,11 @@ Read `docs/PRD.md` and `docs/TASKLIST.md` before making substantial changes. The
 9. Runtime data is in memory and is intentionally lost on process restart or instance replacement.
 10. Local behavior is the primary baseline; Cloud Run is a later deployment target.
 
+## ClearSignal problems are not worked around here
+
+- Never shape specs, fixtures, environments or handlers to dodge a `clrsig` bug or limitation. ClearSignal must handle valid OpenAPI and valid servers.
+- When `clrsig` behaves wrongly, stop, tell the user, and record it in `docs/clrsig-findings.md` (checklist; close when a fixed release is verified).
+
 ## Before coding
 
 - Inspect the existing repository structure and current implementation.

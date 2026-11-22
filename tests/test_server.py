@@ -40,14 +40,14 @@ async def test_public_base_url_rewrites_servers():
 async def test_reset_restores_seed_and_is_isolated(client_app):
     client, app = client_app
     stores = app.state.stores
-    await stores["ok"].create("widgets", "w-9", {"id": "w-9"})
-    await stores["ok"].delete("widgets", "w-1")
+    await stores["ok"].create("products", "p-9", {"id": "p-9"})
+    await stores["ok"].delete("products", "p-1")
     await stores["conform-fail"].create("widgets", "w-9", {"id": "w-9"})
 
     assert (await client.post("/ok/__admin/reset")).status_code == 204
 
-    ok_ids = {w["id"] for w in await stores["ok"].list("widgets")}
-    assert ok_ids == {"w-1", "w-2"}
+    ok_ids = {p["id"] for p in await stores["ok"].list("products")}
+    assert ok_ids == {"p-1", "p-2", "p-3"}
     # Another family is untouched by the reset.
     assert await stores["conform-fail"].get("widgets", "w-9") is not None
 
@@ -55,7 +55,7 @@ async def test_reset_restores_seed_and_is_isolated(client_app):
 async def test_state_endpoint(client):
     r = await client.get("/ok/__admin/state")
     assert r.status_code == 200
-    assert set(r.json()["widgets"]) == {"w-1", "w-2"}
+    assert set(r.json()["products"]) == {"p-1", "p-2", "p-3"}
 
 
 async def test_admin_token_enforced():
@@ -73,22 +73,22 @@ async def test_admin_token_enforced():
 async def test_stateful_flow_shared_across_requests(client_app):
     client, app = client_app
     store = app.state.stores["ok"]
-    assert await store.create("widgets", "w-3", {"id": "w-3", "name": "Gamma"})
-    assert not await store.create("widgets", "w-3", {})
-    assert (await store.get("widgets", "w-3"))["name"] == "Gamma"
-    assert await store.update("widgets", "w-3", {"id": "w-3", "name": "Delta"})
-    assert (await store.get("widgets", "w-3"))["name"] == "Delta"
-    assert await store.delete("widgets", "w-3")
-    assert await store.get("widgets", "w-3") is None
+    assert await store.create("products", "x-3", {"id": "x-3", "name": "Gamma"})
+    assert not await store.create("products", "x-3", {})
+    assert (await store.get("products", "x-3"))["name"] == "Gamma"
+    assert await store.update("products", "x-3", {"id": "x-3", "name": "Delta"})
+    assert (await store.get("products", "x-3"))["name"] == "Delta"
+    assert await store.delete("products", "x-3")
+    assert await store.get("products", "x-3") is None
     await client.post("/ok/__admin/reset")
-    assert len(await store.list("widgets")) == 2
+    assert len(await store.list("products")) == 3
 
 
 async def test_concurrent_store_access(client_app):
     _, app = client_app
     store = app.state.stores["ok"]
     results = await asyncio.gather(
-        *(store.create("widgets", "same", {"n": i}) for i in range(50))
+        *(store.create("products", "same", {"n": i}) for i in range(50))
     )
     assert results.count(True) == 1
 

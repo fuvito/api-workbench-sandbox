@@ -1,0 +1,194 @@
+schemaVersion: "1"
+title: ok - CRUD across products, orders, projects and tasks
+description: >
+  Starts with a reset, then creates, reads, updates, lists and deletes records in every
+  resource, extracting ids from responses. Run with --spec <url>/ok/openapi.yaml so every
+  step is also checked against the spec.
+
+steps:
+  - label: Reset ok store
+    request:
+      method: POST
+      url: "{{baseUrl}}/__admin/reset"
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  # ---- products ----
+  - label: List seeded products
+    request: { method: GET, url: "{{baseUrl}}/products" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.total", operator: eq, expected: "3" }
+    failPolicy: stop
+
+  - label: Create product
+    request:
+      method: POST
+      url: "{{baseUrl}}/products"
+      body:
+        type: json
+        content: '{"name":"Doohickey","price":12.5,"stock":7}'
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+      - { type: jsonpath, path: "$.name", operator: eq, expected: "Doohickey" }
+    extractions:
+      - { name: productId, source: jsonpath, path: "$.id" }
+    failPolicy: stop
+
+  - label: Get product
+    request: { method: GET, url: "{{baseUrl}}/products/{{productId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.stock", operator: eq, expected: "7" }
+    failPolicy: stop
+
+  - label: Replace product
+    request:
+      method: PUT
+      url: "{{baseUrl}}/products/{{productId}}"
+      body:
+        type: json
+        content: '{"name":"Doohickey v2","price":15,"stock":3}'
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.name", operator: eq, expected: "Doohickey v2" }
+    failPolicy: stop
+
+  - label: Reject product with wrong type
+    request:
+      method: POST
+      url: "{{baseUrl}}/products"
+      body:
+        type: json
+        content: '{"name":"Bad","price":"cheap","stock":1}'
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue
+
+  # ---- orders ----
+  - label: Create order for the new product
+    request:
+      method: POST
+      url: "{{baseUrl}}/orders"
+      body:
+        type: json
+        content: '{"productId":"{{productId}}","quantity":2}'
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+      - { type: jsonpath, path: "$.status", operator: eq, expected: "pending" }
+    extractions:
+      - { name: orderId, source: jsonpath, path: "$.id" }
+    failPolicy: stop
+
+  - label: Reject order for unknown product
+    request:
+      method: POST
+      url: "{{baseUrl}}/orders"
+      body:
+        type: json
+        content: '{"productId":"nope","quantity":1}'
+    assertions:
+      - { type: status, operator: eq, expected: 422 }
+    failPolicy: continue
+
+  - label: Update order quantity
+    request:
+      method: PUT
+      url: "{{baseUrl}}/orders/{{orderId}}"
+      body:
+        type: json
+        content: '{"productId":"{{productId}}","quantity":5}'
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.quantity", operator: eq, expected: "5" }
+    failPolicy: stop
+
+  - label: Delete order
+    request: { method: DELETE, url: "{{baseUrl}}/orders/{{orderId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  - label: Deleted order is gone
+    request: { method: GET, url: "{{baseUrl}}/orders/{{orderId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 404 }
+    failPolicy: continue
+
+  # ---- projects and tasks ----
+  - label: Create project
+    request:
+      method: POST
+      url: "{{baseUrl}}/projects"
+      body:
+        type: json
+        content: '{"name":"Scenario project"}'
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+    extractions:
+      - { name: projectId, source: jsonpath, path: "$.id" }
+    failPolicy: stop
+
+  - label: Create task in project
+    request:
+      method: POST
+      url: "{{baseUrl}}/projects/{{projectId}}/tasks"
+      body:
+        type: json
+        content: '{"title":"First task"}'
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+      - { type: jsonpath, path: "$.done", operator: eq, expected: "false" }
+    extractions:
+      - { name: taskId, source: jsonpath, path: "$.id" }
+    failPolicy: stop
+
+  - label: Complete task
+    request:
+      method: PUT
+      url: "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}"
+      body:
+        type: json
+        content: '{"title":"First task","done":true}'
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.done", operator: eq, expected: "true" }
+    failPolicy: stop
+
+  - label: List tasks of project
+    request: { method: GET, url: "{{baseUrl}}/projects/{{projectId}}/tasks" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.total", operator: eq, expected: "1" }
+    failPolicy: stop
+
+  - label: Task is not visible under another project
+    request: { method: GET, url: "{{baseUrl}}/projects/pr-1/tasks/{{taskId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 404 }
+    failPolicy: continue
+
+  - label: Delete task
+    request: { method: DELETE, url: "{{baseUrl}}/projects/{{projectId}}/tasks/{{taskId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  - label: Delete project
+    request: { method: DELETE, url: "{{baseUrl}}/projects/{{projectId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  - label: Delete product
+    request: { method: DELETE, url: "{{baseUrl}}/products/{{productId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  - label: Deleted product is gone
+    request: { method: GET, url: "{{baseUrl}}/products/{{productId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 404 }
+    failPolicy: continue

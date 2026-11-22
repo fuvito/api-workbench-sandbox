@@ -1,0 +1,13 @@
+schemaVersion: "1"
+name: ok
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/ok"
+  - name: productId
+    value: "p-1"
+  - name: orderId
+    value: "o-1"
+  - name: projectId
+    value: "pr-1"
+  - name: taskId
+    value: "t-1"

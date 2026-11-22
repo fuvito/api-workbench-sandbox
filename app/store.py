@@ -17,11 +17,25 @@ class Store:
     def __init__(self, seed_factory: Callable[[], SeedData]) -> None:
         self._seed_factory = seed_factory
         self._lock = asyncio.Lock()
-        self._data: SeedData = seed_factory()
+        self._load_seed()
+
+    def _load_seed(self) -> None:
+        self._data: SeedData = self._seed_factory()
+        # Next sequential id number per collection; reset together with the data.
+        self._counters: dict[str, int] = {c: len(items) for c, items in self._data.items()}
 
     async def reset(self) -> None:
         async with self._lock:
-            self._data = self._seed_factory()
+            self._load_seed()
+
+    async def create_auto(self, collection: str, prefix: str, record: Record) -> Record:
+        """Store a record under a new sequential id (`<prefix>-<n>`, never reused)."""
+        async with self._lock:
+            n = self._counters.get(collection, 0) + 1
+            self._counters[collection] = n
+            stored = {"id": f"{prefix}-{n}", **{k: v for k, v in record.items() if k != "id"}}
+            self._data.setdefault(collection, {})[stored["id"]] = copy.deepcopy(stored)
+            return stored
 
     async def snapshot(self) -> SeedData:
         async with self._lock:

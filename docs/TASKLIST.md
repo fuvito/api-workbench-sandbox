@@ -52,17 +52,19 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 ## Phase 2 — `ok` baseline API
 
 ### First three resources
-- [ ] Choose three representative resources.
-- [ ] Hand-write their OpenAPI specification.
-- [ ] Implement list and get operations.
-- [ ] Implement create, update, and delete operations.
-- [ ] Add deterministic seed records with stable IDs.
-- [ ] Implement declared success and error response shapes.
-- [ ] Reject missing required fields and wrong input types.
-- [ ] Add one CRUD scenario with variable extraction.
-- [ ] Verify `clrsig conform` passes.
-- [ ] Verify scenario passes after reset.
-- [ ] Verify repeat execution is deterministic.
+- [x] Choose three representative resources: products, orders, projects/tasks (decided).
+- [x] Hand-write their OpenAPI specification (`specs/ok.yaml`, 21 operations incl. health).
+- [x] Implement list and get operations.
+- [x] Implement create, update, and delete operations (PUT only; PATCH comes with breadth).
+- [x] Add deterministic seed records with stable IDs (sequential, never reused, reset with the store).
+- [x] Implement declared success and error response shapes (400, 404, 422 with `{code, message}`).
+- [x] Reject missing required fields and wrong input types (400; no type coercion, unknown fields rejected).
+- [x] Add one CRUD scenario with variable extraction (`clrsig/scenarios/ok-crud.yaml`).
+- [x] Verify `clrsig conform` passes (21/21, plus 28/28 negative probes) with released `clrsig` v0.7.1 (v0.5.0 failed; F-001 and F-002, now closed in `docs/clrsig-findings.md`).
+- [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
+- [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
+
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [ ] Add remaining resource families from PRD.

@@ -2,13 +2,23 @@ openapi: 3.0.3
 info:
   title: ok API
   version: 1.0.0
-  description: Correct baseline API. Every operation must conform exactly.
+  description: >
+    Correct baseline API. Every operation must conform exactly and every
+    invalid request is rejected with a declared 4xx response.
+    Phase 2 slice: products, orders, projects and tasks (CRUD).
 servers:
   - url: http://localhost:8080/ok
+tags:
+  - name: system
+  - name: products
+  - name: orders
+  - name: projects
+  - name: tasks
 paths:
   /health:
     get:
       operationId: getHealth
+      tags: [system]
       summary: Readiness probe
       responses:
         "200":
@@ -22,3 +32,486 @@ paths:
                   status:
                     type: string
                     enum: [ok]
+
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: List products
+      responses:
+        "200":
+          description: All products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductList"
+    post:
+      operationId: createProduct
+      tags: [products]
+      summary: Create a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /products/{productId}:
+    parameters:
+      - $ref: "#/components/parameters/ProductId"
+    get:
+      operationId: getProduct
+      tags: [products]
+      summary: Get a product
+      responses:
+        "200":
+          description: The product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: replaceProduct
+      tags: [products]
+      summary: Replace a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "200":
+          description: The updated product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteProduct
+      tags: [products]
+      summary: Delete a product
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /orders:
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: List orders
+      responses:
+        "200":
+          description: All orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderList"
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Create an order for a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Created (status starts as pending)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /orders/{orderId}:
+    parameters:
+      - $ref: "#/components/parameters/OrderId"
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Get an order
+      responses:
+        "200":
+          description: The order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: replaceOrder
+      tags: [orders]
+      summary: Replace the product and quantity of an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "200":
+          description: The updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      operationId: deleteOrder
+      tags: [orders]
+      summary: Delete an order
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects
+      responses:
+        "200":
+          description: All projects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectList"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /projects/{projectId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a project
+      responses:
+        "200":
+          description: The project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: replaceProject
+      tags: [projects]
+      summary: Replace a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "200":
+          description: The updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project (its tasks are deleted with it for now)
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /projects/{projectId}/tasks:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List the tasks of a project
+      responses:
+        "200":
+          description: Tasks of the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskList"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task in a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /projects/{projectId}/tasks/{taskId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get a task
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: replaceTask
+      tags: [tasks]
+      summary: Replace a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "200":
+          description: The updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  parameters:
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema: { type: string, example: p-1 }
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema: { type: string, example: o-1 }
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, example: pr-1 }
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: { type: string, example: t-1 }
+
+  responses:
+    BadRequest:
+      description: Malformed or invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unprocessable:
+      description: Well-formed request that breaks a business rule
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: not_found
+        message:
+          type: string
+
+    Product:
+      type: object
+      required: [id, name, price, stock]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        price: { type: number }
+        stock: { type: integer }
+    ProductInput:
+      type: object
+      additionalProperties: false
+      required: [name, price, stock]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100, example: Gadget }
+        price: { type: number, minimum: 0, example: 9.99 }
+        stock: { type: integer, minimum: 0, example: 10 }
+    ProductList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        total: { type: integer }
+
+    Order:
+      type: object
+      required: [id, productId, quantity, status]
+      properties:
+        id: { type: string }
+        productId: { type: string }
+        quantity: { type: integer }
+        status:
+          type: string
+          enum: [pending, paid, shipped, delivered, cancelled]
+    OrderInput:
+      type: object
+      additionalProperties: false
+      required: [productId, quantity]
+      properties:
+        productId: { type: string, minLength: 1, example: p-1 }
+        quantity: { type: integer, minimum: 1, example: 2 }
+    OrderList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        total: { type: integer }
+
+    Project:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+    ProjectInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100, example: Launch }
+        description: { type: string, maxLength: 500 }
+    ProjectList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        total: { type: integer }
+
+    Task:
+      type: object
+      required: [id, projectId, title, done]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        title: { type: string }
+        done: { type: boolean }
+    TaskInput:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200, example: Write docs }
+        done: { type: boolean, default: false }
+    TaskList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+        total: { type: integer }

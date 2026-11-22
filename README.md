@@ -16,7 +16,7 @@ Environment variables: `PORT` (8080), `HOST` (127.0.0.1), `PUBLIC_BASE_URL`, `DR
 
 | Family | Base path | Spec | Health | Reset |
 |---|---|---|---|---|
-| ok | `/ok` | `/ok/openapi.yaml` | `GET /ok/health` | `POST /ok/__admin/reset` |
+| ok | `/ok` (products, orders, projects, tasks) | `/ok/openapi.yaml` | `GET /ok/health` | `POST /ok/__admin/reset` |
 | contract-fail | `/contract-fail` | `/contract-fail/openapi.yaml` | `GET /contract-fail/health` | `POST /contract-fail/__admin/reset` |
 | conform-fail | `/conform-fail` | `/conform-fail/openapi.yaml` | `GET /conform-fail/health` | `POST /conform-fail/__admin/reset` |
 
@@ -24,9 +24,15 @@ Reset returns `204` and is not declared in the public specs. When `ADMIN_TOKEN` 
 
 ## Run ClearSignal
 
+Start the server, then (the scenario resets the `ok` store itself; reset before a conform run):
+
 ```
-clrsig conform http://localhost:8080/ok/openapi.yaml
+curl -X POST http://localhost:8080/ok/__admin/reset
+clrsig conform http://localhost:8080/ok/openapi.yaml --env clrsig/environments/ok.yaml --negative
+clrsig run clrsig/scenarios/ok-crud.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 ```
+
+Verified with released `clrsig` v0.7.1 (earlier versions have known issues; see `docs/clrsig-findings.md`).
 
 ## Docker
 
