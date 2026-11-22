@@ -18,7 +18,7 @@ One note per phase, written when the phase completes. Each covers: what was buil
 | 4c — requests that do not fit, runs that cannot happen | [phase-4c-requests-and-runs.md](phase-4c-requests-and-runs.md) | Written |
 | 4d — timing and instability | [phase-4d-timing-and-instability.md](phase-4d-timing-and-instability.md) | Written |
 | 4e — drift, spec changes, coverage, business rules | [phase-4e-drift-diff-coverage-rules.md](phase-4e-drift-diff-coverage-rules.md) | Written |
-| 4 — Phase 4 overview | phase-4-conform-fail.md | Pending (write after the Phase 4 exit review) |
+| 4 — Phase 4 overview | [phase-4-conform-fail.md](phase-4-conform-fail.md) | Written |
 | 5 — Expectations and CI | phase-5-expectations-ci.md | Pending |
 | 6 — Cloud Run | phase-6-cloud-run.md | Pending |
 | 7 — Release readiness | phase-7-release.md | Pending |
