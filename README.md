@@ -33,9 +33,10 @@ clrsig run clrsig/scenarios/ok-crud.yaml --env clrsig/environments/ok.yaml --spe
 clrsig run clrsig/scenarios/ok-schemas-and-security.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 clrsig run clrsig/scenarios/ok-business-rules.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 clrsig run clrsig/scenarios/ok-latency.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
+clrsig run clrsig/scenarios/ok-parameters-and-paging.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 ```
 
-Expected: every command above exits 0. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
+Expected with `clrsig` v0.7.1: all scenarios and `conform --negative`'s probes pass. `conform` itself reports 63 of 65 operations: `GET /lookup` and `GET /preferences` fail because `clrsig` cannot build an explode-false array or a required cookie (F-009, F-008 in `docs/clrsig-findings.md`); the server is correct and the scenarios cover both. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
 
 Verified with released `clrsig` v0.7.1 (earlier versions have known issues; see `docs/clrsig-findings.md`).
 
@@ -51,11 +52,12 @@ Orders: `pending -> paid -> shipped -> delivered`, and `pending/paid -> cancelle
 
 ## Test credentials (fake fixtures, not secrets)
 
-Only the secured example operations of the `ok` API use them (`/me`, `/audit-events`, `/feature-flags`, `/partner-status`). Everything else is public.
+Only the secured example operations of the `ok` API use them (`/me`, `/stats`, `/audit-events`, `/feature-flags`, `/partner-status`). Everything else is public.
 
 | Scheme | Operation | Credential |
 |---|---|---|
-| HTTP bearer | `GET /ok/me` | `Authorization: Bearer test-token` |
+| HTTP bearer | `GET /ok/me` | `Authorization: Bearer test-token` (scope `read`) |
+| HTTP bearer, admin scope | `GET /ok/stats` | `Authorization: Bearer admin-token` (scopes `read`, `admin`); `test-token` gets `403` |
 | HTTP basic | `GET /ok/audit-events` | `test-user` / `test-pass` |
 | API key (header) | `GET /ok/partner-status` | `X-API-Key: test-api-key` |
 | API key (query) | `GET /ok/feature-flags` | `?api_key=test-api-key` |

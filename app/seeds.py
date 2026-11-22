@@ -84,6 +84,16 @@ def ok_seed() -> SeedData:
                 "status": "authorized",
             },
         },
+        "notifications": {
+            f"n-{n}": {
+                "id": f"n-{n}",
+                "message": f"Notification {n}",
+                "kind": "warning" if n % 4 == 0 else "info",
+                "read": n <= 3,
+                "createdAt": f"2026-02-01T{n:02d}:00:00Z",
+            }
+            for n in range(1, 13)
+        },
         "reports": {"rep-1": {"id": "rep-1", "type": "sales", "polls": 0}},
         "discount_codes": {
             "SAVE10": {"id": "SAVE10", "code": "SAVE10", "percentOff": 10, "expiresAt": "2099-12-31T23:59:59Z"},

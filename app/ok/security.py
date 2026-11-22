@@ -14,7 +14,7 @@ from app.ok.common import ApiError, Page, paged
 from app.ok.listing import get_page
 from app.store import Store
 
-BEARER_TOKEN = "test-token"
+BEARER_TOKENS = {"test-token": ["read"], "admin-token": ["read", "admin"]}  # token -> scopes
 BASIC_USER, BASIC_PASS = "test-user", "test-pass"
 API_KEY = "test-api-key"
 
@@ -23,6 +23,11 @@ class Unauthorized(ApiError):
     def __init__(self, challenge: str) -> None:
         super().__init__(401, "unauthorized", "missing or invalid credentials")
         self.challenge = challenge
+
+
+class Forbidden(ApiError):
+    def __init__(self) -> None:
+        super().__init__(403, "forbidden", "this token lacks the admin scope")
 
 
 def _same(a: str, b: str) -> bool:
@@ -37,10 +42,26 @@ async def unauthorized_handler(_: Request, exc: Unauthorized) -> JSONResponse:
     )
 
 
-def require_bearer(request: Request) -> None:
+def bearer_scopes(request: Request) -> list[str]:
+    """Scopes of the presented bearer token; 401 if the token is missing or unknown."""
     scheme, _, token = request.headers.get("authorization", "").partition(" ")
-    if scheme.lower() != "bearer" or not _same(token, BEARER_TOKEN):
+    scopes = None
+    for known, known_scopes in BEARER_TOKENS.items():
+        if _same(token, known):  # compare against every token: no early exit on a match
+            scopes = known_scopes
+    if scheme.lower() != "bearer" or scopes is None:
         raise Unauthorized('Bearer realm="ok"')
+    return scopes
+
+
+def require_bearer(request: Request) -> None:
+    bearer_scopes(request)
+
+
+def require_admin_scope(request: Request) -> None:
+    """Authenticated but not allowed: a valid token without the admin scope is 403."""
+    if "admin" not in bearer_scopes(request):
+        raise Forbidden()
 
 
 def require_basic(request: Request) -> None:
@@ -68,9 +89,24 @@ def require_key_query(request: Request) -> None:
 def build(store: Store) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/me", dependencies=[Depends(require_bearer)])
-    async def get_me() -> dict:
-        return {"user": BASIC_USER, "scopes": ["read"]}
+    @router.get("/me")
+    async def get_me(request: Request) -> dict:
+        return {"user": BASIC_USER, "scopes": bearer_scopes(request)}
+
+    @router.get("/stats", dependencies=[Depends(require_admin_scope)])
+    async def get_stats() -> dict:
+        snapshot = await store.snapshot()
+        counts = {name: len(items) for name, items in snapshot.items()}
+        live_customers = [c for c in snapshot.get("customers", {}).values() if "deletedAt" not in c]
+        return {
+            "products": counts.get("products", 0),
+            "orders": counts.get("orders", 0),
+            "customers": len(live_customers),
+            "projects": counts.get("projects", 0),
+            "tasks": counts.get("tasks", 0),
+            "payments": counts.get("payments", 0),
+            "invoices": counts.get("invoices", 0),
+        }
 
     @router.get("/audit-events", dependencies=[Depends(require_basic)])
     async def list_audit_events(response: Response, page: Page = Depends(get_page)) -> dict:

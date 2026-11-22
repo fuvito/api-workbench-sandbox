@@ -62,11 +62,27 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Expected: print the base URL actually used (the `servers[0].url` or `--base-url`).
   - Closed: —
 
+- [ ] **F-008 — Required cookie parameter is never sent (v0.7.1)**
+  - Type: bug (false failure). Found: 2026-11-21, `clrsig` v0.7.1.
+  - Behavior: `GET /preferences` declares a required cookie parameter `theme` (with an `example`). `conform` builds the request without any `Cookie` header and then reports "the request cookie parameter "theme" does not fit the spec: value is required but missing", so a correct operation fails. From reading the source (`packages/core/openapi/parser.go`), request building handles `path`, `query` and `header` parameters only; `cookie` is ignored.
+  - Repro: `clrsig generate specs/ok.yaml -o <dir>` and read `getPreferences.yaml` (no cookie); or `conform` and look at `GET /preferences`.
+  - Expected: send `Cookie: theme=<example or environment value>`.
+  - Covered here instead by: pytest and the `ok-parameters-and-paging` scenario, which sets the `Cookie` header explicitly.
+  - Closed: —
+
+- [ ] **F-009 — Array query parameter is serialized as `[1 2 3]` (v0.7.1)**
+  - Type: bug (false failure). Found: 2026-11-21, `clrsig` v0.7.1.
+  - Behavior: `GET /lookup` declares a required query parameter `ids`: array of integers, `style: form`, `explode: false`, `example: [1, 2, 3]`. `clrsig generate` writes `value: '[1 2 3]'` (Go slice formatting) and `conform` then fails its own check: "the request query parameter "ids" does not fit the spec: path 0: value [1 2 3]: an invalid integer". The request is sent with the malformed value and the server correctly answers 400.
+  - Repro: `clrsig generate specs/ok.yaml -o <dir>` and read `lookup.yaml`; or `conform` and look at `GET /lookup`.
+  - Expected: serialize by style and explode: `ids=1,2,3` (or `ids=1&ids=2&ids=3` with `explode: true`).
+  - Covered here instead by: pytest and the `ok-parameters-and-paging` scenario, which writes the query string explicitly.
+  - Closed: —
+
 ---
 
 ## Baseline
 
-Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003, F-004, F-005, F-006, F-007 (all found with v0.7.1).
+Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-009 (all found with v0.7.1).
 
 ## Notes
 

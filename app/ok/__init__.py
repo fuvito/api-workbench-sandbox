@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.ok import customers, discounts, invoices, misc, orders, payments, products, projects, ratelimit, reports, security
+from app.ok import customers, discounts, invoices, misc, notifications, orders, params, payments, products, projects, ratelimit, reports, security
 from app.store import Store
 
 
@@ -14,6 +14,8 @@ def build_ok_router(store: Store) -> APIRouter:
     router.include_router(discounts.build(store))
     router.include_router(reports.build(store))
     router.include_router(ratelimit.build(store))
+    router.include_router(notifications.build(store))
+    router.include_router(params.build(store))
     router.include_router(projects.build(store))
     router.include_router(customers.build(store))
     router.include_router(payments.build(store))

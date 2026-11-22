@@ -10,7 +10,8 @@ One note per phase, written when the phase completes. Each covers: what was buil
 | 2c — schema features and security | [phase-2c-schemas-and-security.md](phase-2c-schemas-and-security.md) | Written |
 | 2d — business rules | [phase-2d-business-rules.md](phase-2d-business-rules.md) | Written |
 | 2e — baseline latency | [phase-2e-latency.md](phase-2e-latency.md) | Written |
-| 2 — `ok` remaining (cursor/bulk, parameters, operation target) | phase-2-ok-baseline.md | Pending |
+| 2f — cursor paging, bulk, parameters, 403 | [phase-2f-paging-bulk-parameters.md](phase-2f-paging-bulk-parameters.md) | Written |
+| 2 — `ok` wrap-up (phase exit review) | phase-2-ok-baseline.md | Pending |
 | 3 — `contract-fail` | phase-3-contract-fail.md | Pending |
 | 4 — `conform-fail` | phase-4-conform-fail.md | Pending |
 | 5 — Expectations and CI | phase-5-expectations-ci.md | Pending |

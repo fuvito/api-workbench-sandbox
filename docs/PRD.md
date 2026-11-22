@@ -57,7 +57,7 @@ Each family serves its OpenAPI document at `<prefix>/openapi.yaml` and exposes `
 
 ### 5.2 `ok` API
 
-- Start with three resources and a working end-to-end CRUD flow; grow toward the source document's proposed 80–120 operations.
+- Start with three resources and a working end-to-end CRUD flow, then grow to **60 to 70 operations** (decided; the source document proposed 80–120). Current count: 65.
 - Support GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS where specified.
 - Exercise parameters, request bodies, response codes and headers, schema composition, media types, security schemes, pagination, filtering, sorting, bulk operations, sub-resources, actions, idempotency, and optimistic concurrency.
 - Valid requests must match the OpenAPI specification.
@@ -251,7 +251,7 @@ Resolve these before or during the first implementation slice:
 2. ~~Repository name~~ — decided: `api-workbench-sandbox`.
 3. Fixed credentials for bearer, basic, and API-key examples. (Implemented with `test-token`, `test-user`/`test-pass`, `test-api-key`; awaiting confirmation.)
 4. Whether `ok` ships OpenAPI 3.0 and 3.1 variants.
-5. Confirm the 80–120 operation target.
+5. ~~Operation target~~ — decided: 60 to 70 operations (65 now); every feature area of the source document is covered at that size.
 6. Keep `contract-fail` and `conform-fail` specifications separate (current proposal).
 7. How expectations stay synchronized with ClearSignal's check catalog.
 8. Public versus private Cloud Run access.

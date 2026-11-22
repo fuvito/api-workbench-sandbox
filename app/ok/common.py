@@ -2,6 +2,8 @@
 
 import hashlib
 import json
+import re
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import Request, Response
@@ -41,6 +43,20 @@ def utc_now() -> str:
 class ApiError(Exception):
     def __init__(self, status: int, code: str, message: str) -> None:
         self.status, self.code, self.message = status, code, message
+
+
+_DATE_TIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$")
+
+
+def parse_date_time(value: str, name: str) -> datetime:
+    """RFC 3339 `date-time` only (offset required); answers 400 for anything else."""
+    if not _DATE_TIME.match(value):
+        raise ApiError(400, "invalid_request", f"{name} must be an RFC 3339 date-time")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ApiError(400, "invalid_request", f"{name} is not a real date-time") from exc
+    return parsed.astimezone(UTC)
 
 
 def etag_of(record: dict) -> str:

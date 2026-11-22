@@ -1,0 +1,230 @@
+schemaVersion: "1"
+title: ok - cursor paging, bulk operations, parameters and 403
+description: >
+  Walks the cursor-paginated notifications, bulk create and delete (200 or 207), header and
+  cookie parameters, array/date/date-time query parameters, and the 401/403 split on /stats.
+  The cookie and the array query string are written explicitly because ClearSignal v0.7.1
+  does not build them from the spec (F-008, F-009 in docs/clrsig-findings.md).
+  Run with --spec <url>/ok/openapi.yaml.
+
+steps:
+  - label: Reset ok store
+    request: { method: POST, url: "{{baseUrl}}/__admin/reset" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  # ---- cursor pagination (12 notifications, 5 per page) ----
+  - label: Page 1
+    request: { method: GET, url: "{{baseUrl}}/notifications?limit=5" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.items[0].id", operator: eq, expected: "n-1" }
+      - { type: jsonpath, path: "$.items[4].id", operator: eq, expected: "n-5" }
+    extractions:
+      - { name: cursor1, source: jsonpath, path: "$.nextCursor" }
+    failPolicy: stop
+
+  - label: Page 2 with the cursor from page 1
+    request: { method: GET, url: "{{baseUrl}}/notifications?limit=5&cursor={{cursor1}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.items[0].id", operator: eq, expected: "n-6" }
+    extractions:
+      - { name: cursor2, source: jsonpath, path: "$.nextCursor" }
+    failPolicy: stop
+
+  - label: Page 3 is the last (two items)
+    request: { method: GET, url: "{{baseUrl}}/notifications?limit=5&cursor={{cursor2}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.items[0].id", operator: eq, expected: "n-11" }
+      - { type: jsonpath, path: "$.items[1].id", operator: eq, expected: "n-12" }
+    failPolicy: stop
+
+  - label: A malformed cursor is 400
+    request: { method: GET, url: "{{baseUrl}}/notifications?cursor=not-a-cursor" }
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue
+
+  - label: Unread filter applies before paging
+    request: { method: GET, url: "{{baseUrl}}/notifications?unread=true&limit=2" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.items[0].id", operator: eq, expected: "n-4" }
+    failPolicy: continue
+
+  - label: since is an RFC 3339 instant
+    request: { method: GET, url: "{{baseUrl}}/notifications?since=2026-02-01T10:00:00Z" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.items[0].id", operator: eq, expected: "n-10" }
+    failPolicy: continue
+
+  - label: Marking read is idempotent
+    request: { method: POST, url: "{{baseUrl}}/notifications/n-9/read" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.read", operator: eq, expected: "true" }
+    failPolicy: continue
+
+  # ---- bulk operations ----
+  - label: Bulk create is atomic - one bad item rejects all
+    request:
+      method: POST
+      url: "{{baseUrl}}/products/bulk"
+      body:
+        type: json
+        content: '{"items":[{"name":"A","price":1,"stock":1},{"name":"B","price":"free","stock":1}]}'
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue
+
+  - label: Bulk create
+    request:
+      method: POST
+      url: "{{baseUrl}}/products/bulk"
+      body:
+        type: json
+        content: '{"items":[{"name":"Bulk A","price":1.5,"stock":2},{"name":"Bulk B","price":2.5,"stock":3}]}'
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+      - { type: jsonpath, path: "$.total", operator: eq, expected: "2" }
+      - { type: jsonpath, path: "$.items[0].id", operator: eq, expected: "p-4" }
+    extractions:
+      - { name: bulkId, source: jsonpath, path: "$.items[1].id" }
+    failPolicy: stop
+
+  - label: Products total is 5 (nothing from the rejected bulk was created)
+    request: { method: GET, url: "{{baseUrl}}/products?limit=1" }
+    assertions:
+      - { type: header, path: X-Total-Count, operator: eq, expected: "5" }
+    failPolicy: continue
+
+  - label: Bulk delete, partly missing, is 207
+    request:
+      method: POST
+      url: "{{baseUrl}}/products/bulk-delete"
+      body:
+        type: json
+        content: '{"ids":["p-4","missing-id"]}'
+    assertions:
+      - { type: status, operator: eq, expected: 207 }
+      - { type: jsonpath, path: "$.deleted[0]", operator: eq, expected: "p-4" }
+      - { type: jsonpath, path: "$.notFound[0]", operator: eq, expected: "missing-id" }
+    failPolicy: continue
+
+  - label: Bulk delete, all existing, is 200
+    request:
+      method: POST
+      url: "{{baseUrl}}/products/bulk-delete"
+      body:
+        type: json
+        content: '{"ids":["{{bulkId}}"]}'
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue
+
+  # ---- header parameters ----
+  - label: X-Request-Id is echoed
+    request:
+      method: GET
+      url: "{{baseUrl}}/request-info"
+      headers:
+        - { name: X-Request-Id, value: "3f2b8c1e-5d4a-4c8e-9a7b-1e2d3c4b5a69" }
+        - { name: Accept-Language, value: "fr-CH, fr;q=0.9" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: header, path: X-Request-Id, operator: eq, expected: "3f2b8c1e-5d4a-4c8e-9a7b-1e2d3c4b5a69" }
+      - { type: jsonpath, path: "$.language", operator: eq, expected: "fr-CH" }
+    failPolicy: continue
+
+  - label: X-Request-Id is generated when absent
+    request: { method: GET, url: "{{baseUrl}}/request-info" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: header, path: X-Request-Id, operator: matches, expected: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" }
+    failPolicy: continue
+
+  - label: A malformed X-Request-Id is 400
+    request:
+      method: GET
+      url: "{{baseUrl}}/request-info"
+      headers:
+        - { name: X-Request-Id, value: "not-a-uuid" }
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue
+
+  # ---- cookie parameter ----
+  - label: theme cookie
+    request:
+      method: GET
+      url: "{{baseUrl}}/preferences"
+      headers:
+        - { name: Cookie, value: "theme=dark" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.theme", operator: eq, expected: "dark" }
+    failPolicy: continue
+
+  - label: Missing theme cookie is 400
+    request: { method: GET, url: "{{baseUrl}}/preferences" }
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue
+
+  # ---- array, date, date-time, number and enum query parameters ----
+  - label: lookup parses every parameter type
+    request:
+      method: GET
+      url: "{{baseUrl}}/lookup?ids=1,2,3&on=2026-02-28&ratio=0.25&mode=strict&tags=a&tags=b&since=2026-02-01T12:00:00%2B02:00"
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.ids[1]", operator: eq, expected: "2" }
+      - { type: jsonpath, path: "$.tags[1]", operator: eq, expected: "b" }
+      - { type: jsonpath, path: "$.since", operator: eq, expected: "2026-02-01T10:00:00Z" }
+      - { type: jsonpath, path: "$.ratio", operator: eq, expected: "0.25" }
+    failPolicy: continue
+
+  - label: The array as ClearSignal v0.7.1 writes it is rejected (F-009)
+    request: { method: GET, url: "{{baseUrl}}/lookup?ids=%5B1%202%203%5D" }
+    assertions:
+      - { type: status, operator: eq, expected: 400 }
+    failPolicy: continue
+
+  # ---- 401 versus 403 ----
+  - label: No token is 401
+    request: { method: GET, url: "{{baseUrl}}/stats" }
+    assertions:
+      - { type: status, operator: eq, expected: 401 }
+    failPolicy: continue
+
+  - label: A valid token without the admin scope is 403
+    request:
+      method: GET
+      url: "{{baseUrl}}/stats"
+      headers:
+        - { name: Authorization, value: "Bearer test-token" }
+    assertions:
+      - { type: status, operator: eq, expected: 403 }
+    failPolicy: continue
+
+  - label: The admin token is 200
+    request:
+      method: GET
+      url: "{{baseUrl}}/stats"
+      headers:
+        - { name: Authorization, value: "Bearer admin-token" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.products", operator: eq, expected: "3" }  # 3 seeded + 2 bulk - 2 deleted
+    failPolicy: continue
+
+  # ---- optional response headers ----
+  - label: Cache-Control on a public read
+    request: { method: GET, url: "{{baseUrl}}/version" }
+    assertions:
+      - { type: header, path: Cache-Control, operator: contains, expected: "max-age=60" }
+    failPolicy: continue

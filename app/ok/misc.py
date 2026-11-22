@@ -1,6 +1,6 @@
 """Small public operations: a string-to-string settings map and a text/plain version."""
 
-from fastapi import APIRouter, Body, Path, Request
+from fastapi import APIRouter, Body, Path, Request, Response
 from fastapi.responses import PlainTextResponse
 from pydantic import TypeAdapter
 
@@ -19,7 +19,8 @@ def build(store: Store) -> APIRouter:
     router = APIRouter()
 
     @router.get("/settings")
-    async def get_settings() -> dict:
+    async def get_settings(response: Response) -> dict:
+        response.headers["Cache-Control"] = "no-store"
         return (await store.get("settings", "main"))["values"]
 
     @router.put("/settings")
@@ -40,7 +41,8 @@ def build(store: Store) -> APIRouter:
         return {"requestedMs": ms}
 
     @router.get("/version", response_class=PlainTextResponse)
-    async def get_version() -> str:
+    async def get_version(response: Response) -> str:
+        response.headers["Cache-Control"] = "public, max-age=60"
         return VERSION
 
     return router

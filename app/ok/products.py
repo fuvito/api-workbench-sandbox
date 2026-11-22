@@ -1,7 +1,7 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Response
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from app.ok.common import BoolText, Page, PatchModel, StrictModel, as_bool, not_found, paged
 from app.ok.listing import get_page
@@ -20,6 +20,21 @@ class ProductInput(StrictModel):
     name: str = Field(min_length=1, max_length=100)
     price: float = Field(ge=0)
     stock: int = Field(ge=0)
+
+
+class BulkProducts(StrictModel):
+    items: list[ProductInput] = Field(min_length=1, max_length=20)
+
+
+class BulkDelete(StrictModel):
+    ids: list[str] = Field(min_length=1, max_length=20)
+
+    @field_validator("ids")
+    @classmethod
+    def _unique_non_empty(cls, ids: list[str]) -> list[str]:
+        if any(not i for i in ids) or len(set(ids)) != len(ids):
+            raise ValueError("ids must be unique and non-empty")
+        return ids
 
 
 class ProductPatch(PatchModel):
@@ -68,6 +83,27 @@ def build(store: Store) -> APIRouter:
     @router.post("/products", status_code=201)
     async def create_product(body: ProductInput) -> dict:
         return await store.create_auto(COLLECTION, "p", body.model_dump())
+
+    @router.post("/products/bulk", status_code=201)
+    async def bulk_create_products(body: BulkProducts) -> dict:
+        """All or nothing: one invalid item rejects the whole request (400, nothing created)."""
+        created = []
+        async with store.tx() as tx:
+            for item in body.items:
+                product = {"id": tx.next_id(COLLECTION, "p"), **item.model_dump()}
+                tx.put(COLLECTION, product["id"], product)
+                created.append(product)
+        return {"items": created, "total": len(created)}
+
+    @router.post("/products/bulk-delete")
+    async def bulk_delete_products(body: BulkDelete, response: Response) -> dict:
+        """200 when every id existed, 207 when some did not (both are in the 2XX range)."""
+        deleted, missing = [], []
+        async with store.tx() as tx:
+            for product_id in body.ids:
+                (deleted if tx.delete(COLLECTION, product_id) else missing).append(product_id)
+        response.status_code = 207 if missing else 200
+        return {"deleted": deleted, "notFound": missing}
 
     @router.get("/products/{product_id}")
     async def get_product(product_id: str) -> dict:

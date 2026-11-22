@@ -16,6 +16,8 @@ tags:
   - name: invoices
   - name: discounts
   - name: reports
+  - name: notifications
+  - name: parameters
   - name: security
   - name: products
   - name: orders
@@ -661,6 +663,236 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications with cursor pagination (stable while data changes)
+      parameters:
+        - name: cursor
+          in: query
+          description: Opaque value from the previous page's nextCursor
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 5 }
+        - name: unread
+          in: query
+          schema: { type: boolean }
+        - name: since
+          in: query
+          description: Only notifications created at or after this instant
+          schema: { type: string, format: date-time }
+        - name: kind
+          in: query
+          schema: { type: string, enum: [info, warning] }
+        - $ref: "#/components/parameters/Delay"
+      responses:
+        "200":
+          description: One page; nextCursor is null on the last page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /notifications/{notificationId}:
+    get:
+      operationId: getNotification
+      tags: [notifications]
+      summary: Get a notification
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "200":
+          description: The notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /notifications/{notificationId}/read:
+    post:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a notification as read (idempotent)
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "200":
+          description: The notification, now read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /products/bulk:
+    post:
+      operationId: bulkCreateProducts
+      tags: [products]
+      summary: Create up to 20 products at once (all or nothing)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkProducts"
+      responses:
+        "201":
+          description: All products were created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /products/bulk-delete:
+    post:
+      operationId: bulkDeleteProducts
+      tags: [products]
+      summary: Delete several products by id (200 when all existed, 207 when some did not)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkDelete"
+      responses:
+        2XX:
+          description: Deleted (200) or partly deleted (207)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkDeleteResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /request-info:
+    get:
+      operationId: getRequestInfo
+      tags: [parameters]
+      summary: Header parameters; echoes or generates X-Request-Id
+      parameters:
+        - name: X-Request-Id
+          in: header
+          required: false
+          description: Correlation id (UUID); generated when absent
+          schema: { type: string, format: uuid }
+        - name: Accept-Language
+          in: header
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        "200":
+          description: What the server understood
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestInfo"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /preferences:
+    get:
+      operationId: getPreferences
+      tags: [parameters]
+      summary: Cookie parameter (theme is required)
+      parameters:
+        - name: theme
+          in: cookie
+          required: true
+          schema: { type: string, enum: [light, dark] }
+          example: dark
+      responses:
+        "200":
+          description: The theme from the cookie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preferences"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /lookup:
+    get:
+      operationId: lookup
+      tags: [parameters]
+      summary: Query parameter types (array, date, date-time, number, enum)
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: Comma-separated integers, for example ids=1,2,3
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 20
+            items: { type: integer }
+          example: [1, 2, 3]
+        - name: since
+          in: query
+          schema: { type: string, format: date-time }
+        - name: "on"
+          in: query
+          schema: { type: string, format: date }
+        - name: ratio
+          in: query
+          schema: { type: number, minimum: 0, maximum: 1 }
+        - name: mode
+          in: query
+          schema: { type: string, enum: [strict, lenient] }
+        - name: tags
+          in: query
+          description: Repeated parameter, for example tags=a&tags=b
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 10
+            uniqueItems: true
+            items: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: The parameters as parsed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LookupResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [security]
+      summary: Record counts (bearer token with the admin scope)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Counts per resource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /projects:
     get:
       operationId: listProjects
@@ -1012,6 +1244,9 @@ paths:
       responses:
         "200":
           description: The settings map
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
           content:
             application/json:
               schema:
@@ -1044,6 +1279,9 @@ paths:
       responses:
         "200":
           description: Version string
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
           content:
             text/plain:
               schema:
@@ -1299,8 +1537,21 @@ components:
         Optional deliberate delay in milliseconds (0 to 10000, scaled by the server's
         LATENCY_SCALE). Absent means no delay.
       schema: { type: integer, minimum: 0, maximum: 10000, default: 0 }
+    NotificationId:
+      name: notificationId
+      in: path
+      required: true
+      schema: { type: string, example: n-1 }
 
   headers:
+    CacheControl:
+      description: Caching directive
+      required: false
+      schema: { type: string }
+    XRequestId:
+      description: The request id, echoed or generated
+      required: true
+      schema: { type: string, format: uuid }
     Location:
       description: Where to poll for the result
       required: true
@@ -1376,6 +1627,12 @@ components:
             $ref: "#/components/schemas/Error"
     ServiceUnavailable:
       description: Too many deliberately slow requests are in progress; retry
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Authenticated, but the token lacks the required scope
       content:
         application/json:
           schema:
@@ -1820,3 +2077,99 @@ components:
           properties:
             rows: { type: integer }
             report: { type: string }
+
+    Notification:
+      type: object
+      required: [id, message, kind, read, createdAt]
+      properties:
+        id: { type: string }
+        message: { type: string }
+        kind: { type: string, enum: [info, warning] }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    NotificationPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        nextCursor:
+          type: string
+          nullable: true
+          description: Pass as cursor to get the next page; null when there is none
+
+    BulkProducts:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/ProductInput"
+          example:
+            - { name: Bulk One, price: 1.5, stock: 3 }
+            - { name: Bulk Two, price: 2.5, stock: 4 }
+    BulkDelete:
+      type: object
+      additionalProperties: false
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, minLength: 1 }
+          example: [p-3]
+    BulkDeleteResult:
+      type: object
+      required: [deleted, notFound]
+      properties:
+        deleted:
+          type: array
+          items: { type: string }
+        notFound:
+          type: array
+          items: { type: string }
+
+    RequestInfo:
+      type: object
+      required: [requestId, language]
+      properties:
+        requestId: { type: string, format: uuid }
+        language: { type: string }
+    Preferences:
+      type: object
+      required: [theme]
+      properties:
+        theme: { type: string, enum: [light, dark] }
+    LookupResult:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items: { type: integer }
+        since: { type: string, format: date-time }
+        "on": { type: string, format: date }
+        ratio: { type: number }
+        mode: { type: string, enum: [strict, lenient] }
+        tags:
+          type: array
+          items: { type: string }
+    Stats:
+      type: object
+      required: [products, orders, customers, projects, tasks, payments, invoices]
+      properties:
+        products: { type: integer }
+        orders: { type: integer }
+        customers: { type: integer }
+        projects: { type: integer }
+        tasks: { type: integer }
+        payments: { type: integer }
+        invoices: { type: integer }
