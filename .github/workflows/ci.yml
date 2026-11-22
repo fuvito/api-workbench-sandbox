@@ -47,8 +47,9 @@ jobs:
       - name: Install released clrsig
         if: matrix.clrsig == 'released'
         run: |
-          gh release download "$CLRSIG_VERSION" -R fuvito/api-workbench -p clrsig-linux-amd64 -O clrsig
-          sudo install -m 0755 clrsig /usr/local/bin/clrsig
+          # not into the checkout: the repo has its own clrsig/ directory
+          gh release download "$CLRSIG_VERSION" -R fuvito/api-workbench -p clrsig-linux-amd64 -O "$RUNNER_TEMP/clrsig-bin"
+          sudo install -m 0755 "$RUNNER_TEMP/clrsig-bin" /usr/local/bin/clrsig
         env:
           GH_TOKEN: ${{ github.token }}
 
