@@ -297,6 +297,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Repro: `clrsig conform specs/ok-features.yaml -b http://localhost:8080/ok --env clrsig/environments/ok-features.yaml --paths /features/events.ndjson`.
   - Expected: a type that is not `application/json` or a `+json` type is not parsed as one document (like `text/csv`, CS-NC-009), or NDJSON is read line by line.
   - Pinned here by: `expectations/ok-features.yaml` (`whole_spec.failing`, the scenario step `NDJSON content type`).
+  - Issue: https://github.com/fuvito/api-workbench/issues/11
   - Closed: —
 
 - [ ] **F-034 — A valid OpenAPI document with an XML `example` string is rejected (v0.8.5)**
@@ -305,6 +306,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Repro: `clrsig generate specs/hostile/xml-example.yaml --dry-run` (exit 2).
   - Expected: the document loads; an example for a non-JSON media type is not validated as JSON (or is parsed as that type).
   - Pinned here by: `expectations/conform-fail.yaml`, run `hostile-spec-xml-example` (`reference: F-034`). The CS-GAP-006 fixture `POST /features/xml-note` carries no `example`, only so that it is a separate fixture; the spec above is the valid one.
+  - Issue: https://github.com/fuvito/api-workbench/issues/12
   - Closed: —
 
 
@@ -314,6 +316,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Repro: `clrsig conform specs/ok-features.yaml -b http://localhost:8080/ok --env clrsig/environments/ok-features.yaml --negative --paths /features/session/me` against the server, with a valid session (`apiKey=sess-seed`, seeded at every reset).
   - Expected: the probe sends the request without the cookie, so a server that checks the session answers 401.
   - Pinned here by: `expectations/ok-features.yaml` (the probe of `/features/session/me` fails, `reference: F-035`).
+  - Issue: https://github.com/fuvito/api-workbench/issues/13
   - Closed: —
 
 ---
