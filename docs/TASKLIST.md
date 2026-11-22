@@ -204,10 +204,12 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 
 ## Phase 6 — Cloud Run deployment
 
+> Prepared, not started: `docs/cloud-run-prep.md` has the local verification, proposed settings and an unverified runbook. Everything that needs Google Cloud is still open.
+
 - [ ] Confirm public versus private access.
 - [ ] Confirm Google Cloud project and region.
 - [ ] Configure billing budget alerts.
-- [ ] Build and test the production container image locally using the Python/FastAPI application and Uvicorn.
+- [x] Build and test the production container image locally using the Python/FastAPI application and Uvicorn (run with `PORT=9000`, a token, a public URL, 512 MB: see `docs/cloud-run-prep.md`).
 - [ ] Create Artifact Registry repository.
 - [ ] Store `ADMIN_TOKEN` in Secret Manager.
 - [ ] Deploy Cloud Run service with `max-instances=1` initially.
