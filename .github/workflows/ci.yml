@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 env:
-  CLRSIG_VERSION: v0.8.3          # the released clrsig the expectations are written for
+  CLRSIG_VERSION: v0.8.4          # the released clrsig the expectations are written for
   UV_VERSION: "0.11.31"
 
 jobs:

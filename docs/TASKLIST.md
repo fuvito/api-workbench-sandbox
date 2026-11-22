@@ -243,6 +243,7 @@ Why: the catalog was fully mentioned except six IDs, and neither the OpenAPI fea
 - [x] Add a 3.1 `webhooks` entry to `specs/ok-3.1.yaml`.
 - [x] Record what the pass found: F-023 (`run` sends an undefined placeholder), F-024 (`--seed` depends on the path spelling), F-025 (a TRACE operation is dropped).
 - [ ] Decide the oauth2 / openIdConnect URLs under `PUBLIC_BASE_URL` (Phase 6); see the KT note.
+- [x] Move to clrsig v0.8.4: F-023, F-024 and F-025 verified closed; CI pinned to `v0.8.4`; `ok-features` is 19 of 19 (TRACE), seeds pinned by value, `run-001b` pins the not-sent step.
 
 ## Phase 7 — Release readiness
 

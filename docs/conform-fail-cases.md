@@ -1,6 +1,6 @@
 # conform-fail: expected outcomes (response cases, sequences and commands; probes are in the expectations file)
 
-Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.3 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
+Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.4 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
 
 | Case | Path (under `/conform-fail`) | Expected | Check | Exit code | ClearSignal reports (or why it passes) |
 |---|---|---|---|---|---|
@@ -77,6 +77,7 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `large-json-over-the-cap` | CS-RESP-013 | 1 | larger than the 50 MB Clear Signal reads (valid JSON over the 50 MB read limit is reported as too large, not as a syntax error) |
 | `run-005-unset-environment-variable` | CS-RUN-005 | 0 | environment variable CLRSIG_UNSET_FIXTURE_VAR is not set |
 | `run-007-bad-function-in-a-scenario-variable` | CS-RUN-007 | 2 | variable "broken".*unknown function \$noSuchFunction |
+| `run-001b-missing-value-in-a-scenario` | CS-RUN-001 | 1 | (?s)FAIL\s+missing value\s+error: not sent: no value for \{\{nothing\}\}.*PASS\s+good step |
 | `nc-004-validate-spec-off` | none | 1 | (?s)PASS\s+validation off\s+404.*FAIL\s+ghost checked.*declares only 200.*spec validation is turned off for this step: 1 |
 | `nc-006-step-did-not-complete` | none | 1 | the step did not complete: 1 |
 | `nc-005-no-spec` | none | 1 | (?s)PASS\s+ghost checked\s+404 (without --spec the same /ghost step passes and no 'Spec:' summary line is printed) |

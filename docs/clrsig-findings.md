@@ -194,38 +194,38 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Closed: 2026-11-22, verified with released `clrsig` v0.8.3: the finding is kind `write-only-property` with `checkId` `CS-RESP-011`; the expectation now pins both.
 
 
-- [ ] **F-023 — `clrsig run` sends a step whose `{{name}}` has no value, with the braces in the URL (v0.8.3)**
+- [x] **F-023 — `clrsig run` sends a step whose `{{name}}` has no value, with the braces in the URL (v0.8.3)**
   - Type: inconsistency (catalog vs behavior; needs a decision which one is intended). Found: 2026-11-22, `clrsig` v0.8.3, while testing `--var`.
   - Behavior: in a scenario, `GET {{baseUrl}}/ok-slow/{{nothing}}` (no variable `nothing` anywhere, no `--var`) is **sent** as `GET /ok/ok-slow/{{nothing}}` (the server's log shows the literal braces; here it answers 400). The step fails on its status assertion only; no message says a value was missing. The same mistake in `clrsig conform` is not sent and is reported (CS-RUN-001, `run-001-missing-placeholder`). The catalog's CS-RUN-001 row says "the request is not sent" and cites `TestRunner_DoesNotSendARequestWithAMissingValue`, but only describes it for operations and coverage.
   - Repro: `clrsig run <scenario with url "{{baseUrl}}/ok-slow/{{nothing}}"> --env clrsig/environments/ok.yaml` and read the server log; a query-string use (`/health?x={{nothing}}`) is also sent and passes.
   - Expected: either the step is not sent and shows `no value for {{nothing}}` like `conform`, or the catalog says that scenarios send unresolved placeholders on purpose.
   - Pinned here by: nothing yet (the behavior is not relied on).
-  - Closed: —
+  - Closed: 2026-11-22, verified with released `clrsig` v0.8.4: a step whose `{{name}}` has no value is not sent and fails with `not sent: no value for {{name}}`; the later steps run. Pinned by `run-001b-missing-value-in-a-scenario`.
 
 
-- [ ] **F-024 — `--seed` reproduces random values only for the same spelling of the scenario path (v0.8.3)**
+- [x] **F-024 — `--seed` reproduces random values only for the same spelling of the scenario path (v0.8.3)**
   - Type: limitation (reproducibility). Found: 2026-11-22, `clrsig` v0.8.3, while pinning `--seed`.
   - Behavior: `clrsig run <scenario> --seed 7` prints the seed in its report so a run can be repeated, but the random values also depend on the scenario's path string. The same file, same content, same `--seed 7` gave `{{$randomInt 1 40}}` = 32 as `clrsig/scenarios/x.yaml`, 26 as `./clrsig/scenarios/x.yaml`, 9 as an absolute path, 5 when run from inside the folder as `x.yaml`, and 16 for a copy with another name. The same spelling is stable (32, 32, 32).
   - Repro: `clrsig run clrsig/scenarios/ok-dynamic-values.yaml --env clrsig/environments/ok.yaml --seed 7 --format json` against `./clrsig/...` and an absolute path; compare `variables[0].value`.
   - Impact: a failure in CI (absolute runner paths) cannot be reproduced on a laptop with the printed seed unless the path is spelled identically; the catalog and `--help` describe the seed as the way to repeat a run.
   - Expected: the seed alone fixes the values (or the report says which path is part of the seed).
   - Pinned here by: `expectations/ok.yaml` pins only that the report echoes the seed (`run-seed-is-reported`), not any value.
-  - Closed: —
+  - Closed: 2026-11-22, verified with released `clrsig` v0.8.4: `--seed 7` gives the same value for a relative path, `./`, an absolute path and a copy under another name (the values come from the seed and the scenario title). Pinned by `run-seed-7`, `run-seed-7-relative-path`, `run-seed-8`.
 
 
-- [ ] **F-025 — An operation with the `TRACE` method is silently left out of `conform` and `generate` (v0.8.3)**
+- [x] **F-025 — An operation with the `TRACE` method is silently left out of `conform` and `generate` (v0.8.3)**
   - Type: limitation (silent omission). Found: 2026-11-22, `clrsig` v0.8.3, with `specs/ok-features.yaml`.
   - Behavior: the spec declares 19 operations, one of them `trace` (`TRACE /features/trace`, valid OpenAPI 3.0.3). `clrsig conform` lists and runs 18; the TRACE operation appears nowhere, not even as SKIP, and the summary says "18 operations". `clrsig generate` writes 18 request files. `--paths /features/trace` selects nothing. The server answers `TRACE /ok/features/trace` correctly (200, `trace ok`).
   - Repro: `clrsig conform specs/ok-features.yaml -b http://localhost:8080/ok --env clrsig/environments/ok-features.yaml --format json` and count `operations` (18); the path `/features/trace` is not in it.
   - Expected: run the operation, or say that TRACE is not supported (a SKIP line with the reason, and the count of declared operations), so a missing operation is visible.
   - Pinned here by: `expectations/ok-features.yaml` (18 operations, 18 generated requests; the header names F-025).
-  - Closed: —
+  - Closed: 2026-11-22, verified with released `clrsig` v0.8.4: the TRACE operation is generated, run (19 of 19) and `--read-only` lists it as skipped. Pinned by `expectations/ok-features.yaml`.
 
 ---
 
 ## Baseline
 
-Fixtures and expectations are verified against released `clrsig` **v0.8.3** (installed with Scoop; CI pins the same release). F-003 to F-021 were found with v0.7.1; v0.8.2 fixed all of them except F-016, and v0.8.3 fixed F-016 and F-022. No finding is open.
+Fixtures and expectations are verified against released `clrsig` **v0.8.4** (installed with Scoop; CI pins the same release). F-003 to F-021 were found with v0.7.1; v0.8.2 fixed all of them except F-016, v0.8.3 fixed F-016 and F-022, and v0.8.4 fixed F-023, F-024 and F-025. No finding is open.
 
 ## Notes
 

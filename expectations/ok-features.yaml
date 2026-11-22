@@ -7,12 +7,12 @@
 # openIdConnect security. The server behaves as the spec says, so every operation ClearSignal runs
 # must conform.
 #
-# The spec declares 19 operations and ClearSignal runs 18: `TRACE /features/trace` is silently left
-# out of `conform` and `generate` (F-025). The expectations below therefore count 18.
+# The spec declares 19 operations, `TRACE /features/trace` among them. Since v0.8.4 ClearSignal
+# generates, runs and counts it (v0.8.3 silently left it out, F-025); `--read-only` skips it.
 #
 # Run: uv run python scripts/check_expectations.py --expectations expectations/ok-features.yaml   (server on :8080)
 #
-# Holds for clrsig v0.8.3 against the standard spec (docs/clrsig-findings.md).
+# Holds for clrsig v0.8.4 against the standard spec (docs/clrsig-findings.md).
 
 format: 1
 family: ok-features
@@ -25,7 +25,7 @@ whole_spec:
   covers_all: true
 
 generation:
-  operations: 18
+  operations: 19
 
 scenarios:
   - file: clrsig/scenarios/ok-features.yaml
@@ -45,7 +45,7 @@ scenarios:
       PNG content type: { passed: true }
       NDJSON content type: { passed: true }
 
-# `conform --negative`: 18 probes over 8 operations. The path-style and query-style operations and the
+# `conform --negative`: 18 probes over 8 operations (TRACE has no body or parameter to break). The path-style and query-style operations and the
 # form-body token endpoint have no body field to drop, so they get no probe.
 probes:
   - { op: /features/items, probes: 2, fail: [] }
@@ -56,3 +56,11 @@ probes:
   - { op: /features/openid-profile, probes: 1, fail: [] }
   - { op: /features/pipe-delimited, probes: 1, fail: [] }
   - { op: /features/space-delimited, probes: 1, fail: [] }
+
+runs:
+  - name: trace-is-not-a-read-only-method
+    reference: null
+    note: "--read-only lists the TRACE operation as skipped instead of sending it (F-025 closed in v0.8.4)"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok-features.yaml", --read-only]
+    exit: 0
+    output: 'SKIP\s+TRACE\s+/features/trace'

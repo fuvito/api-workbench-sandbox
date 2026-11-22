@@ -1,6 +1,6 @@
 # clrsig commands and flags exercised here
 
-Beyond the check catalog, the fixtures pin what each `clrsig` command and flag does. The entries are in `expectations/ok.yaml` (section `runs`) and run with the other expectations in CI; when a release changes a flag, the entry flips and the file changes with it. Pinned for `clrsig` v0.8.3.
+Beyond the check catalog, the fixtures pin what each `clrsig` command and flag does. The entries are in `expectations/ok.yaml` (section `runs`) and run with the other expectations in CI; when a release changes a flag, the entry flips and the file changes with it. Pinned for `clrsig` v0.8.4.
 
 | Command or flag | What is pinned | Entry |
 |---|---|---|
@@ -11,7 +11,7 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 | `conform --max-response-time` | `slow-response`, CS-RESP-014 | `expectations/conform-fail.yaml` (`latency-over-limit`, `degrading-latency`, ...) |
 | `conform --negative`, `--paths`, `--format json/junit` | probes follow the filter and reach the reports (CS-PROBE-005) | `probe-005-*` in `conform-fail.yaml` |
 | `conform --baseline`, `--write-baseline` | the drift ratchet (CS-RUN-006) | the `drift` section of `conform-fail.yaml` |
-| `run --seed` | the report echoes the seed; the values depend on the path spelling (F-024), so they are not pinned | `run-seed-is-reported` |
+| `run --seed` | the same seed gives the same random value (33 for seed 7, 12 for seed 8), however the scenario path is written | `run-seed-7`, `run-seed-7-relative-path`, `run-seed-8` |
 | `run --var` | replaces an environment variable for one run | `run-var-overrides-the-environment` |
 | `run --timeout` | overrides every step timeout (CS-RUN-003) | `run-timeout-flag` |
 | `run --coverage` | appends the operations the scenario exercised (16 of 65) | `run-coverage` |
@@ -33,4 +33,4 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 - `mcp` (an MCP server over stdio), `telemetry`, `completion`: not behavior of an API under test.
 - `--show-extracted`: needs a secret-looking extraction; the `oauth2` scenario extracts an access token, which clrsig masks (`***`) in its output.
 
-Open questions found while building these entries are in `docs/clrsig-findings.md`: F-023 (an undefined `{{name}}` is sent by `run`), F-024 (`--seed` and the path spelling), F-025 (a `TRACE` operation is dropped).
+Questions found while building these entries were recorded in `docs/clrsig-findings.md` and are closed with v0.8.4: F-023 (an undefined `{{name}}` was sent by `run`; now not sent, `run-001b-*`), F-024 (`--seed` and the path spelling), F-025 (a `TRACE` operation was dropped).

@@ -250,6 +250,14 @@ runs:
     output: 'variable "broken".*unknown function \$noSuchFunction'
     not_output: 'never sent\s+200'
 
+  # CS-RUN-001 in a scenario: a step with no value for a placeholder is not sent (v0.8.4, F-023); the
+  # next step still runs.
+  - name: run-001b-missing-value-in-a-scenario
+    check: CS-RUN-001
+    args: [run, "{root}/clrsig/scenarios/conform-fail-missing-value.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml", --spec, "{spec}"]
+    exit: 1
+    output: '(?s)FAIL\s+missing value\s+error: not sent: no value for \{\{nothing\}\}.*PASS\s+good step'
+
   # "Not checked" states (CS-NC-004 to 006): a response that is not compared with the spec. The same
   # /ghost request is a violation when checked (`ghost checked`), and clrsig counts the others in
   # its summary line.

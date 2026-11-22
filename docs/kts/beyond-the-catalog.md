@@ -1,16 +1,16 @@
 # KT — Beyond the check catalog: OpenAPI features and CLI commands
 
-Written 2026-11-22, for `clrsig` v0.8.3. Read this to see what the fixtures cover outside the catalog's check IDs, and what they do not.
+Written 2026-11-22 for `clrsig` v0.8.3; updated the same day for v0.8.4, which fixed the three findings below. Read this to see what the fixtures cover outside the catalog's check IDs, and what they do not.
 
 ## What was added
 
 - **Six catalog IDs that had no case** (CS-NC-004, -005, -006, CS-PROBE-005, CS-RUN-007, CS-GAP-004). The catalog (56 IDs) is now fully mentioned. New fixtures: `clrsig/scenarios/conform-fail-spec-check-states.yaml` and `conform-fail-bad-variable.yaml`; runs `run-007-*`, `nc-004/005/006-*`, `probe-005-*` in `expectations/conform-fail.yaml`. The runner gained `not_output` (a regex that must not match).
-- **A second `ok` document, `specs/ok-features.yaml`** (19 operations, served at `GET /ok/openapi-features.yaml`, handlers in `app/ok/features.py`), one small operation per OpenAPI feature `ok.yaml` lacks: parameter styles (deepObject, pipeDelimited, spaceDelimited, label, matrix), allowEmptyValue, allowReserved, int64 / double / byte / password, multipleOf and exclusive bounds, `not`, `deprecated`, a response `link`, TRACE, text/csv, image/png, application/x-ndjson, a `components.requestBodies` reference, oauth2 and openIdConnect, top-level and tag `externalDocs`. It is a separate document so the 65-operation `ok` baseline did not change (the same choice as the 3.1 variant). Expectations: `expectations/ok-features.yaml` (18 of 18 operations, 18 probes, one scenario); CI runs it.
+- **A second `ok` document, `specs/ok-features.yaml`** (19 operations, served at `GET /ok/openapi-features.yaml`, handlers in `app/ok/features.py`), one small operation per OpenAPI feature `ok.yaml` lacks: parameter styles (deepObject, pipeDelimited, spaceDelimited, label, matrix), allowEmptyValue, allowReserved, int64 / double / byte / password, multipleOf and exclusive bounds, `not`, `deprecated`, a response `link`, TRACE, text/csv, image/png, application/x-ndjson, a `components.requestBodies` reference, oauth2 and openIdConnect, top-level and tag `externalDocs`. It is a separate document so the 65-operation `ok` baseline did not change (the same choice as the 3.1 variant). Expectations: `expectations/ok-features.yaml` (19 of 19 operations, 18 probes, one scenario); CI runs it.
 - **`webhooks` in `specs/ok-3.1.yaml`**: a 3.1 webhook is a request the API sends, so there is nothing to call; the document loads and the 15 operations are unchanged.
 - **Commands and flags**: 21 entries under `runs` in `expectations/ok.yaml`, listed in `docs/commands-and-flags.md`.
 - Tests: `tests/test_ok_features.py` (spec served and equal to the file, every operation routed, each feature strict).
 
-## What it found
+## What it found (all closed in v0.8.4)
 
 | Finding | Summary |
 |---|---|
@@ -30,5 +30,5 @@ The label and matrix styles were wrong in the first version of the server, not i
 
 ## Numbers
 
-- `ok-features`: 18 of 18 operations conform, 18 of 18 probes. `ok`: unchanged (65 operations, 62 probes); `runs` adds 21 command entries.
-- Findings: F-023, F-024, F-025 are open.
+- `ok-features`: 19 of 19 operations conform, 18 of 18 probes (v0.8.3: 18 of 18). `ok`: unchanged (65 operations, 62 probes); `runs` adds 21 command entries.
+- Findings: F-023, F-024, F-025 were fixed in v0.8.4 and verified; none is open. With v0.8.4 `ok-features` is 19 of 19 operations (TRACE included), and the seed values are pinned (seed 7 gives 33, seed 8 gives 12).

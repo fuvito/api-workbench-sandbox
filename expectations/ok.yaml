@@ -206,12 +206,24 @@ runs:
     output: 'FAILED\s+8 operations\s+·\s+7 passed\s+·\s+1 failed\s+·\s+0 skipped'
 
   # ---- run: seeds, variables, reports ----
-  - name: run-seed-is-reported
+  - name: run-seed-7
     reference: null
-    note: "the report echoes --seed; the random VALUES are not pinned because they depend on the scenario's path spelling (F-024)"
+    note: "the same --seed gives the same random value: {{$randomInt 1 40}} is 33 with seed 7 ..."
     args: [run, "{root}/clrsig/scenarios/ok-dynamic-values.yaml", --env, "{root}/clrsig/environments/ok.yaml", --spec, "{spec}", --seed, "7", --format, json]
     exit: 0
-    output: '"seed": 7'
+    output: '"seed": 7[\s\S]*"value": "33"'
+  - name: run-seed-7-relative-path
+    reference: null
+    note: "... however the path is written: since v0.8.4 the values come from the seed and the scenario title (F-024)"
+    args: [run, "clrsig/scenarios/ok-dynamic-values.yaml", --env, "clrsig/environments/ok.yaml", --spec, "{spec}", --seed, "7", --format, json]
+    exit: 0
+    output: '"seed": 7[\s\S]*"value": "33"'
+  - name: run-seed-8
+    reference: null
+    note: "... and 12 with seed 8"
+    args: [run, "{root}/clrsig/scenarios/ok-dynamic-values.yaml", --env, "{root}/clrsig/environments/ok.yaml", --spec, "{spec}", --seed, "8", --format, json]
+    exit: 0
+    output: '"seed": 8[\s\S]*"value": "12"'
   - name: run-var-overrides-the-environment
     reference: CS-RUN-003
     note: "--var baseUrl=... replaces the environment value for this run: a closed port gives no response"

@@ -1,0 +1,17 @@
+schemaVersion: "1"
+title: conform-fail - a step that uses a value nothing provides
+description: >
+  DELIBERATELY BROKEN. The first step uses {{nothing}}, which no environment, --var, scenario
+  variable or earlier extraction defines, so the step is not sent (the catalog's CS-RUN-001, as for
+  an operation in `conform`). The second step is fine and shows that only the broken step fails.
+steps:
+  - label: missing value
+    request: { method: GET, url: "{{baseUrl}}/health?x={{nothing}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue
+  - label: good step
+    request: { method: GET, url: "{{baseUrl}}/health" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue
