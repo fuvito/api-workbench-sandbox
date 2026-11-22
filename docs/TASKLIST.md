@@ -73,7 +73,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Add request-body constraints and formats (email, date, uuid, pattern, min/max, minItems/maxItems, uniqueItems, maxProperties).
 - [x] Add response codes, default responses, and status ranges. (Done: 200, 201, 202, 204, 207, 400, 401, 403, 404, 409, 410, 412, 422, 428, 429, 503, `default`, `4XX`, `2XX`.)
 - [x] Add response headers: `X-Total-Count`, `Allow`, `ETag`, `Location`, `Retry-After`, `WWW-Authenticate`, `X-RateLimit-*`, `X-Request-Id` (echoed or generated), optional `Cache-Control`.
-- [ ] Add `$ref`, `allOf`, `oneOf`, `anyOf`, discriminators, nullable/type arrays, maps, and additionalProperties cases. (Done: all except 3.1 type arrays, which wait for the 3.0/3.1 decision; `nullable` uses 3.0.)
+- [x] Add `$ref`, `allOf`, `oneOf`, `anyOf`, discriminators, nullable/type arrays, maps, and additionalProperties cases. (`nullable` is in the 3.0.3 `ok`; 3.1 type arrays with `null` are in `specs/ok-3.1.yaml`, verified by `expectations/ok-31.yaml`.)
 - [x] Add JSON, problem+json (customers), and text/plain (`GET /ok/version`) media types.
 - [x] Add bearer, basic, and API-key (header and query) security examples. Verified by `ok-schemas-and-security.yaml`; `conform` authenticates every scheme since v0.8.2 (F-005 closed).
 - [x] Add pagination (offset and cursor), filtering, sorting, bulk operations (atomic create, partial delete with 200/207), sub-resources, and actions.
@@ -243,7 +243,7 @@ Why: `ok` is the baseline for what ClearSignal must handle, and valid OpenAPI 3.
 - [x] Verify no outbound caller-controlled requests are possible. (no HTTP client in `app/`; the only redirect points at itself).
 - [x] Verify request-body and response-size limits. (found no request-body cap: added a 1 MiB limit, `app/limits.py`; checked against the container; `/large` caps at 60 MB and streams).
 - [x] Verify concurrent slow-request limits. (container: 25 parallel slow requests gave 20 x 200 and 5 x 503; later requests succeed).
-- [ ] Tag first release.
+- [x] Tag first release (`v0.1.0`, with a GitHub Release).
 - [x] Record known gaps and cloud-specific limitations. (README section).
 
 ## Knowledge transfer
