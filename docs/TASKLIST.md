@@ -190,14 +190,14 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Support `local-only` cases and cloud-specific expectation overrides.
 - [x] Write a script/runner that executes all fixture commands.
 - [x] Compare actual exit codes and check IDs with expected values.
-- [ ] Fail CI when a case no longer produces its expected outcome.
-- [ ] Install pinned Python dependencies in CI.
-- [ ] Run pytest unit and integration tests.
-- [ ] Build and start server in CI.
-- [ ] Poll readiness endpoint before tests.
-- [ ] Run `ok`, `contract-fail`, and `conform-fail` checks, plus diff and scenario checks.
-- [ ] Add CI leg against released `clrsig`.
-- [ ] Add nightly leg against `api-workbench@main` where practical.
+- [x] Fail CI when a case no longer produces its expected outcome.
+- [x] Install pinned Python dependencies in CI.
+- [x] Run pytest unit and integration tests.
+- [x] Build and start server in CI.
+- [x] Poll readiness endpoint before tests.
+- [x] Run `ok`, `contract-fail`, and `conform-fail` checks, plus diff and scenario checks.
+- [x] Add CI leg against released `clrsig`.
+- [x] Add nightly leg against `api-workbench@main` where practical (cron 03:17 UTC; a manual run can pick `main` too; verified once by hand, the cron itself has not fired yet).
 - [x] Document local test commands in README.
 
 **Exit criteria:** CI detects both accidental fixture changes and ClearSignal regressions.
