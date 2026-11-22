@@ -51,6 +51,16 @@ uv run python scripts/check_expectations.py --only resp-003-missing-required-hea
 
 **Important (F-010 in `docs/clrsig-findings.md`):** `clrsig` v0.7.1 silently skips response validation for any spec that has a `servers` entry, so `clrsig conform specs/contract-fail.yaml` reports everything as PASS. The runner therefore checks a generated copy (`scripts/clrsig_spec_copy.py`: no `servers`, base path in each path, run with `-b`). Do not read a plain `clrsig conform` PASS on these specs as proof of anything.
 
+## `conform-fail` cases (in progress)
+
+Slice 1 is in: seven `/conform-fail/lenient/*` operations that accept bad requests and seven `/conform-fail/strict/*` twins that reject them, so `clrsig conform --negative` finds exactly four failed probes (CS-PROBE-001 to 004) and passes everything else. The expected outcome of every case is in `expectations/conform-fail.yaml`.
+
+```
+uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml
+```
+
+Same caveat as `contract-fail` (F-010), plus two about probes: `clrsig` ignores `--paths` for probes (F-013) and leaves them out of the JSON and JUnit reports (F-014), so the runner reads the text report.
+
 ## Latency
 
 `GET /ok/ok-slow/{ms}` (0 to 10000) answers correctly after the delay, and every list operation accepts an optional `?delay=<ms>` (0 to 10000). `LATENCY_SCALE` (0 to 10, default 1) multiplies every deliberate delay; use `0` for fast test runs. Caps: the scaled sleep is at most 30 s and at most 20 slow requests run at once (more get `503`). Delays never block other requests or the store.

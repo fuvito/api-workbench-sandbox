@@ -1,0 +1,8 @@
+schemaVersion: "1"
+name: conform-fail
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/conform-fail"
+  # Fixed fake credential for the secured lenient/strict operations.
+  - name: token
+    value: "test-token"

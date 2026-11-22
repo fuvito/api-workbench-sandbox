@@ -64,7 +64,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
 - [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
 
-**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-012 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-014 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [x] Add remaining resource families (customers, payments, invoices, discount codes, notifications, reports, settings, secured examples), kept within the 60 to 70 operation target.
@@ -132,12 +132,12 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 ## Phase 4 — `conform-fail` API and run cases
 
 ### Negative probes and lenient/strict controls
-- [ ] Implement lenient missing-field case.
-- [ ] Implement lenient wrong-type case.
-- [ ] Implement lenient missing-query case.
-- [ ] Implement lenient no-auth case.
-- [ ] Add known-gap controls for wrong auth, enum/boundary, and unknown fields.
-- [ ] Implement strict control operations that correctly reject invalid requests.
+- [x] Implement lenient missing-field case (`POST /conform-fail/lenient/missing-field`, fails CS-PROBE-001).
+- [x] Implement lenient wrong-type case (fails CS-PROBE-002).
+- [x] Implement lenient missing-query case (fails CS-PROBE-003).
+- [x] Implement lenient no-auth case (fails CS-PROBE-004).
+- [x] Add known-gap controls for wrong auth (CS-GAP-008), enum/boundary and unknown fields (CS-GAP-009): lenient, but not probed today, so they pass.
+- [x] Implement strict control operations that correctly reject invalid requests (seven `/strict/*` twins; verified by `scripts/check_expectations.py --expectations expectations/conform-fail.yaml`: 26 probes, 4 fail, all as expected).
 
 ### Spec/server disagreement
 - [ ] Implement declared ghost route.

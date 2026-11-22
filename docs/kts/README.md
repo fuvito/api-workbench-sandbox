@@ -13,7 +13,8 @@ One note per phase, written when the phase completes. Each covers: what was buil
 | 2f — cursor paging, bulk, parameters, 403 | [phase-2f-paging-bulk-parameters.md](phase-2f-paging-bulk-parameters.md) | Written |
 | 2 — `ok` wrap-up (phase exit review) | phase-2-ok-baseline.md | Pending |
 | 3 — `contract-fail` | [phase-3-contract-fail.md](phase-3-contract-fail.md) | Written |
-| 4 — `conform-fail` | phase-4-conform-fail.md | Pending |
+| 4a — lenient server and negative probes | [phase-4a-lenient-and-probes.md](phase-4a-lenient-and-probes.md) | Written |
+| 4 — `conform-fail` (remaining slices) | phase-4-conform-fail.md | Pending |
 | 5 — Expectations and CI | phase-5-expectations-ci.md | Pending |
 | 6 — Cloud Run | phase-6-cloud-run.md | Pending |
 | 7 — Release readiness | phase-7-release.md | Pending |

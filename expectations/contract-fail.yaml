@@ -20,6 +20,7 @@ format: 1
 family: contract-fail
 spec: specs/contract-fail.yaml
 prefix: /contract-fail
+ignore: [/health]
 
 cases:
   # ---- controls ----

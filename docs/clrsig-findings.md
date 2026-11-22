@@ -109,11 +109,27 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Handled here instead by: matching `kind`, `where` and a regex on the validator message, all recorded per case in `expectations/contract-fail.yaml`. Replace with the ID when it exists.
   - Closed: —
 
+- [ ] **F-013 — `--paths` and `--tags` do not filter the negative probes (v0.7.1)**
+  - Type: bug / limitation. Found: 2026-11-21, `clrsig` v0.7.1, while building `conform-fail`.
+  - Behavior: `clrsig conform ... --negative --paths /conform-fail/strict/missing-field` skips every other operation (shown as SKIP) but still runs all 26 negative probes of the whole spec, and the run exits 1 because other operations' probes fail. The catalog (CS-NC-007) says a filter leaves an operation out and "not sent".
+  - Repro: `clrsig conform <spec copy> -b http://localhost:8080 --env clrsig/environments/conform-fail.yaml --negative --paths /conform-fail/strict/missing-field`; count the probe lines (28, not 2).
+  - Expected: only the probes of the selected operations run, and the exit code reflects only those.
+  - Handled here instead by: the runner runs `--negative` once for the whole spec and attributes each probe to its operation from the output text.
+  - Closed: —
+
+- [ ] **F-014 — Negative probe results are missing from the JSON and JUnit reports (v0.7.1)**
+  - Type: bug / limitation. Found: 2026-11-21, `clrsig` v0.7.1.
+  - Behavior: with `--negative`, the text and HTML reports list every probe (PASS or FAIL), but `--format json` and `--format junit` contain none of them. The JUnit report even says `failures="0"` while the run exits 1 because probes failed. A CI job that reads the machine-readable report cannot see probe failures.
+  - Repro: the same command as F-013 with `--format json` or `--format junit`: no probe text, no `probes` field; compare with the text output.
+  - Expected: probes (kind, operation, expected and actual status, pass or fail) in the JSON, and one JUnit test case per probe.
+  - Handled here instead by: the runner parses the text report (`FAIL POST <path> - <probe> (expect ...)`). Replace with JSON once it carries probes.
+  - Closed: —
+
 ---
 
 ## Baseline
 
-Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-012 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
+Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-014 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
 
 ## Notes
 

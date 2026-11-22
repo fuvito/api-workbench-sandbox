@@ -2,13 +2,28 @@ openapi: 3.0.3
 info:
   title: conform-fail API
   version: 1.0.0
-  description: Request, probe, run and behavior failures. Cases are added in Phase 4.
+  description: >
+    Request, probe, run and behavior failures for ClearSignal's Spec Conformance Testing.
+    Unlike contract-fail, the responses here are mostly fine; what is wrong is the server's
+    behavior as a whole or the run itself. Every operation declares the CORRECT behavior.
+    The expected ClearSignal outcome of each case is recorded in expectations/conform-fail.yaml.
+
+    Slice 1 (this file so far): a LENIENT server that accepts requests it should reject
+    (found by `clrsig conform --negative`), and a STRICT control group that rejects them.
+    Fixed fake credential for the secured operations: bearer token test-token.
 servers:
   - url: http://localhost:8080/conform-fail
+tags:
+  - name: system
+  - name: lenient
+    description: The server accepts bad requests it should reject
+  - name: strict
+    description: Control group - the same shapes, correctly rejecting bad requests
 paths:
   /health:
     get:
       operationId: getHealth
+      tags: [system]
       summary: Readiness probe (control case, conforms)
       responses:
         "200":
@@ -22,3 +37,326 @@ paths:
                   status:
                     type: string
                     enum: [ok]
+
+  # ------------------------------------------------------------------ lenient
+  /lenient/missing-field:
+    post:
+      operationId: lenientMissingField
+      tags: [lenient]
+      summary: Accepts a body without the required field
+      description: The spec requires name. The server checks types but accepts a body that lacks it (201).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NameBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /lenient/wrong-type:
+    post:
+      operationId: lenientWrongType
+      tags: [lenient]
+      summary: Accepts a field of the wrong type
+      description: The spec declares quantity as an integer. The server requires it but accepts "lots" (201).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuantityBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /lenient/missing-query:
+    get:
+      operationId: lenientMissingQuery
+      tags: [lenient]
+      summary: Answers without a required query parameter
+      description: The spec requires q. The server answers 200 without it.
+      parameters:
+        - $ref: "#/components/parameters/Q"
+      responses:
+        "200":
+          $ref: "#/components/responses/Echo"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /lenient/no-auth:
+    get:
+      operationId: lenientNoAuth
+      tags: [lenient]
+      summary: Answers without credentials on a secured operation
+      description: The spec requires a bearer token. The server answers 200 without any credentials.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Secret"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /lenient/wrong-auth:
+    get:
+      operationId: lenientWrongAuth
+      tags: [lenient]
+      summary: Accepts any token
+      description: >
+        Rejects a missing token (401) but accepts any token value. ClearSignal does not probe
+        wrong credentials today (CS-GAP-008), so this passes.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Secret"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /lenient/enum-and-boundary:
+    post:
+      operationId: lenientEnumAndBoundary
+      tags: [lenient]
+      summary: Accepts values outside an enum and a maximum
+      description: >
+        level must be low or high and percent at most 100. The server checks presence and
+        types but accepts level "extreme" and percent 5000. Not probed today (CS-GAP-009).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LevelBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /lenient/unknown-fields:
+    post:
+      operationId: lenientUnknownFields
+      tags: [lenient]
+      summary: Accepts fields the closed schema does not allow
+      description: >
+        The schema sets additionalProperties false. The server accepts extra fields.
+        Not probed today (CS-GAP-009).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClosedBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  # ------------------------------------------------------------------- strict
+  /strict/missing-field:
+    post:
+      operationId: strictMissingField
+      tags: [strict]
+      summary: Control - rejects a body without the required field
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NameBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /strict/wrong-type:
+    post:
+      operationId: strictWrongType
+      tags: [strict]
+      summary: Control - rejects a field of the wrong type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuantityBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /strict/missing-query:
+    get:
+      operationId: strictMissingQuery
+      tags: [strict]
+      summary: Control - rejects a request without the required query parameter
+      parameters:
+        - $ref: "#/components/parameters/Q"
+      responses:
+        "200":
+          $ref: "#/components/responses/Echo"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /strict/no-auth:
+    get:
+      operationId: strictNoAuth
+      tags: [strict]
+      summary: Control - rejects a request without credentials
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Secret"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /strict/wrong-auth:
+    get:
+      operationId: strictWrongAuth
+      tags: [strict]
+      summary: Control - rejects a wrong token as well as a missing one
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Secret"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /strict/enum-and-boundary:
+    post:
+      operationId: strictEnumAndBoundary
+      tags: [strict]
+      summary: Control - rejects values outside the enum and the maximum
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LevelBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /strict/unknown-fields:
+    post:
+      operationId: strictUnknownFields
+      tags: [strict]
+      summary: Control - rejects fields the closed schema does not allow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClosedBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "Fixed test token: test-token"
+
+  parameters:
+    Q:
+      name: q
+      in: query
+      required: true
+      description: A search text
+      schema: { type: string, minLength: 1, example: abc }
+
+  responses:
+    Created:
+      description: Accepted
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CreatedDoc"
+    Echo:
+      description: The query that was understood
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EchoDoc"
+    Secret:
+      description: Protected data
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SecretDoc"
+    BadRequest:
+      description: The request does not fit the spec
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+
+    NameBody:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, example: Widget }
+    QuantityBody:
+      type: object
+      required: [quantity]
+      properties:
+        quantity: { type: integer, minimum: 1, example: 3 }
+    LevelBody:
+      type: object
+      required: [level, percent]
+      properties:
+        level: { type: string, enum: [low, high], example: low }
+        percent: { type: integer, minimum: 0, maximum: 100, example: 50 }
+    ClosedBody:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, example: Widget }
+
+    CreatedDoc:
+      type: object
+      required: [id]
+      properties:
+        id: { type: integer }
+    EchoDoc:
+      type: object
+      required: [q]
+      properties:
+        q: { type: string }
+    SecretDoc:
+      type: object
+      required: [secret]
+      properties:
+        secret: { type: string }

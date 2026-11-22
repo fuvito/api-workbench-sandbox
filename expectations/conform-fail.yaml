@@ -1,0 +1,49 @@
+# Expected ClearSignal outcome for the conform-fail cases.
+#
+# Same conventions as expectations/contract-fail.yaml (read its header). Sections in this file:
+#   probes   `clrsig conform --negative`: each operation's negative probes. ClearSignal prints no
+#            check IDs and puts no probe in JSON/JUnit (F-014) and ignores --paths for probes
+#            (F-013), so the runner runs `--negative` once and reads the text report.
+#            `probes` is how many probes ClearSignal generates for the operation: when that
+#            changes (for example the day it probes enums or unknown fields, CS-GAP-009) the case
+#            must be reviewed. `fail` lists the probe descriptions that must FAIL, with their ID.
+#
+# Run: uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml
+#
+# Holds for clrsig v0.7.1 through the F-010 spec copy. Do not edit a spec or handler to change
+# an expectation.
+
+format: 1
+family: conform-fail
+spec: specs/conform-fail.yaml
+prefix: /conform-fail
+env: clrsig/environments/conform-fail.yaml
+ignore: [/health]
+
+# Probe kinds as ClearSignal words them in the text report (catalog 2.2).
+probe_kinds:
+  "missing required field": CS-PROBE-001
+  "wrong type for field": CS-PROBE-002
+  "missing required query param": CS-PROBE-003
+  "no credentials": CS-PROBE-004
+
+probes:
+  # ---- lenient: each fails exactly one probe kind ----
+  - { op: /lenient/missing-field, probes: 2, fail: [{ probe: "missing required field 'name'", check: CS-PROBE-001 }] }
+  - { op: /lenient/wrong-type, probes: 2, fail: [{ probe: "wrong type for field 'quantity'", check: CS-PROBE-002 }] }
+  - { op: /lenient/missing-query, probes: 1, fail: [{ probe: "missing required query param 'q'", check: CS-PROBE-003 }] }
+  - { op: /lenient/no-auth, probes: 1, fail: [{ probe: "no credentials", check: CS-PROBE-004 }] }
+
+  # ---- lenient, but in ways ClearSignal does not probe today: pass, pinning the gaps ----
+  - { op: /lenient/wrong-auth, probes: 1, fail: [], reference: CS-GAP-008, why: "a wrong token is not probed; only missing credentials are" }
+  - { op: /lenient/enum-and-boundary, probes: 4, fail: [], reference: CS-GAP-009, why: "enum and boundary violations are not probed" }
+  - { op: /lenient/unknown-fields, probes: 2, fail: [], reference: CS-GAP-009, why: "unknown fields are not probed" }
+
+  # ---- strict: the control group, every probe is rejected ----
+  - { op: /strict/missing-field, probes: 2, fail: [], reference: null, why: control }
+  - { op: /strict/wrong-type, probes: 2, fail: [], reference: null, why: control }
+  - { op: /strict/missing-query, probes: 1, fail: [], reference: null, why: control }
+  - { op: /strict/no-auth, probes: 1, fail: [], reference: null, why: control }
+  - { op: /strict/wrong-auth, probes: 1, fail: [], reference: null, why: control }
+  - { op: /strict/enum-and-boundary, probes: 4, fail: [], reference: null, why: control }
+  - { op: /strict/unknown-fields, probes: 2, fail: [], reference: null, why: control }

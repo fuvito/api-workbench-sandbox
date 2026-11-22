@@ -1,16 +1,19 @@
 """Run ClearSignal against the fixtures and compare actual outcomes with expectations/*.yaml.
 
-    uv run python scripts/check_expectations.py                    # contract-fail, server on :8080
+    uv run python scripts/check_expectations.py                                   # contract-fail
+    uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml
     uv run python scripts/check_expectations.py --only resp-003-missing-required-header
-    uv run python scripts/check_expectations.py --base-url http://localhost:9000
+    uv run python scripts/check_expectations.py --table                           # markdown table
 
-Exit code 0 only when every case produced exactly its expected outcome. A case that unexpectedly
-passes, fails with another finding, or changes exit code makes the run fail.
+The server must be running (default http://localhost:8080). Exit code 0 only when every case
+produced exactly its expected outcome: a case that unexpectedly passes, fails with another
+finding, or changes exit code makes the run fail.
 
-ClearSignal prints no check IDs, so a failure is recognized by its JSON finding `kind`, its
-`where`, and a regex on the validator's message (all recorded in the expectations file).
+ClearSignal prints no check IDs (F-012), so a response failure is recognized by its JSON finding
+`kind`, its `where` and a regex on the validator's message; a probe by its text in the report
+(F-014: probes are not in JSON). All of it is recorded in the expectations file.
 
-The runner uses a generated spec copy because of ClearSignal finding F-010; see
+The runner checks a generated spec copy because of ClearSignal finding F-010; see
 scripts/clrsig_spec_copy.py. This is a facility of the test harness only: the specs stay as written.
 """
 
@@ -28,10 +31,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 from clrsig_spec_copy import make_copy  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
+# `PASS|FAIL <METHOD> <path> <dash> <description> (expect ...)`; the dash is matched loosely so a
+# console encoding difference cannot break parsing.
+PROBE_LINE = re.compile(r"^\s*(PASS|FAIL)\s+([A-Z]+)\s+(\S+)\s+\S+\s+(.*?)\s+\(expect ")
 
 
 def clrsig(*args: str) -> tuple[int, str, str]:
-    done = subprocess.run(["clrsig", *args], capture_output=True, text=True, encoding="utf-8")
+    done = subprocess.run(
+        ["clrsig", *args], capture_output=True, text=True, encoding="utf-8", errors="replace"
+    )
     return done.returncode, done.stdout, done.stderr
 
 
@@ -42,13 +50,24 @@ def load_json(stdout: str, what: str):
         raise SystemExit(f"cannot read clrsig's JSON for {what}: {exc}\n{stdout[:500]}") from exc
 
 
-# ---- conform: one case at a time ----
+def conform_args(spec: dict, copy: Path, base_url: str) -> list[str]:
+    args = ["conform", str(copy), "-b", base_url]
+    if spec.get("env"):
+        args += ["--env", str(ROOT / spec["env"])]
+    return args
 
 
-def check_case(case: dict, spec_copy: Path, base_url: str, prefix: str) -> list[str]:
+def case_path(spec: dict, case: dict) -> str:
+    return spec["prefix"] + (case.get("path") or f"/cases/{case['case']}")
+
+
+# ---- response cases: one operation at a time ----
+
+
+def check_case(case: dict, spec: dict, copy: Path, base_url: str) -> list[str]:
     """Return a list of problems (empty means the case behaved as expected)."""
-    path = f"{prefix}/cases/{case['case']}"
-    code, out, err = clrsig("conform", str(spec_copy), "-b", base_url, "--paths", path, "--format", "json")
+    path = case_path(spec, case)
+    code, out, _ = clrsig(*conform_args(spec, copy, base_url), "--paths", path, "--format", "json")
     report = load_json(out, case["case"])
     ran = [op for op in report["operations"] if not op.get("skipped")]
     if len(ran) != 1 or ran[0]["path"] != path:
@@ -82,11 +101,49 @@ def check_case(case: dict, spec_copy: Path, base_url: str, prefix: str) -> list[
     return problems
 
 
+def run_response_cases(spec: dict, copy: Path, base_url: str, only: set[str] | None) -> int:
+    cases = spec.get("cases") or []
+    failures = 0
+    print(f"\nconform, one case at a time ({len(cases)} cases)")
+    for case in cases:
+        if only and case["case"] not in only:
+            continue
+        problems = check_case(case, spec, copy, base_url)
+        label = case.get("check") or ("pass" + (f" ({case['reference']})" if case.get("reference") else ""))
+        print(f"  {'ok  ' if not problems else 'FAIL'}  {case['case']:<36} {label}")
+        for problem in problems:
+            print(f"        - {problem}")
+        failures += bool(problems)
+    return failures
+
+
+def run_whole_spec(spec: dict, copy: Path, base_url: str) -> int:
+    """Acceptance: the plain conform run exits 1 exactly when some case should fail, and the
+    failing operations are exactly the expected ones."""
+    cases = spec.get("cases") or []
+    expected_failing = {case_path(spec, c) for c in cases if c["expect"] == "fail"}
+    code, out, _ = clrsig(*conform_args(spec, copy, base_url), "--format", "json")
+    report = load_json(out, "whole spec")
+    failing = {o["path"] for o in report["operations"] if not o.get("passed") and not o.get("skipped")}
+    problems = []
+    if code != (1 if expected_failing else 0):
+        problems.append(f"exit code {code}, expected {1 if expected_failing else 0}")
+    if failing != expected_failing:
+        problems.append(
+            f"failing set differs: unexpectedly failing {sorted(failing - expected_failing)}, "
+            f"unexpectedly passing {sorted(expected_failing - failing)}"
+        )
+    print(f"\nconform, whole spec (acceptance)\n  {'ok  ' if not problems else 'FAIL'}  {len(failing)} of {len(report['operations'])} operations fail")
+    for problem in problems:
+        print(f"        - {problem}")
+    return bool(problems)
+
+
 # ---- scenario: checker A (step spec check) and checker B (schema assertion) ----
 
 
-def check_scenario(entry: dict, spec_copy: Path) -> list[tuple[str, list[str], str]]:
-    args = ["run", str(ROOT / entry["file"]), "--env", str(ROOT / entry["env"]), "--spec", str(spec_copy), "--format", "json"]
+def check_scenario(entry: dict, copy: Path) -> list[tuple[str, list[str], str]]:
+    args = ["run", str(ROOT / entry["file"]), "--env", str(ROOT / entry["env"]), "--spec", str(copy), "--format", "json"]
     _, out, _ = clrsig(*args)
     steps = {s["name"]: s for s in load_json(out, entry["file"])["steps"]}
     results = []
@@ -97,22 +154,100 @@ def check_scenario(entry: dict, spec_copy: Path) -> list[tuple[str, list[str], s
             continue
         assertions = step.get("assertions") or []
         a_failed = [a for a in assertions if a.get("name") == "spec conformance" and not a["passed"]]
-        explicit = [a for a in assertions if a.get("name") != "spec conformance"]
-        schema_assertions = [a for a in explicit if a["type"] == "schema"]
+        schema_assertions = [a for a in assertions if a.get("name") != "spec conformance" and a["type"] == "schema"]
         problems = []
         got_a = "violation" if a_failed else "ok"
         if got_a != want["spec_check"]:
             problems.append(f"spec check (A) was '{got_a}', expected '{want['spec_check']}'")
-        if want["schema_assertion"] != "none":
-            got_b = "ok" if schema_assertions and all(a["passed"] for a in schema_assertions) else "fail"
-            if got_b != want["schema_assertion"]:
-                problems.append(f"schema assertion (B) was '{got_b}', expected '{want['schema_assertion']}'")
-        results.append((name, problems, f"A={got_a} B={'-' if not schema_assertions else ('ok' if all(a['passed'] for a in schema_assertions) else 'fail')}"))
+        got_b = "-" if not schema_assertions else ("ok" if all(a["passed"] for a in schema_assertions) else "fail")
+        if want["schema_assertion"] != "none" and got_b != want["schema_assertion"]:
+            problems.append(f"schema assertion (B) was '{got_b}', expected '{want['schema_assertion']}'")
+        results.append((name, problems, f"A={got_a} B={got_b}"))
     return results
 
 
+def run_scenarios(spec: dict, copy: Path) -> int:
+    failures = 0
+    for entry in spec.get("scenarios") or []:
+        print(f"\nscenario {entry['file']}")
+        for name, problems, shown in check_scenario(entry, copy):
+            print(f"  {'ok  ' if not problems else 'FAIL'}  {name:<36} {shown}")
+            for problem in problems:
+                print(f"        - {problem}")
+            failures += bool(problems)
+    return failures
+
+
+# ---- negative probes ----
+
+
+def probe_check(description: str, kinds: dict[str, str]) -> str | None:
+    for text, check in kinds.items():
+        if description.startswith(text):
+            return check
+    return None
+
+
+def run_probes(spec: dict, copy: Path, base_url: str) -> int:
+    """One `--negative` run for the whole spec (probes ignore --paths, F-013), attributed to each
+    operation from the text report (probes are not in the JSON, F-014)."""
+    entries = spec.get("probes") or []
+    kinds = spec.get("probe_kinds") or {}
+    code, out, _ = clrsig(*conform_args(spec, copy, base_url), "--negative")
+    seen: dict[str, list[tuple[str, str]]] = {}
+    for line in out.splitlines():
+        match = PROBE_LINE.match(line)
+        if match:
+            seen.setdefault(match.group(3), []).append((match.group(1), match.group(4)))
+
+    failures = 0
+    print(f"\nnegative probes ({sum(len(v) for v in seen.values())} probes over {len(seen)} operations)")
+    expected_failing_total = 0
+    for entry in entries:
+        path = spec["prefix"] + entry["op"]
+        probes = seen.get(path, [])
+        failed = [d for status, d in probes if status == "FAIL"]
+        expected = entry.get("fail") or []
+        expected_failing_total += len(expected)
+        problems = []
+        if len(probes) != entry["probes"]:
+            problems.append(f"ClearSignal ran {len(probes)} probes, expected {entry['probes']} (did probing change?)")
+        want_failed = sorted(e["probe"] for e in expected)
+        if sorted(failed) != want_failed:
+            problems.append(f"failing probes {sorted(failed)}, expected {want_failed}")
+        for e in expected:
+            got = probe_check(e["probe"], kinds)
+            if got != e["check"]:
+                problems.append(f"probe '{e['probe']}' maps to {got}, expected {e['check']}")
+        label = ", ".join(e["check"] for e in expected) or ("pass" + (f" ({entry['reference']})" if entry.get("reference") else ""))
+        print(f"  {'ok  ' if not problems else 'FAIL'}  {entry['op']:<34} {len(probes)} probes  {label}")
+        for problem in problems:
+            print(f"        - {problem}")
+        failures += bool(problems)
+
+    unexpected = sorted(set(seen) - {spec["prefix"] + e["op"] for e in entries})
+    if unexpected:
+        print(f"  FAIL  probes ran for operations not in the expectations: {unexpected}")
+        failures += 1
+    want_code = 1 if expected_failing_total else 0
+    if code != want_code:
+        print(f"  FAIL  --negative exit code {code}, expected {want_code}")
+        failures += 1
+    return failures
+
+
+# ---- housekeeping ----
+
+
+def covered_paths(spec: dict) -> set[str]:
+    paths = {case.get("path") or f"/cases/{case['case']}" for case in spec.get("cases") or []}
+    paths |= {entry["op"] for entry in spec.get("probes") or []}
+    paths |= set(spec.get("ignore") or [])
+    return paths
+
+
 def print_table(spec: dict) -> int:
-    """Markdown table of every case: kept in docs so it cannot drift from the expectations."""
+    """Markdown table of every response case, kept in docs so it cannot drift."""
     print("| Case (`GET " + spec["prefix"] + "/cases/<case>`) | Expected | Check | Exit code | ClearSignal reports (or why it passes) |")
     print("|---|---|---|---|---|")
     for case in spec["cases"]:
@@ -131,68 +266,33 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--expectations", default="expectations/contract-fail.yaml")
     parser.add_argument("--base-url", default="http://localhost:8080")
-    parser.add_argument("--only", help="comma-separated case names to run")
-    parser.add_argument("--table", action="store_true", help="print the expected-results table as markdown and exit")
+    parser.add_argument("--only", help="comma-separated case names to run (response cases only)")
+    parser.add_argument("--table", action="store_true", help="print the response-case table as markdown and exit")
     args = parser.parse_args()
 
-    if args.table:
-        return print_table(yaml.safe_load((ROOT / args.expectations).read_text(encoding="utf-8")))
-
     spec = yaml.safe_load((ROOT / args.expectations).read_text(encoding="utf-8"))
-    prefix = spec["prefix"]
+    if args.table:
+        return print_table(spec)
     only = set(args.only.split(",")) if args.only else None
-    version = clrsig("--version")[1].strip()
-    print(f"{version}  |  {args.expectations}  |  {args.base_url}")
+    print(f"{clrsig('--version')[1].strip()}  |  {args.expectations}  |  {args.base_url}")
 
     with tempfile.TemporaryDirectory() as tmp:
         copy = Path(tmp) / "spec.yaml"
-        make_copy(str(ROOT / spec["spec"]), prefix, str(copy))
+        make_copy(str(ROOT / spec["spec"]), spec["prefix"], str(copy))
         failures = 0
 
-        # Every case in the expectations must exist in the spec, and the other way round.
-        spec_cases = {
-            p.removeprefix("/cases/")
-            for p in yaml.safe_load((ROOT / spec["spec"]).read_text(encoding="utf-8"))["paths"]
-            if p.startswith("/cases/")
-        }
-        listed = {c["case"] for c in spec["cases"]}
-        if spec_cases != listed:
-            print(f"FAIL  spec and expectations disagree: only in spec {sorted(spec_cases - listed)}, only in expectations {sorted(listed - spec_cases)}")
+        in_spec = set(yaml.safe_load((ROOT / spec["spec"]).read_text(encoding="utf-8"))["paths"])
+        covered = covered_paths(spec)
+        if in_spec != covered:
+            print(f"FAIL  spec and expectations disagree: only in spec {sorted(in_spec - covered)}, only in expectations {sorted(covered - in_spec)}")
             failures += 1
 
-        print(f"\nconform, one case at a time ({len(spec['cases'])} cases)")
-        for case in spec["cases"]:
-            if only and case["case"] not in only:
-                continue
-            problems = check_case(case, copy, args.base_url, prefix)
-            label = case.get("check") or ("pass" + (f" ({case['reference']})" if case.get("reference") else ""))
-            print(f"  {'ok  ' if not problems else 'FAIL'}  {case['case']:<36} {label}")
-            for problem in problems:
-                print(f"        - {problem}")
-            failures += bool(problems)
-
+        failures += run_response_cases(spec, copy, args.base_url, only) if spec.get("cases") else 0
         if not only:
-            print("\nconform, whole spec (acceptance: exits 1, and exactly the expected cases fail)")
-            code, out, _ = clrsig("conform", str(copy), "-b", args.base_url, "--format", "json")
-            failing = {o["path"].rsplit("/", 1)[-1] for o in load_json(out, "whole spec")["operations"] if not o.get("passed") and not o.get("skipped")}
-            expected_failing = {c["case"] for c in spec["cases"] if c["expect"] == "fail"}
-            problems = []
-            if code != 1:
-                problems.append(f"exit code {code}, expected 1")
-            if failing != expected_failing:
-                problems.append(f"failing set differs: unexpectedly failing {sorted(failing - expected_failing)}, unexpectedly passing {sorted(expected_failing - failing)}")
-            print(f"  {'ok  ' if not problems else 'FAIL'}  {len(failing)} of {len(spec['cases'])} cases fail")
-            for problem in problems:
-                print(f"        - {problem}")
-            failures += bool(problems)
-
-            for entry in spec.get("scenarios", []):
-                print(f"\nscenario {entry['file']}")
-                for name, problems, shown in check_scenario(entry, copy):
-                    print(f"  {'ok  ' if not problems else 'FAIL'}  {name:<36} {shown}")
-                    for problem in problems:
-                        print(f"        - {problem}")
-                    failures += bool(problems)
+            failures += run_whole_spec(spec, copy, args.base_url)
+            failures += run_scenarios(spec, copy)
+            if spec.get("probes"):
+                failures += run_probes(spec, copy, args.base_url)
 
     print(f"\n{'ALL AS EXPECTED' if not failures else str(failures) + ' MISMATCH(ES)'}")
     return 1 if failures else 0
