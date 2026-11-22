@@ -12,7 +12,7 @@ One note per phase, written when the phase completes. Each covers: what was buil
 | 2e — baseline latency | [phase-2e-latency.md](phase-2e-latency.md) | Written |
 | 2f — cursor paging, bulk, parameters, 403 | [phase-2f-paging-bulk-parameters.md](phase-2f-paging-bulk-parameters.md) | Written |
 | 2 — `ok` wrap-up (phase exit review) | phase-2-ok-baseline.md | Pending |
-| 3 — `contract-fail` | phase-3-contract-fail.md | Pending |
+| 3 — `contract-fail` | [phase-3-contract-fail.md](phase-3-contract-fail.md) | Written |
 | 4 — `conform-fail` | phase-4-conform-fail.md | Pending |
 | 5 — Expectations and CI | phase-5-expectations-ci.md | Pending |
 | 6 — Cloud Run | phase-6-cloud-run.md | Pending |

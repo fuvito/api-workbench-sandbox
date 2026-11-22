@@ -2,13 +2,25 @@ openapi: 3.0.3
 info:
   title: contract-fail API
   version: 1.0.0
-  description: Deliberately incorrect responses (CS-RESP-*). Cases are added in Phase 3.
+  description: >
+    Deliberately incorrect responses for ClearSignal's API Contract Validation. Every operation
+    under /cases declares the CORRECT behavior; the server breaks exactly one thing, named in
+    the operation's description. Operation paths follow
+    GET /cases/<check-id-lowercase>-<slug>. The expected check for each case is recorded in
+    expectations/contract-fail.yaml, not here.
 servers:
   - url: http://localhost:8080/contract-fail
+tags:
+  - name: system
+  - name: controls
+    description: Cases that must pass (nothing is wrong, or the deviation is not a violation)
+  - name: cases
+    description: Cases that must fail one specific response check
 paths:
   /health:
     get:
       operationId: getHealth
+      tags: [system]
       summary: Readiness probe (control case, conforms)
       responses:
         "200":
@@ -22,3 +34,668 @@ paths:
                   status:
                     type: string
                     enum: [ok]
+
+  /cases/control-ok:
+    get:
+      operationId: controlOk
+      tags: [controls]
+      summary: Control - a fully conforming response
+      description: The server answers exactly as declared. Must pass.
+      responses:
+        "200":
+          description: A widget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/resp-001-undeclared-status:
+    get:
+      operationId: resp001UndeclaredStatus
+      tags: [cases]
+      summary: Undeclared response status
+      description: The spec declares 200 and 404. The server answers 500.
+      responses:
+        "200":
+          description: A widget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /cases/resp-001b-default-response-ok:
+    get:
+      operationId: resp001bDefaultResponseOk
+      tags: [controls]
+      summary: Control - an undeclared status covered by a default response
+      description: The spec declares 200 and default. The server answers 503, which default covers. Must pass.
+      responses:
+        "200":
+          description: A widget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+        default:
+          description: Any other outcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /cases/resp-002-wrong-content-type:
+    get:
+      operationId: resp002WrongContentType
+      tags: [cases]
+      summary: Wrong response Content-Type
+      description: The spec declares application/json. The server sends a valid JSON body as text/plain.
+      responses:
+        "200":
+          description: A widget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/resp-003-missing-required-header:
+    get:
+      operationId: resp003MissingRequiredHeader
+      tags: [cases]
+      summary: Required response header not sent
+      description: The spec requires X-Total-Count. The server omits it.
+      responses:
+        "200":
+          description: A widget
+          headers:
+            X-Total-Count:
+              $ref: "#/components/headers/TotalCount"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/resp-004-wrong-header-type:
+    get:
+      operationId: resp004WrongHeaderType
+      tags: [cases]
+      summary: Response header of the wrong type
+      description: The spec declares X-Total-Count as an integer. The server sends "many".
+      responses:
+        "200":
+          description: A widget
+          headers:
+            X-Total-Count:
+              $ref: "#/components/headers/TotalCount"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/resp-005-missing-required-field:
+    get:
+      operationId: resp005MissingRequiredField
+      tags: [cases]
+      summary: Required body field missing
+      description: The schema requires id. The server omits it.
+      responses:
+        "200":
+          description: A widget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/resp-006-wrong-field-type:
+    get:
+      operationId: resp006WrongFieldType
+      tags: [cases]
+      summary: Body field of the wrong type
+      description: The schema declares price as a number. The server sends the string "9.99".
+      responses:
+        "200":
+          description: A widget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/resp-006b-array-for-object:
+    get:
+      operationId: resp006bArrayForObject
+      tags: [cases]
+      summary: Array where an object is declared
+      description: The schema declares an object. The server answers with an array of that object.
+      responses:
+        "200":
+          description: A widget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/resp-nested-wrong-type:
+    get:
+      operationId: respNestedWrongType
+      tags: [cases]
+      summary: Wrong type deep inside nested objects and arrays
+      description: >
+        The schema declares lines[].qty as an integer. The server sends "two" for the first
+        line. ClearSignal must report the location (lines[0].qty).
+      responses:
+        "200":
+          description: An order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /cases/resp-007-enum:
+    get:
+      operationId: resp007Enum
+      tags: [cases]
+      summary: Value outside an enum
+      description: The schema allows active or inactive. The server sends archived.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusDoc"
+
+  /cases/resp-007b-minimum:
+    get:
+      operationId: resp007bMinimum
+      tags: [cases]
+      summary: Number below minimum
+      description: The schema has minimum 0. The server sends -1.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuantityDoc"
+
+  /cases/resp-007f-maximum:
+    get:
+      operationId: resp007fMaximum
+      tags: [cases]
+      summary: Number above maximum
+      description: The schema has maximum 100. The server sends 101.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PercentDoc"
+
+  /cases/resp-007c-pattern:
+    get:
+      operationId: resp007cPattern
+      tags: [cases]
+      summary: String not matching a pattern
+      description: The schema requires three capitals, a dash and three digits. The server sends abc-1.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodeDoc"
+
+  /cases/resp-007c-minlength:
+    get:
+      operationId: resp007cMinlength
+      tags: [cases]
+      summary: String shorter than minLength
+      description: The schema has minLength 3. The server sends two characters.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShortNameDoc"
+
+  /cases/resp-007c-maxlength:
+    get:
+      operationId: resp007cMaxlength
+      tags: [cases]
+      summary: String longer than maxLength
+      description: The schema has maxLength 5. The server sends seven characters.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LongNameDoc"
+
+  /cases/resp-007c-minitems:
+    get:
+      operationId: resp007cMinitems
+      tags: [cases]
+      summary: Array shorter than minItems
+      description: The schema has minItems 1. The server sends an empty array.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MinItemsDoc"
+
+  /cases/resp-007c-uniqueitems:
+    get:
+      operationId: resp007cUniqueitems
+      tags: [cases]
+      summary: Array with duplicates
+      description: The schema has uniqueItems true. The server sends a duplicate.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UniqueItemsDoc"
+
+  /cases/resp-007d-null-not-nullable:
+    get:
+      operationId: resp007dNullNotNullable
+      tags: [cases]
+      summary: null where not nullable
+      description: The schema does not allow null for name. The server sends null.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WidgetNameDoc"
+
+  /cases/resp-007e-bad-datetime:
+    get:
+      operationId: resp007eBadDatetime
+      tags: [cases]
+      summary: Invalid date-time
+      description: The schema declares format date-time. The server sends the text yesterday.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimestampDoc"
+
+  /cases/resp-008-invalid-json:
+    get:
+      operationId: resp008InvalidJson
+      tags: [cases]
+      summary: Body is not valid JSON
+      description: The Content-Type is application/json but the body is {not json.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/resp-008b-empty-body:
+    get:
+      operationId: resp008bEmptyBody
+      tags: [cases]
+      summary: Empty body on a 200 with a schema
+      description: The spec declares a Widget schema. The server sends nothing.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/resp-009-oneof-no-match:
+    get:
+      operationId: resp009OneofNoMatch
+      tags: [cases]
+      summary: Body matches no oneOf branch
+      description: The schema allows {a} or {b}. The server sends {c}.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AorB"
+
+  /cases/resp-poly-discriminator-wrong:
+    get:
+      operationId: respPolyDiscriminatorWrong
+      tags: [cases]
+      summary: Discriminator value does not match the body shape
+      description: type says cat, but the body has the fields of a dog.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+
+  /cases/resp-010-extra-property-closed:
+    get:
+      operationId: resp010ExtraPropertyClosed
+      tags: [cases]
+      summary: Extra property on a closed schema
+      description: The schema sets additionalProperties false. The server adds a property.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClosedDoc"
+
+  /cases/resp-010b-extra-property-open:
+    get:
+      operationId: resp010bExtraPropertyOpen
+      tags: [controls]
+      summary: Control - extra property on an open schema
+      description: The schema is open (the OpenAPI default), so an extra property is not a violation. Must pass.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/resp-011-writeonly-leak:
+    get:
+      operationId: resp011WriteonlyLeak
+      tags: [cases]
+      summary: writeOnly property in a response
+      description: password is writeOnly. The server returns it.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDoc"
+
+  /cases/resp-012-xml-valid:
+    get:
+      operationId: resp012XmlValid
+      tags: [controls]
+      summary: Valid XML against application/xml
+      description: The media type has no decoder in ClearSignal, so the body is not checked (CS-NC-009 in the current catalog). Must pass.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/resp-multi-problem:
+    get:
+      operationId: respMultiProblem
+      tags: [cases]
+      summary: Header and body both wrong
+      description: The required X-Total-Count header is missing AND the body lacks id. Only the first problem is reported (CS-GAP-011).
+      responses:
+        "200":
+          description: The declared response
+          headers:
+            X-Total-Count:
+              $ref: "#/components/headers/TotalCount"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/gap-format-email-uuid:
+    get:
+      operationId: gapFormatEmailUuid
+      tags: [controls]
+      summary: Known gap - email and uuid formats
+      description: format email and uuid are not validated by ClearSignal (CS-GAP-001). The server sends invalid values. Passes today.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactDoc"
+
+  /cases/gap-undeclared-header:
+    get:
+      operationId: gapUndeclaredHeader
+      tags: [controls]
+      summary: Known gap - undeclared response header
+      description: The server sends X-Debug, which the spec never mentions (CS-GAP-003). Passes today.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/gap-slow-response:
+    get:
+      operationId: gapSlowResponse
+      tags: [controls]
+      summary: Known gap - slow response
+      description: The server answers after 5 seconds (scaled by LATENCY_SCALE). ClearSignal measures no response time (CS-GAP-005). Passes today.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+  /cases/nc-002-no-content-declared:
+    get:
+      operationId: nc002NoContentDeclared
+      tags: [controls]
+      summary: Not checked - no response content declared
+      description: The spec declares 200 without any content; the server sends a JSON body anyway (CS-NC-002). Passes, nothing compared.
+      responses:
+        "200":
+          description: The declared response
+
+  /cases/nc-octet-stream:
+    get:
+      operationId: ncOctetStream
+      tags: [controls]
+      summary: Not checked - binary media type
+      description: application/octet-stream has no structure to compare (CS-NC-003). Passes, nothing compared.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /cases/nc-no-content-type:
+    get:
+      operationId: ncNoContentType
+      tags: [controls]
+      summary: Not checked - body without Content-Type
+      description: A body with no Content-Type is read as JSON, leniently (CS-NC-008). Passes.
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Widget"
+
+components:
+  headers:
+    TotalCount:
+      description: Number of records
+      required: true
+      schema: { type: integer, minimum: 0 }
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+
+    Widget:
+      type: object
+      required: [id, name, price]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        price: { type: number }
+
+    Order:
+      type: object
+      required: [id, customer, lines]
+      properties:
+        id: { type: integer }
+        customer:
+          type: object
+          required: [name, address]
+          properties:
+            name: { type: string }
+            address:
+              type: object
+              required: [city]
+              properties:
+                city: { type: string }
+        lines:
+          type: array
+          items:
+            type: object
+            required: [sku, qty]
+            properties:
+              sku: { type: string }
+              qty: { type: integer }
+
+    StatusDoc:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [active, inactive] }
+    QuantityDoc:
+      type: object
+      required: [quantity]
+      properties:
+        quantity: { type: integer, minimum: 0 }
+    PercentDoc:
+      type: object
+      required: [percent]
+      properties:
+        percent: { type: integer, maximum: 100 }
+    CodeDoc:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, pattern: '^[A-Z]{3}-[0-9]{3}$' }
+    ShortNameDoc:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 3 }
+    LongNameDoc:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 5 }
+    MinItemsDoc:
+      type: object
+      required: [tags]
+      properties:
+        tags:
+          type: array
+          minItems: 1
+          items: { type: string }
+    UniqueItemsDoc:
+      type: object
+      required: [tags]
+      properties:
+        tags:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+    WidgetNameDoc:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    TimestampDoc:
+      type: object
+      required: [createdAt]
+      properties:
+        createdAt: { type: string, format: date-time }
+    AorB:
+      oneOf:
+        - type: object
+          required: [a]
+          properties:
+            a: { type: string }
+        - type: object
+          required: [b]
+          properties:
+            b: { type: integer }
+    Cat:
+      type: object
+      required: [type, meows]
+      properties:
+        type: { type: string, enum: [cat] }
+        meows: { type: boolean }
+    Dog:
+      type: object
+      required: [type, barks]
+      properties:
+        type: { type: string, enum: [dog] }
+        barks: { type: boolean }
+    Pet:
+      oneOf:
+        - $ref: "#/components/schemas/Cat"
+        - $ref: "#/components/schemas/Dog"
+      discriminator:
+        propertyName: type
+        mapping:
+          cat: "#/components/schemas/Cat"
+          dog: "#/components/schemas/Dog"
+    ClosedDoc:
+      type: object
+      additionalProperties: false
+      required: [id]
+      properties:
+        id: { type: integer }
+    UserDoc:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        password: { type: string, writeOnly: true }
+    ContactDoc:
+      type: object
+      required: [mail, ref]
+      properties:
+        mail: { type: string, format: email }
+        ref: { type: string, format: uuid }

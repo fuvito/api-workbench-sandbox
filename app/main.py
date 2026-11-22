@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 
 from app.config import Settings
+from app.contract_fail import build_contract_fail_router
 from app.family import build_family_router
 from app.latency import TooManySlowRequests, new_slow_slots
 from app.ok import build_ok_router
@@ -60,6 +61,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(build_family_router(prefix, spec_file, store, settings))
         if name == "ok":
             app.include_router(build_ok_router(store))
+        elif name == "contract-fail":
+            app.include_router(build_contract_fail_router())
 
     app.add_exception_handler(ApiError, api_error_handler)
     app.add_exception_handler(TooManySlowRequests, too_many_slow_handler)

@@ -1,0 +1,99 @@
+# Expected ClearSignal outcome for every contract-fail case.
+#
+# How to read it
+#   expect: fail   the case must fail exactly one response check (exit code 1).
+#     check        the catalog ID from apps/desktop/wails/help/what-we-check.md
+#     kind         the finding kind in clrsig's JSON report (the CLI prints no check IDs; this is
+#                  how the ID is recognized)
+#     where        optional: the location clrsig must report
+#     message      regex that must match the validator's own message, to pin the exact problem
+#   expect: pass   the case must NOT fail. `reference` is the catalog row it pins (a control,
+#                  a known gap, or a "not checked" outcome): when ClearSignal changes, the case
+#                  flips and this file must change with it.
+#
+# Run: uv run python scripts/check_expectations.py   (server running on :8080)
+#
+# These expectations hold for clrsig v0.7.1 run through the spec copy that works around F-010
+# (docs/clrsig-findings.md). Do not edit a spec or handler to change an expectation.
+
+format: 1
+family: contract-fail
+spec: specs/contract-fail.yaml
+prefix: /contract-fail
+
+cases:
+  # ---- controls ----
+  - { case: control-ok, expect: pass, reference: null, why: a fully conforming response }
+  - { case: resp-001b-default-response-ok, expect: pass, reference: CS-RESP-001, why: "an undeclared status covered by a default response counts as declared" }
+  - { case: resp-010b-extra-property-open, expect: pass, reference: CS-GAP-002, why: "an extra property on an open schema is legal in OpenAPI" }
+
+  # ---- CS-RESP-001 .. 006 ----
+  - { case: resp-001-undeclared-status, expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 500, but the spec declares only 200, 404' }
+  - { case: resp-002-wrong-content-type, expect: fail, check: CS-RESP-002, kind: wrong-content-type, message: 'Content-Type "text/plain"' }
+  - { case: resp-003-missing-required-header, expect: fail, check: CS-RESP-003, kind: missing-header, where: X-Total-Count, message: 'header "X-Total-Count" is required by the spec but was not sent' }
+  - { case: resp-004-wrong-header-type, expect: fail, check: CS-RESP-004, kind: bad-header, where: X-Total-Count, message: 'has a value that does not fit the spec' }
+  - { case: resp-005-missing-required-field, expect: fail, check: CS-RESP-005, kind: missing-field, where: id, message: 'property "id" is missing' }
+  - { case: resp-006-wrong-field-type, expect: fail, check: CS-RESP-006, kind: wrong-type, where: price, message: 'value must be a number' }
+  - { case: resp-006b-array-for-object, expect: fail, check: CS-RESP-006, kind: other, message: '^value must be an object' }
+  - { case: resp-nested-wrong-type, expect: fail, check: CS-RESP-006, kind: wrong-type, where: 'lines[0].qty', message: 'value must be an integer' }
+
+  # ---- CS-RESP-007: values outside the declared constraints ----
+  - { case: resp-007-enum, expect: fail, check: CS-RESP-007, kind: other, where: status, message: 'not one of the allowed values' }
+  - { case: resp-007b-minimum, expect: fail, check: CS-RESP-007, kind: other, where: quantity, message: 'number must be at least 0' }
+  - { case: resp-007f-maximum, expect: fail, check: CS-RESP-007, kind: other, where: percent, message: 'number must be at most 100' }
+  - { case: resp-007c-pattern, expect: fail, check: CS-RESP-007, kind: other, where: code, message: "doesn't match the regular expression" }
+  - { case: resp-007c-minlength, expect: fail, check: CS-RESP-007, kind: other, where: name, message: 'minimum string length is 3' }
+  - { case: resp-007c-maxlength, expect: fail, check: CS-RESP-007, kind: other, where: name, message: 'maximum string length is 5' }
+  - { case: resp-007c-minitems, expect: fail, check: CS-RESP-007, kind: other, where: tags, message: 'minimum number of items is 1' }
+  - { case: resp-007c-uniqueitems, expect: fail, check: CS-RESP-007, kind: other, where: tags, message: 'duplicate items found' }
+  - { case: resp-007d-null-not-nullable, expect: fail, check: CS-RESP-007, kind: other, where: name, message: 'Value is not nullable' }
+  - { case: resp-007e-bad-datetime, expect: fail, check: CS-RESP-007, kind: other, where: createdAt, message: 'format "date-time"' }
+
+  # ---- CS-RESP-008: invalid JSON / empty body ----
+  - { case: resp-008-invalid-json, expect: fail, check: CS-RESP-008, kind: other, message: '^invalid character' }
+  - { case: resp-008b-empty-body, expect: fail, check: CS-RESP-008, kind: other, message: '^EOF' }
+
+  # ---- CS-RESP-009: oneOf / discriminator (clrsig labels these "missing-field", see F-011) ----
+  - { case: resp-009-oneof-no-match, expect: fail, check: CS-RESP-009, kind: missing-field, message: "doesn't match schema due to" }
+  - { case: resp-poly-discriminator-wrong, expect: fail, check: CS-RESP-009, kind: missing-field, where: meows, message: "doesn't match schema due to" }
+
+  # ---- CS-RESP-010 / 011 ----
+  - { case: resp-010-extra-property-closed, expect: fail, check: CS-RESP-010, kind: other, message: 'property "extra" is unsupported' }
+  - { case: resp-011-writeonly-leak, expect: fail, check: CS-RESP-011, kind: other, where: password, message: 'writeOnly property "password" in response' }
+
+  # ---- XML: no decoder, so not checked (CS-NC-009; the notes expected CS-RESP-012) ----
+  - { case: resp-012-xml-valid, expect: pass, reference: CS-NC-009, why: "application/xml has no decoder: the body is not compared and nothing is reported" }
+
+  # ---- two problems: only the first is reported (CS-GAP-011) ----
+  - { case: resp-multi-problem, expect: fail, check: CS-RESP-003, kind: missing-header, where: X-Total-Count, message: 'header "X-Total-Count" is required' }
+
+  # ---- known gaps: wrong, yet not caught today ----
+  - { case: gap-format-email-uuid, expect: pass, reference: CS-GAP-001, why: "formats other than date-time are not validated" }
+  - { case: gap-undeclared-header, expect: pass, reference: CS-GAP-003, why: "a header the spec never mentions is not reported" }
+  - { case: gap-slow-response, expect: pass, reference: CS-GAP-005, why: "no response time is measured (the case waits 5 s, times LATENCY_SCALE)" }
+
+  # ---- not checked: nothing compared, must not fail ----
+  - { case: nc-002-no-content-declared, expect: pass, reference: CS-NC-002, why: "the spec declares no response content, so any body is accepted" }
+  - { case: nc-octet-stream, expect: pass, reference: CS-NC-003, why: "a binary media type has no structure to compare" }
+  - { case: nc-no-content-type, expect: pass, reference: CS-NC-008, why: "a body without Content-Type is read as JSON leniently" }
+
+# The same cases through the scenario runner: checker A is the step spec check (--spec),
+# checker B is an explicit `schema` assertion by operationId. The catalog says they differ.
+scenarios:
+  - file: clrsig/scenarios/contract-fail-checkers.yaml
+    env: clrsig/environments/contract-fail.yaml
+    steps:
+      control-ok:                       { spec_check: ok,        schema_assertion: ok }
+      resp-001-undeclared-status:       { spec_check: violation, schema_assertion: ok,   check: CS-RESP-001, note: "B does not look at the status" }
+      resp-002-wrong-content-type:      { spec_check: violation, schema_assertion: ok,   check: CS-RESP-002, note: "B reads the body as JSON whatever the type" }
+      resp-003-missing-required-header: { spec_check: violation, schema_assertion: ok,   check: CS-RESP-003, note: "B ignores headers" }
+      resp-004-wrong-header-type:       { spec_check: violation, schema_assertion: ok,   check: CS-RESP-004, note: "B ignores headers" }
+      resp-005-missing-required-field:  { spec_check: violation, schema_assertion: fail, check: CS-RESP-005 }
+      resp-006-wrong-field-type:        { spec_check: violation, schema_assertion: fail, check: CS-RESP-006 }
+      resp-007-enum:                    { spec_check: violation, schema_assertion: fail, check: CS-RESP-007 }
+      resp-008-invalid-json:            { spec_check: violation, schema_assertion: fail, check: CS-RESP-008 }
+      resp-008b-empty-body:             { spec_check: violation, schema_assertion: fail, check: CS-RESP-008, note: "the catalog says B does not check an empty body; it fails it ('response body is empty'), see F-011" }
+      resp-009-oneof-no-match:          { spec_check: violation, schema_assertion: fail, check: CS-RESP-009 }
+      resp-010-extra-property-closed:   { spec_check: violation, schema_assertion: fail, check: CS-RESP-010 }
+      resp-011-writeonly-leak:          { spec_check: violation, schema_assertion: ok,   check: CS-RESP-011, note: "B does not look at writeOnly" }
+      nc-undocumented-path:             { spec_check: ok,        schema_assertion: none, reference: CS-NC-001, note: "a path the spec does not describe is not compared (the 'not checked' state is not shown by any report format)" }

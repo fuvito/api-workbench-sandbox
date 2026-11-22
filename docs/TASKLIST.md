@@ -64,7 +64,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
 - [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
 
-**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-009 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-012 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [x] Add remaining resource families (customers, payments, invoices, discount codes, notifications, reports, settings, secured examples), kept within the 60 to 70 operation target.
@@ -105,25 +105,27 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 
 ## Phase 3 — `contract-fail` response cases
 
-- [ ] Create the `contract-fail` OpenAPI specification.
-- [ ] Implement `CS-RESP-001` undeclared status.
-- [ ] Implement default-response control case that passes.
-- [ ] Implement `CS-RESP-002` wrong content type.
-- [ ] Implement `CS-RESP-003` missing required response header.
-- [ ] Implement `CS-RESP-004` wrong response-header type.
-- [ ] Implement `CS-RESP-005` missing required response field.
-- [ ] Implement `CS-RESP-006` wrong response field type.
-- [ ] Add array-for-object and nested wrong-type cases.
-- [ ] Add enum, numeric/string/array constraints, nullability, and format cases.
-- [ ] Add invalid JSON and empty-body cases.
-- [ ] Add oneOf/discriminator cases.
-- [ ] Add additionalProperties cases.
-- [ ] Add writeOnly leak case.
-- [ ] Add XML known-gap case.
-- [ ] Add multi-problem case and document first-reported behavior.
-- [ ] Add known-gap cases and not-checked cases from PRD.
-- [ ] Add scenario/expectation for every case.
-- [ ] Verify exact check IDs and exit codes.
+- [x] Create the `contract-fail` OpenAPI specification.
+- [x] Implement `CS-RESP-001` undeclared status.
+- [x] Implement default-response control case that passes.
+- [x] Implement `CS-RESP-002` wrong content type.
+- [x] Implement `CS-RESP-003` missing required response header.
+- [x] Implement `CS-RESP-004` wrong response-header type.
+- [x] Implement `CS-RESP-005` missing required response field.
+- [x] Implement `CS-RESP-006` wrong response field type.
+- [x] Add array-for-object and nested wrong-type cases.
+- [x] Add enum, numeric/string/array constraints, nullability, and format cases.
+- [x] Add invalid JSON and empty-body cases.
+- [x] Add oneOf/discriminator cases.
+- [x] Add additionalProperties cases.
+- [x] Add writeOnly leak case.
+- [x] Add XML case (`resp-012-xml-valid`). The current catalog makes this "not checked" (CS-NC-009), not a failure as the source notes expected; the expectation follows the catalog.
+- [x] Add multi-problem case and document first-reported behavior.
+- [x] Add known-gap cases (`gap-format-email-uuid`, `gap-undeclared-header`, `gap-slow-response`) and not-checked cases (`nc-002-no-content-declared`, `nc-octet-stream`, `nc-no-content-type`, undocumented path). `nc-204-with-body` became `nc-002-no-content-declared`: HTTP forbids a body on a 204.
+- [x] Add scenario/expectation for every case: `expectations/contract-fail.yaml` (35 cases) and `clrsig/scenarios/contract-fail-checkers.yaml` (both response checkers side by side).
+- [x] Verify exact check IDs and exit codes: `scripts/check_expectations.py` runs every case, the whole spec and the scenario (35/35 cases, 14/14 steps). Verified through a spec copy because of F-010; IDs are recognized by finding kind and message because of F-012.
+
+**ClearSignal findings from this phase:** F-010 (response checks silently skipped for specs with `servers`; the working copy `scripts/clrsig_spec_copy.py` is temporary), F-011 (imprecise kinds and messages), F-012 (no check IDs in output).
 
 **Exit criteria:** Every listed case has a spec operation, handler behavior, expected result, and automated verification.
 

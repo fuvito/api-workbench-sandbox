@@ -78,11 +78,42 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Covered here instead by: pytest and the `ok-parameters-and-paging` scenario, which writes the query string explicitly.
   - Closed: —
 
+- [ ] **F-010 — Response validation is silently skipped when the spec has `servers` (v0.7.1)**
+  - Type: **bug, false pass, high severity**. Found: 2026-11-21, `clrsig` v0.7.1, while building `contract-fail`.
+  - Behavior: with the spec written the standard way (`servers: [{url: http://localhost:8080/contract-fail}]`, paths like `/cases/x`), `conform` reports PASS for every operation, including all eight deliberately broken `contract-fail` cases (undeclared 500, missing required header, wrong types, ...). Scenario steps run with `--spec` show PASS too. No output format (text, json, junit, html) says that nothing was compared.
+  - Cause (from reading `packages/core/openapi/validator.go` and `scenario/runner.go`): `conform` calls `ValidateResponseByPath` with a bare path (no host); the router it builds from the spec honors `servers` (host and base path), so no route matches and the function returns "path not in spec - skip", i.e. no violations. The scenario runner compares the step's full URL path literally with the spec's paths (`/contract-fail/cases/x` is never equal to `/cases/x`), so the step is "not checked: no matching operation in the spec" (the catalog's CS-NC-001), which is not shown anywhere.
+  - Repro: start the server, then `clrsig conform http://localhost:8080/contract-fail/openapi.yaml --paths /contract-fail/cases/resp-001-undeclared-status` -> `PASS GET /cases/resp-001-undeclared-status 500`.
+  - Expected: honor `servers[].url` when matching (strip the server's base path, ignore the host), and always show "not checked" when a step or operation could not be compared.
+  - Only shape that works today: a copy of the spec with no `servers` block and the base path baked into every path, run with `-b <scheme://host>` for `conform`. With that copy all eight failures are detected and the controls pass.
+  - Handling here: the checked-in and served specs stay standard. `scripts/clrsig_spec_copy.py` writes the working copy for verification runs. It is a temporary concession to this bug; delete it when this item closes.
+  - Impact on earlier results: everything verified before Phase 3 had its request-side checks but NOT its response-side checks. Re-verified with the copy on 2026-11-21: `ok` `conform` 63/65 (only F-008 and F-009 fail), `--negative` 44/44, and all five `ok` scenarios pass, so the `ok` responses do conform to `ok.yaml`.
+  - Closed: —
+
+- [ ] **F-011 — Response findings are imprecise for some failures (v0.7.1)**
+  - Type: limitation (messages and kinds, the failures are caught). Found: 2026-11-21, `clrsig` v0.7.1.
+  - Behavior, all seen in the JSON report of `conform` on `contract-fail`:
+    - A body that matches no `oneOf` branch (`resp-009-oneof-no-match`) is reported with kind `missing-field`, location `a`, "property "a" is missing ... Or property "b" is missing". It says a field is missing, not that no branch matched (the catalog's CS-RESP-009). The discriminator case reports the missing field of the branch named by `type` (`meows`).
+    - A root-level type mismatch (`resp-006b-array-for-object`: an array where an object is declared) has kind `other` and no location, where the same mismatch on a field has kind `wrong-type`.
+    - A body that is not JSON (`resp-008-invalid-json`) or empty (`resp-008b-empty-body`) is reported with the parser's own text ("invalid character 'n' looking for beginning of object key string", "EOF"), kind `other`, no location.
+    - The catalog says the `schema` assertion does not check an empty body ("partly"); in fact it fails the step with "response body is empty".
+  - Repro: `clrsig conform <spec copy> -b http://localhost:8080 --paths /contract-fail/cases/resp-009-oneof-no-match --format json` (and the other cases above); see `scripts/check_expectations.py`.
+  - Expected: a distinct finding kind for "no oneOf branch matched", "body is not valid JSON" and "body is empty", with a clear message; the same kind for a wrong type at the root and at a field; the catalog row for the empty body matching the behavior.
+  - Pinned here instead by: `expectations/contract-fail.yaml` records today's kinds and messages, so a change shows up as a mismatch.
+  - Closed: —
+
+- [ ] **F-012 — No check ID in any report format (v0.7.1)**
+  - Type: enhancement. Found: 2026-11-21, `clrsig` v0.7.1.
+  - Behavior: the catalog gives every check an ID (CS-RESP-001 ...), but no output of `conform` or `run` (text, JSON, JUnit, HTML) contains it. Findings carry a coarse `kind` (`undeclared-status`, `missing-header`, `other`, ...), and several IDs share one kind (CS-RESP-007, 008, 010 and 011 are all `other`). A CI job cannot compare actual and expected check IDs, as the project plan asks, without parsing message text.
+  - Repro: any failing `conform --format json`; search the output for `CS-`.
+  - Expected: a `checkId` field on each finding (and the ID in the text report).
+  - Handled here instead by: matching `kind`, `where` and a regex on the validator message, all recorded per case in `expectations/contract-fail.yaml`. Replace with the ID when it exists.
+  - Closed: —
+
 ---
 
 ## Baseline
 
-Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-009 (all found with v0.7.1).
+Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-012 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
 
 ## Notes
 

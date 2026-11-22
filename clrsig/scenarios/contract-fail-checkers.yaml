@@ -1,0 +1,94 @@
+schemaVersion: "1"
+title: contract-fail - the two response checkers side by side
+description: >
+  One step per case, each with ClearSignal's step spec check (checker A, from --spec) AND an
+  explicit `schema` assertion (checker B, by operationId). The catalog says they differ:
+  B ignores the status, the Content-Type and headers, and does not look at writeOnly.
+  Run with --spec <spec copy> (see scripts/clrsig_spec_copy.py and F-010); the schema
+  assertion itself matches by operationId and is not affected by F-010.
+  Every step uses failPolicy: continue so one failing case does not hide the others.
+
+steps:
+  - label: control-ok
+    request: { method: GET, url: "{{baseUrl}}/cases/control-ok" }
+    assertions:
+      - { type: schema, schema: controlOk }
+    failPolicy: continue
+
+  - label: resp-001-undeclared-status
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-001-undeclared-status" }
+    assertions:
+      - { type: schema, schema: resp001UndeclaredStatus }
+    failPolicy: continue
+
+  - label: resp-002-wrong-content-type
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-002-wrong-content-type" }
+    assertions:
+      - { type: schema, schema: resp002WrongContentType }
+    failPolicy: continue
+
+  - label: resp-003-missing-required-header
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-003-missing-required-header" }
+    assertions:
+      - { type: schema, schema: resp003MissingRequiredHeader }
+    failPolicy: continue
+
+  - label: resp-004-wrong-header-type
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-004-wrong-header-type" }
+    assertions:
+      - { type: schema, schema: resp004WrongHeaderType }
+    failPolicy: continue
+
+  - label: resp-005-missing-required-field
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-005-missing-required-field" }
+    assertions:
+      - { type: schema, schema: resp005MissingRequiredField }
+    failPolicy: continue
+
+  - label: resp-006-wrong-field-type
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-006-wrong-field-type" }
+    assertions:
+      - { type: schema, schema: resp006WrongFieldType }
+    failPolicy: continue
+
+  - label: resp-007-enum
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-007-enum" }
+    assertions:
+      - { type: schema, schema: resp007Enum }
+    failPolicy: continue
+
+  - label: resp-008-invalid-json
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-008-invalid-json" }
+    assertions:
+      - { type: schema, schema: resp008InvalidJson }
+    failPolicy: continue
+
+  - label: resp-008b-empty-body
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-008b-empty-body" }
+    assertions:
+      - { type: schema, schema: resp008bEmptyBody }
+    failPolicy: continue
+
+  - label: resp-009-oneof-no-match
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-009-oneof-no-match" }
+    assertions:
+      - { type: schema, schema: resp009OneofNoMatch }
+    failPolicy: continue
+
+  - label: resp-010-extra-property-closed
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-010-extra-property-closed" }
+    assertions:
+      - { type: schema, schema: resp010ExtraPropertyClosed }
+    failPolicy: continue
+
+  - label: resp-011-writeonly-leak
+    request: { method: GET, url: "{{baseUrl}}/cases/resp-011-writeonly-leak" }
+    assertions:
+      - { type: schema, schema: resp011WriteonlyLeak }
+    failPolicy: continue
+
+  - label: nc-undocumented-path
+    request: { method: GET, url: "{{baseUrl}}/cases/nc-undocumented-path" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue

@@ -29,6 +29,11 @@ Read `docs/PRD.md` and `docs/TASKLIST.md` before making substantial changes. The
 - Never shape specs, fixtures, environments or handlers to dodge a `clrsig` bug or limitation. ClearSignal must handle valid OpenAPI and valid servers.
 - When `clrsig` behaves wrongly, stop, tell the user, and record it in `docs/clrsig-findings.md` (checklist; close when a fixed release is verified).
 
+## Verifying response behavior with ClearSignal
+
+- `clrsig` v0.7.1 skips response validation for specs with `servers` (F-010). Verify response behavior only through `scripts/clrsig_spec_copy.py` (or `scripts/check_expectations.py`, which does it); never claim "conform passes" from a plain run.
+- Expected outcomes of failure cases live in `expectations/*.yaml` and are checked by `scripts/check_expectations.py`. Change an expectation only when ClearSignal's behavior changed, never to match a handler you edited.
+
 ## Before coding
 
 - Inspect the existing repository structure and current implementation.

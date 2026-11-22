@@ -40,6 +40,17 @@ Expected with `clrsig` v0.7.1: all scenarios and `conform --negative`'s probes p
 
 Verified with released `clrsig` v0.7.1 (earlier versions have known issues; see `docs/clrsig-findings.md`).
 
+## `contract-fail` cases
+
+35 operations under `GET /contract-fail/cases/<check-id>-<slug>`, each declaring the correct behavior in `specs/contract-fail.yaml` while the server breaks exactly one thing. The expected ClearSignal outcome of every case is in `expectations/contract-fail.yaml` (table: `docs/contract-fail-cases.md`).
+
+```
+uv run python scripts/check_expectations.py          # server running on :8080; exit 0 = all as expected
+uv run python scripts/check_expectations.py --only resp-003-missing-required-header
+```
+
+**Important (F-010 in `docs/clrsig-findings.md`):** `clrsig` v0.7.1 silently skips response validation for any spec that has a `servers` entry, so `clrsig conform specs/contract-fail.yaml` reports everything as PASS. The runner therefore checks a generated copy (`scripts/clrsig_spec_copy.py`: no `servers`, base path in each path, run with `-b`). Do not read a plain `clrsig conform` PASS on these specs as proof of anything.
+
 ## Latency
 
 `GET /ok/ok-slow/{ms}` (0 to 10000) answers correctly after the delay, and every list operation accepts an optional `?delay=<ms>` (0 to 10000). `LATENCY_SCALE` (0 to 10, default 1) multiplies every deliberate delay; use `0` for fast test runs. Caps: the scaled sleep is at most 30 s and at most 20 slow requests run at once (more get `503`). Delays never block other requests or the store.
