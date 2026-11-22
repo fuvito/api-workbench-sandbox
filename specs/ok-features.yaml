@@ -19,6 +19,12 @@ tags:
   - name: schemas
   - name: media
   - name: security
+  - name: credentials
+    description: Valid, unknown, expired and under-privileged credentials
+  - name: session
+    description: A session carried in a cookie
+  - name: pagination
+    description: A list that pages with a Link header
 externalDocs:
   description: The repository these fixtures belong to
   url: https://github.com/fuvito/api-workbench-sandbox
@@ -411,6 +417,36 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
 
+  /features/xml-note:
+    post:
+      operationId: featureXmlNote
+      tags: [media]
+      summary: An XML request body (clrsig generates no body for it, CS-GAP-006)
+      requestBody:
+        required: true
+        content:
+          application/xml:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 200 }
+              xml:
+                name: note
+      responses:
+        "200":
+          description: The note and its length
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [text, length]
+                properties:
+                  text: { type: string }
+                  length: { type: integer }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /features/oauth2/token:
     post:
       operationId: featureOauth2Token
@@ -468,8 +504,174 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /features/credentials/profile:
+    get:
+      operationId: featureCredentialsProfile
+      tags: [credentials]
+      summary: A bearer-protected operation (a valid, unknown or expired token)
+      description: >
+        `test-token` and `writer-token` are valid. Any other token is 401. `expired-token` is 401
+        too, but its WWW-Authenticate header says the token expired.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The caller and the scopes of the token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user, scopes]
+                properties:
+                  user: { type: string }
+                  scopes:
+                    type: array
+                    items: { type: string, enum: [read, write] }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /features/credentials/write-area:
+    get:
+      operationId: featureCredentialsWriteArea
+      tags: [credentials]
+      summary: Needs the write scope (a read-only token is 403)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The caller has the write scope
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [area, ok]
+                properties:
+                  area: { type: string, enum: [write] }
+                  ok: { type: boolean }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The token is valid but lacks the write scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /features/session/login:
+    post:
+      operationId: featureSessionLogin
+      tags: [session]
+      summary: Log in; the session id comes back in a cookie
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user, password]
+              additionalProperties: false
+              properties:
+                user: { type: string, minLength: 1, maxLength: 40, example: test-user }
+                password: { type: string, minLength: 1, maxLength: 100, writeOnly: true, example: test-pass }
+      responses:
+        "204":
+          description: Logged in
+          headers:
+            Set-Cookie:
+              required: true
+              description: "session=<id>; HttpOnly; Path=/ok/features; SameSite=Lax"
+              schema: { type: string }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /features/session/me:
+    get:
+      operationId: featureSessionMe
+      tags: [session]
+      summary: Who is logged in (the session cookie is the credential)
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The logged-in user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user, session]
+                properties:
+                  user: { type: string }
+                  session: { type: string }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /features/session/logout:
+    post:
+      operationId: featureSessionLogout
+      tags: [session]
+      summary: Log out; the cookie is cleared
+      security: []
+      responses:
+        "204":
+          description: Logged out (also when nobody was)
+          headers:
+            Set-Cookie:
+              required: true
+              description: "session=; Max-Age=0; Path=/ok/features"
+              schema: { type: string }
+
+  /features/links/items:
+    get:
+      operationId: featureLinkItems
+      tags: [pagination]
+      summary: A page of items; the Link header (RFC 8288) points at first, prev, next and last
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 5, default: 3 }
+      responses:
+        "200":
+          description: Up to per_page of the 10 items
+          headers:
+            Link:
+              required: true
+              description: 'For example <http://host/ok/features/links/items?page=2&per_page=3>; rel="next"'
+              schema: { type: string }
+            X-Total-Count:
+              required: true
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [n, name]
+                  properties:
+                    n: { type: integer }
+                    name: { type: string }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
 components:
   securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "Fixed test tokens: test-token (read), writer-token (read, write); expired-token is expired"
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: "The session id set by POST /features/session/login"
     oauth2Auth:
       type: oauth2
       description: "Client credentials; the token endpoint returns the fixed test token"

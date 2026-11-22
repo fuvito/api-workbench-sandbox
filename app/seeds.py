@@ -104,6 +104,8 @@ def ok_seed() -> SeedData:
             "ae-1": {"id": "ae-1", "action": "login", "actor": "alice", "at": "2026-01-01T09:00:00Z"},
             "ae-2": {"id": "ae-2", "action": "export", "actor": "bob", "at": "2026-01-02T10:30:00Z"},
         },
+        # a session that exists after every reset: the value of `apiKey` for the cookie scheme of ok-features
+        "feature_sessions": {"sess-seed": {"id": "sess-seed", "user": "test-user"}},
         "feature_flags": {"main": {"id": "main", "values": {"beta": True, "legacy": False}}},
         "settings": {"main": {"id": "main", "values": {"theme": "light", "language": "en"}}},
         "tasks": {

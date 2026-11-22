@@ -98,16 +98,15 @@ cases:
   - { case: hostile-big-header, path: /hostile/big-header, expect: pass, reference: null, why: "a 60000-byte response header" }
   - { case: hostile-chunked-stream, path: /hostile/chunked-stream, expect: pass, reference: null, why: "no Content-Length: three chunks" }
   - { case: hostile-lone-surrogate, path: /hostile/lone-surrogate, expect: pass, reference: null, why: "an unpaired surrogate escape is valid JSON text; ClearSignal does not check that it is valid Unicode (undefined by the standard)" }
-  # Malformed bodies that are accepted: the wrong outcome, pinned until fixed.
-  - { case: hostile-invalid-utf8, path: /hostile/invalid-utf8, expect: pass, reference: F-026, why: "bytes ff fe are not UTF-8, so the body is not valid JSON; ClearSignal passes it (it should fail, CS-RESP-008)" }
-  - { case: hostile-trailing-garbage, path: /hostile/trailing-garbage, expect: pass, reference: F-027, why: "text after the JSON value is ignored (it should fail, CS-RESP-008)" }
-  # Malformed bodies that are rejected, and outcomes the standard leaves undefined.
+  # Malformed bodies (v0.8.5 rejects the two it used to accept, F-026 and F-027), and outcomes the standard leaves undefined.
+  - { case: hostile-invalid-utf8, path: /hostile/invalid-utf8, expect: fail, check: CS-RESP-008, message: 'not valid JSON \(byte 0xff at offset 20 is not UTF-8\)', note: "bytes ff fe are not UTF-8 (F-026, fixed in v0.8.5)" }
+  - { case: hostile-trailing-garbage, path: /hostile/trailing-garbage, expect: fail, check: CS-RESP-008, message: 'not valid JSON \(text after the JSON value\)', note: "text after the JSON value (F-027, fixed in v0.8.5)" }
   - { case: hostile-raw-newline-in-string, path: /hostile/raw-newline-in-string, expect: fail, check: CS-RESP-008, message: 'not valid JSON \(invalid character .\\n. in string literal' }
   - { case: hostile-nan-literal, path: /hostile/nan-literal, expect: fail, check: CS-RESP-008, message: 'not valid JSON \(invalid character ''N''' }
   - { case: hostile-bom, path: /hostile/bom, expect: fail, check: CS-RESP-008, message: 'not valid JSON \(invalid character', note: "RFC 8259 lets a parser ignore a BOM; ClearSignal rejects it (strict, defensible)" }
   - { case: hostile-duplicate-keys, path: /hostile/duplicate-keys, expect: fail, check: CS-RESP-006, message: 'value must be an integer', note: "the last duplicate wins (id is the string two); the standard leaves this undefined" }
   - { case: hostile-gzip-lie, path: /hostile/gzip-lie, expect: fail, check: CS-RUN-003, message: 'reading response body: unexpected EOF', note: "Content-Encoding gzip on a plain body: no readable response" }
-  - { case: hostile-float-overflow, path: /hostile/float-overflow, expect: fail, check: null, reported: null, reference: F-028, kind: other, message: 'ParseFloat: parsing "1e400": value out of range', note: "a valid JSON number beyond float64 is a failure with no check ID" }
+  - { case: hostile-float-overflow, path: /hostile/float-overflow, expect: fail, check: CS-RESP-015, kind: number-out-of-range, message: 'ParseFloat: parsing "1e400": value out of range', note: "a valid JSON number beyond float64 has its own finding since v0.8.5 (F-028)" }
 
 # State-dependent behavior: reset, then call the operation several times and compare call by call.
 # Every counter lives in the store, so the same reset always gives the same sequence.
@@ -148,6 +147,8 @@ whole_spec:
     - /hostile/bom
     - /hostile/duplicate-keys
     - /hostile/gzip-lie
+    - /hostile/invalid-utf8
+    - /hostile/trailing-garbage
     - /hostile/float-overflow
 
 # ---- requests that do not fit, and runs that cannot happen (slice 3) ----
@@ -397,6 +398,12 @@ runs:
     args: [generate, "{root}/specs/hostile/missing-ref.yaml", --dry-run]
     exit: 2
     output: 'failed to resolve "components".*#/components/schemas/Nope'
+  - name: hostile-spec-xml-example
+    reference: F-034
+    note: "a valid XML example string is rejected as 'value must be an object' (F-034)"
+    args: [generate, "{root}/specs/hostile/xml-example.yaml", --dry-run]
+    exit: 2
+    output: 'invalid example: value must be an object'
   - name: hostile-spec-duplicate-operation-id
     reference: CS-RUN-004
     args: [generate, "{root}/specs/hostile/duplicate-operation-id.yaml", --dry-run]
@@ -413,18 +420,18 @@ runs:
     args: [diff, "{root}/specs/hostile/circular-ref.yaml", "{root}/specs/hostile/circular-ref.yaml"]
     exit: 0
     output: 'No changes'
-  - name: failed-extraction-exits-zero
-    reference: F-032
-    note: "the only problem is an extraction that finds nothing: the step prints FAIL and the summary says 1 failed, yet the run exits 0 and says PASSED"
+  - name: failed-extraction-fails-the-run
+    check: CS-RUN-008
+    note: "the only problem is an extraction that finds nothing: since v0.8.5 the run exits 1 and says FAILED (it exited 0, F-032)"
     args: [run, "{root}/clrsig/scenarios/conform-fail-failed-extraction.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml", --spec, "{spec}"]
-    exit: 0
-    output: '(?s)FAIL\s+extract nothing.*PASSED\s+0 passed, 1 failed'
-  - name: probe-summary-says-passed-when-all-errored
-    reference: F-029
-    note: "no server: every probe errors and the run exits 1, yet the headline says PASSED"
+    exit: 1
+    output: '(?s)FAIL\s+extract nothing.*FAILED\s+0 passed, 1 failed'
+  - name: probe-summary-says-failed-when-all-errored
+    reference: CS-PROBE-006
+    note: "no server: every probe errors; since v0.8.5 the headline says FAILED, as the exit code does (F-029)"
     args: [conform, "{root}/specs/hostile/only-post.yaml", -b, "http://localhost:1", --negative, --env, "{root}/clrsig/environments/ok.yaml", --request-timeout, "300"]
     exit: 1
-    output: 'PASSED\s+2 probes\s+·\s+0 passed\s+·\s+0 failed\s+·\s+0 skipped\s+·\s+2 errors'
+    output: '(?s)FAILED\s+2 probes\s+·\s+0 passed\s+·\s+0 failed\s+·\s+0 skipped\s+·\s+2 errors.*could not be judged'
 
   # ---- scale: a generated document with 500 operations (scripts/make_specs.py). It must load, generate,
   # build every request and probe, and compare with itself, each well inside the time budget. ----
@@ -512,24 +519,24 @@ scenarios:
   - file: clrsig/scenarios/conform-fail-edge-assertions.yaml
     env: clrsig/environments/conform-fail.yaml
     steps:
-      duplicate header, first value: { passed: true }
-      duplicate header, joined: { passed: false, note: "only the first value of a repeated header is seen (F-030)" }
-      set-cookie header: { passed: false, note: "the second Set-Cookie is not reachable (F-030)" }
+      duplicate header, first value: { passed: false, note: "a repeated header is one value joined with ', ' since v0.8.5, so eq one fails (F-030)" }
+      duplicate header, joined: { passed: true, note: "CS-RUN-009: the repeated header is one joined value" }
+      set-cookie header: { passed: true, note: "both cookies are in the joined value (F-030, fixed in v0.8.5)" }
       gzip body is decoded: { passed: true }
       integer written as 1.0: { passed: true }
       integer written as 1e2: { passed: true }
-      integer one above int64: { passed: false, note: "read as float64, printed 9.223372036854776e+18 (F-031)" }
+      integer one above int64: { passed: true, note: "CS-RUN-009: keeps all its digits since v0.8.5 (F-031)" }
       number beyond float64: { passed: false, note: "1e400 cannot be read (F-028)" }
       duplicate keys: { passed: false, note: "the last key wins: id is the string two" }
       deep nesting: { passed: true }
       wide object: { passed: true }
       body with a byte order mark: { passed: false, note: "a BOM is rejected, as by conform" }
-      text after the JSON value: { passed: false, note: "rejected here, but conform passes the same body (F-027)" }
+      text after the JSON value: { passed: false, note: "rejected here and, since v0.8.5, by conform too (F-027)" }
       a string compared with gt: { passed: false, note: "cannot compare the string as a number: a clear message" }
-      extraction that finds nothing: { passed: true, error: 'extraction "absent": jsonpath "\$\.nothing\.here": unknown key nothing', note: "the step shows an error but is reported passed: true (F-032)" }
+      extraction that finds nothing: { passed: false, error: 'extraction "absent": jsonpath "\$\.nothing\.here": unknown key nothing', note: "a failed extraction fails the step since v0.8.5 (F-032)" }
       use of the value that was not extracted: { passed: false, error: 'not sent: no value for \{\{absent\}\}' }
-      read an id above 2^53 into a variable: { passed: true, extracted: { bigId: "9.223372036854776e+18" }, note: "the extracted id is rounded and in exponent form (F-031)" }
-      extraction from a header that is not there: { passed: true, error: 'header "X-Not-There" not found in response', note: "as above (F-032)" }
+      read an id above 2^53 into a variable: { passed: true, extracted: { bigId: "9223372036854775808" }, note: "the id keeps its digits since v0.8.5 (F-031)" }
+      extraction from a header that is not there: { passed: false, error: 'header "X-Not-There" not found in response', note: "as above (F-032)" }
 
 # `clrsig conform --negative`: each operation's negative probes (see the header).
   # Seven business rules, each broken on purpose: the steps assert the CORRECT rule, so exactly the

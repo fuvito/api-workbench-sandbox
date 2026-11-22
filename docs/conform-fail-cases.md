@@ -1,6 +1,6 @@
 # conform-fail: expected outcomes (response cases, sequences and commands; probes are in the expectations file)
 
-Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.4 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
+Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.5 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
 
 | Case | Path (under `/conform-fail`) | Expected | Check | Exit code | ClearSignal reports (or why it passes) |
 |---|---|---|---|---|---|
@@ -55,14 +55,14 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `hostile-big-header` | `/hostile/big-header` | passes | none | 0 | a 60000-byte response header |
 | `hostile-chunked-stream` | `/hostile/chunked-stream` | passes | none | 0 | no Content-Length: three chunks |
 | `hostile-lone-surrogate` | `/hostile/lone-surrogate` | passes | none | 0 | an unpaired surrogate escape is valid JSON text; ClearSignal does not check that it is valid Unicode (undefined by the standard) |
-| `hostile-invalid-utf8` | `/hostile/invalid-utf8` | passes | F-026 | 0 | bytes ff fe are not UTF-8, so the body is not valid JSON; ClearSignal passes it (it should fail, CS-RESP-008) |
-| `hostile-trailing-garbage` | `/hostile/trailing-garbage` | passes | F-027 | 0 | text after the JSON value is ignored (it should fail, CS-RESP-008) |
+| `hostile-invalid-utf8` | `/hostile/invalid-utf8` | fails | CS-RESP-008 | 1 | not valid JSON \(byte 0xff at offset 20 is not UTF-8\) |
+| `hostile-trailing-garbage` | `/hostile/trailing-garbage` | fails | CS-RESP-008 | 1 | not valid JSON \(text after the JSON value\) |
 | `hostile-raw-newline-in-string` | `/hostile/raw-newline-in-string` | fails | CS-RESP-008 | 1 | not valid JSON \(invalid character .\\n. in string literal |
 | `hostile-nan-literal` | `/hostile/nan-literal` | fails | CS-RESP-008 | 1 | not valid JSON \(invalid character 'N' |
 | `hostile-bom` | `/hostile/bom` | fails | CS-RESP-008 | 1 | not valid JSON \(invalid character |
 | `hostile-duplicate-keys` | `/hostile/duplicate-keys` | fails | CS-RESP-006 | 1 | value must be an integer |
 | `hostile-gzip-lie` | `/hostile/gzip-lie` | fails | CS-RUN-003 | 1 | reading response body: unexpected EOF |
-| `hostile-float-overflow` | `/hostile/float-overflow` | fails | none (F-028) | 1 | ParseFloat: parsing "1e400": value out of range |
+| `hostile-float-overflow` | `/hostile/float-overflow` | fails | CS-RESP-015 | 1 | ParseFloat: parsing "1e400": value out of range |
 
 ### Sequences (reset first, then call by call)
 
@@ -115,11 +115,12 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `hostile-spec-json-file` | none | 0 | 1 request\(s\) generated (the spec is a JSON document) |
 | `hostile-spec-openapi-3-2` | none | 0 | 1 request\(s\) generated (openapi 3.2.0 is newer than the catalog; it loads like 3.1) |
 | `hostile-spec-missing-ref` | none | 2 | failed to resolve "components".*#/components/schemas/Nope (a $ref to a schema that does not exist: a clean error, exit 2) |
+| `hostile-spec-xml-example` | none | 2 | invalid example: value must be an object (a valid XML example string is rejected as 'value must be an object' (F-034)) |
 | `hostile-spec-duplicate-operation-id` | none | 2 | have the same operation id "same" |
 | `hostile-spec-undeclared-path-parameter` | none | 2 | must define exactly all path parameters \(missing: \[id\]\) |
 | `hostile-spec-identical-diff` | none | 0 | No changes (diff of a recursive spec with itself: no changes, no loop) |
-| `failed-extraction-exits-zero` | none | 0 | (?s)FAIL\s+extract nothing.*PASSED\s+0 passed, 1 failed (the only problem is an extraction that finds nothing: the step prints FAIL and the summary says 1 failed, yet the run exits 0 and says PASSED) |
-| `probe-summary-says-passed-when-all-errored` | none | 1 | PASSED\s+2 probes\s+·\s+0 passed\s+·\s+0 failed\s+·\s+0 skipped\s+·\s+2 errors (no server: every probe errors and the run exits 1, yet the headline says PASSED) |
+| `failed-extraction-fails-the-run` | none | 1 | (?s)FAIL\s+extract nothing.*FAILED\s+0 passed, 1 failed (the only problem is an extraction that finds nothing: since v0.8.5 the run exits 1 and says FAILED (it exited 0, F-032)) |
+| `probe-summary-says-failed-when-all-errored` | none | 1 | (?s)FAILED\s+2 probes\s+·\s+0 passed\s+·\s+0 failed\s+·\s+0 skipped\s+·\s+2 errors.*could not be judged (no server: every probe errors; since v0.8.5 the headline says FAILED, as the exit code does (F-029)) |
 | `scale-500-generate` | none | 0 | 500 request\(s\) generated |
 | `scale-500-diff-with-itself` | none | 0 | No changes |
 | `scale-500-conform-negative` | none | 1 | FAILED\s+500 operations\s+·\s+0 passed\s+·\s+500 failed (against a closed port, with no values for the path parameters: nothing is sent and the run still finishes) |

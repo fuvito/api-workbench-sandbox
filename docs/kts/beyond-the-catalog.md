@@ -20,6 +20,10 @@ Written 2026-11-22 for `clrsig` v0.8.3; updated the same day for v0.8.4, which f
 
 The label and matrix styles were wrong in the first version of the server, not in `clrsig`: `style: label` with `explode: false` is `.1,2,3` (comma-separated), and `matrix` is prefixed with the parameter's own name (`;matrixIds=1,2,3`). `clrsig` checks path parameters against their style (CS-REQ-001) and said so; the server and the spec text were corrected, nothing was bent around it.
 
+## Added later the same day: what clrsig cannot do (`docs/clrsig-gaps.md`)
+
+A matrix of the catalog gaps (CS-GAP-001 to 011), capabilities clrsig lacks, and sandbox limits, each with the fixture that pins it. Three fixtures were added to `specs/ok-features.yaml` (26 operations now): **credentials** (`/features/credentials/profile`, `write-area`: valid, unknown, expired and read-only tokens, CS-GAP-008), a **cookie session** (`/features/session/login|me|logout`, an `apiKey` in a cookie, with a session seeded at every reset), **Link-header pagination** (`/features/links/items`), and an **XML request body** (`/features/xml-note`, CS-GAP-006, which had no fixture). Scenario: `clrsig/scenarios/ok-credentials-and-session.yaml`. Observed: clrsig keeps no cookie jar between steps and cannot follow a `Link` header or take part of a header value. Found with clrsig v0.8.5: F-033 (an `application/x-ndjson` response is read as one JSON document and fails), F-034 (a valid XML `example` string is rejected, exit 2) and F-035 (the "no credentials" probe keeps an API key sent in a cookie).
+
 ## Not covered
 
 - **Server variables** (`servers[].variables`): the served spec rewrites `servers[0].url` as plain text; a templated URL would break that rule.

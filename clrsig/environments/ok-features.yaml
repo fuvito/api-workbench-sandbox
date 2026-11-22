@@ -17,3 +17,6 @@ variables:
   # Fixed fake test credentials (documented in README): the oauth2 token endpoint returns this token.
   - name: token
     value: "test-token"
+  # The session cookie of GET /features/session/me (apiKey in a cookie): a session seeded at every reset.
+  - name: apiKey
+    value: "sess-seed"

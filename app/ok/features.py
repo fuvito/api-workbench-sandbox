@@ -10,14 +10,16 @@ import base64
 import binascii
 import json
 import re
+import secrets
+import xml.etree.ElementTree as ET
 from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Depends, Path, Request, Response
+from fastapi import APIRouter, Cookie, Depends, Path, Query, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import Field
 
 from app.ok.common import ApiError, StrictModel
-from app.ok.security import require_bearer
+from app.ok.security import Forbidden, Unauthorized, require_bearer
 from app.store import Store
 
 # A 1x1 transparent PNG.
@@ -27,6 +29,35 @@ PNG = base64.b64decode(
 CSV = "id,name\n1,Widget\n2,Gadget\n"
 EVENTS = [{"seq": 1, "event": "created"}, {"seq": 2, "event": "updated"}, {"seq": 3, "event": "closed"}]
 INT_LIST = re.compile(r"^-?\d+$")
+
+
+# Credentials a bearer-protected operation can meet (documented fake test values, like the others):
+# an unknown token, a token that has expired, a token without the needed scope, and one with it.
+CRED_TOKENS = {"test-token": ["read"], "writer-token": ["read", "write"]}
+EXPIRED_TOKEN = "expired-token"
+SESSION_USER, SESSION_PASSWORD = "test-user", "test-pass"
+SESSION_COOKIE = "session"
+ITEMS = 10  # items behind the Link-header pagination
+PER_PAGE_DEFAULT, PER_PAGE_MAX = 3, 5
+
+
+def credential_scopes(request: Request) -> list[str]:
+    """Scopes of the presented token. Missing or unknown is 401; an expired token is 401 with the reason."""
+    scheme, _, token = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() == "bearer" and secrets.compare_digest(token.encode(), EXPIRED_TOKEN.encode()):
+        raise Unauthorized('Bearer realm="ok", error="invalid_token", error_description="the access token expired"')
+    scopes = None
+    for known, known_scopes in CRED_TOKENS.items():
+        if secrets.compare_digest(token.encode(), known.encode()):  # no early exit on a match
+            scopes = known_scopes
+    if scheme.lower() != "bearer" or scopes is None:
+        raise Unauthorized('Bearer realm="ok"')
+    return scopes
+
+
+def require_write(request: Request) -> None:
+    if "write" not in credential_scopes(request):
+        raise Forbidden()
 
 
 def int_list(parts: list[str], what: str) -> list[int]:
@@ -161,6 +192,23 @@ def build(store: Store) -> APIRouter:
         """The request body is a `components.requestBodies` reference in the spec."""
         return {"text": body.text, "length": len(body.text)}
 
+    @router.post("/xml-note")
+    async def xml_note(request: Request) -> dict:
+        """An XML request body: `<note><text>hello</text></note>`. No DOCTYPE or entities (no expansion attacks)."""
+        raw = await request.body()
+        if not raw.strip():
+            raise ApiError(400, "invalid_request", "an XML body is required")
+        if len(raw) > 10_000 or b"<!" in raw:
+            raise ApiError(400, "invalid_request", "the XML body is too large or has a DOCTYPE or entity")
+        try:
+            root = ET.fromstring(raw)
+        except ET.ParseError as exc:
+            raise ApiError(400, "invalid_request", "the body is not well-formed XML") from exc
+        text = root.findtext("text") if root.tag == "note" else None
+        if not text or len(text) > 200:
+            raise ApiError(400, "invalid_request", "expected <note><text>...</text></note>")
+        return {"text": text, "length": len(text)}
+
     @router.get("/oauth2-profile", dependencies=[Depends(require_bearer)])
     async def oauth2_profile() -> dict:
         """oauth2 (clientCredentials): the access token from the token endpoint is the fixed test token."""
@@ -175,6 +223,82 @@ def build(store: Store) -> APIRouter:
         """The discovery document the `openIdConnect` scheme points to (not an operation of the spec)."""
         base = f"{str(request.base_url).rstrip('/')}/ok/features"
         return {"issuer": base, "token_endpoint": f"{base}/oauth2/token", "grant_types_supported": ["client_credentials"]}
+
+    # ---- credentials: expired, under-privileged, and good ----
+
+    @router.get("/credentials/profile")
+    async def credentials_profile(request: Request) -> dict:
+        """Any valid token: 200. Missing or unknown token: 401. The expired token: 401 with the reason."""
+        return {"user": "test-user", "scopes": credential_scopes(request)}
+
+    @router.get("/credentials/write-area", dependencies=[Depends(require_write)])
+    async def credentials_write_area() -> dict:
+        """Needs the write scope: `test-token` (read only) is 403, `writer-token` is 200, `expired-token` is 401."""
+        return {"area": "write", "ok": True}
+
+    # ---- a session in a cookie ----
+
+    class LoginBody(StrictModel):
+        user: str = Field(min_length=1, max_length=40)
+        password: str = Field(min_length=1, max_length=100)
+
+    @router.post("/session/login", status_code=204)
+    async def session_login(body: LoginBody) -> Response:
+        """Right credentials: 204 and `Set-Cookie: session=...`. Wrong: 401."""
+        ok = secrets.compare_digest(body.user.encode(), SESSION_USER.encode()) & secrets.compare_digest(
+            body.password.encode(), SESSION_PASSWORD.encode()
+        )
+        if not ok:
+            raise Unauthorized('Cookie realm="ok"')
+        session = await store.create_auto("feature_sessions", "sess", {"user": body.user})
+        response = Response(status_code=204)
+        response.set_cookie(SESSION_COOKIE, session["id"], path="/ok/features", httponly=True, samesite="lax")
+        return response
+
+    @router.get("/session/me")
+    async def session_me(session: str | None = Cookie(default=None, max_length=100)) -> dict:
+        """The cookie is the credential: missing, unknown or logged-out is 401."""
+        record = await store.get("feature_sessions", session) if session else None
+        if record is None:
+            raise Unauthorized('Cookie realm="ok"')
+        return {"user": record["user"], "session": session}
+
+    @router.post("/session/logout", status_code=204)
+    async def session_logout(session: str | None = Cookie(default=None, max_length=100)) -> Response:
+        """Ends the session (if any) and clears the cookie. Always 204."""
+        if session:
+            await store.delete("feature_sessions", session)
+        response = Response(status_code=204)
+        response.delete_cookie(SESSION_COOKIE, path="/ok/features")
+        return response
+
+    # ---- pagination with Link headers ----
+
+    @router.get("/links/items")
+    async def link_items(
+        request: Request,
+        response: Response,
+        page: int = Query(1, ge=1, le=1000),
+        per_page: int = Query(PER_PAGE_DEFAULT, ge=1, le=PER_PAGE_MAX),
+    ) -> list:
+        """10 numbered items. The `Link` header (RFC 8288) carries first, prev, next and last."""
+        last = max(1, -(-ITEMS // per_page))
+        if page > last:
+            raise ApiError(400, "invalid_request", f"page must be at most {last}")
+        start = (page - 1) * per_page
+        base = str(request.url.replace(query=""))
+
+        def link(target: int, rel: str) -> str:
+            return f'<{base}?page={target}&per_page={per_page}>; rel="{rel}"'
+
+        links = [link(1, "first"), link(last, "last")]
+        if page > 1:
+            links.append(link(page - 1, "prev"))
+        if page < last:
+            links.append(link(page + 1, "next"))
+        response.headers["Link"] = ", ".join(links)
+        response.headers["X-Total-Count"] = str(ITEMS)
+        return [{"n": n, "name": f"item {n}"} for n in range(start + 1, min(start + per_page, ITEMS) + 1)]
 
     @router.post("/oauth2/token")
     async def oauth2_token(request: Request) -> JSONResponse:

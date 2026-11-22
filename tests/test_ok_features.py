@@ -181,3 +181,113 @@ async def test_openid_discovery_document(client):
     doc = (await client.get(f"{F}/.well-known/openid-configuration")).json()
     assert doc["token_endpoint"].endswith("/ok/features/oauth2/token")
     assert "/features/.well-known/openid-configuration" not in str(load()["paths"])  # not an operation of the spec
+
+
+# ---- credentials: valid, unknown, expired, under-privileged ----
+
+
+def bearer(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def test_credentials_profile(client):
+    ok = await client.get(f"{F}/credentials/profile", headers=bearer("test-token"))
+    assert ok.status_code == 200 and ok.json() == {"user": "test-user", "scopes": ["read"]}
+    assert (await client.get(f"{F}/credentials/profile", headers=bearer("writer-token"))).json()["scopes"] == ["read", "write"]
+    unknown = await client.get(f"{F}/credentials/profile", headers=bearer("nope"))
+    assert unknown.status_code == 401 and unknown.headers["www-authenticate"] == 'Bearer realm="ok"'
+    expired = await client.get(f"{F}/credentials/profile", headers=bearer("expired-token"))
+    assert expired.status_code == 401 and "the access token expired" in expired.headers["www-authenticate"]
+    assert (await client.get(f"{F}/credentials/profile")).status_code == 401
+
+
+async def test_write_area_needs_the_write_scope(client):
+    assert (await client.get(f"{F}/credentials/write-area", headers=bearer("writer-token"))).json() == {"area": "write", "ok": True}
+    forbidden = await client.get(f"{F}/credentials/write-area", headers=bearer("test-token"))
+    assert forbidden.status_code == 403 and forbidden.json()["code"] == "forbidden"
+    assert (await client.get(f"{F}/credentials/write-area", headers=bearer("expired-token"))).status_code == 401
+    assert (await client.get(f"{F}/credentials/write-area")).status_code == 401
+
+
+# ---- a session in a cookie ----
+
+
+async def login(client, **over):
+    return await client.post(f"{F}/session/login", json={"user": "test-user", "password": "test-pass", **over})
+
+
+async def test_login_sets_a_cookie_and_the_cookie_is_the_credential(client):
+    r = await login(client)
+    assert r.status_code == 204
+    cookie = r.headers["set-cookie"]
+    assert cookie.startswith("session=sess-") and "HttpOnly" in cookie and "Path=/ok/features" in cookie
+    session = cookie.split(";")[0].split("=")[1]
+    assert (await client.get(f"{F}/session/me", cookies={"session": session})).json() == {"user": "test-user", "session": session}
+    client.cookies.clear()  # the test client keeps the login cookie, a real caller without it has none
+    for cookies in (None, {"session": "nope"}):
+        assert (await client.get(f"{F}/session/me", cookies=cookies)).status_code == 401
+
+
+async def test_the_seeded_session_exists_after_every_reset(client):
+    assert (await client.get(f"{F}/session/me", cookies={"session": "sess-seed"})).status_code == 200
+    await client.post("/ok/__admin/reset")
+    assert (await client.get(f"{F}/session/me", cookies={"session": "sess-seed"})).status_code == 200
+
+
+async def test_wrong_login_is_refused_and_bad_input_is_400(client):
+    assert (await login(client, password="wrong")).status_code == 401
+    assert (await login(client, user="someone")).status_code == 401
+    for bad in ({"user": ""}, {"password": ""}, {"extra": 1}):
+        assert (await login(client, **bad)).status_code == 400, bad
+    assert "set-cookie" not in (await login(client, password="wrong")).headers
+
+
+async def test_logout_ends_the_session_and_clears_the_cookie(client):
+    session = (await login(client)).headers["set-cookie"].split(";")[0].split("=")[1]
+    out = await client.post(f"{F}/session/logout", cookies={"session": session})
+    assert out.status_code == 204 and "Max-Age=0" in out.headers["set-cookie"]
+    assert (await client.get(f"{F}/session/me", cookies={"session": session})).status_code == 401
+    assert (await client.post(f"{F}/session/logout")).status_code == 204  # also when nobody was logged in
+
+
+# ---- pagination with a Link header ----
+
+
+def links(header):
+    out = {}
+    for part in header.split(", "):
+        url, _, rel = part.partition("; rel=")
+        out[rel.strip('"')] = url.strip("<>")
+    return out
+
+
+async def test_link_header_pages_through_ten_items(client):
+    first = await client.get(f"{F}/links/items", params={"per_page": 4})
+    assert [i["n"] for i in first.json()] == [1, 2, 3, 4] and first.headers["x-total-count"] == "10"
+    ln = links(first.headers["link"])
+    assert set(ln) == {"first", "last", "next"} and ln["next"].endswith("?page=2&per_page=4")
+    seen, url = [], ln["next"]
+    while url:
+        page = await client.get(url)
+        seen += [i["n"] for i in page.json()]
+        url = links(page.headers["link"]).get("next")
+    assert seen == [5, 6, 7, 8, 9, 10]
+
+
+async def test_link_header_edges(client):
+    last = await client.get(f"{F}/links/items", params={"page": 3, "per_page": 4})
+    assert [i["n"] for i in last.json()] == [9, 10] and set(links(last.headers["link"])) == {"first", "last", "prev"}
+    assert (await client.get(f"{F}/links/items", params={"page": 4, "per_page": 4})).status_code == 400
+    for bad in ({"page": 0}, {"per_page": 6}, {"per_page": 0}, {"page": "x"}):
+        assert (await client.get(f"{F}/links/items", params=bad)).status_code == 400, bad
+
+
+# ---- an XML request body ----
+
+
+async def test_xml_note(client):
+    ok = await client.post(f"{F}/xml-note", content="<note><text>hello</text></note>", headers={"content-type": "application/xml"})
+    assert ok.json() == {"text": "hello", "length": 5}
+    for body in ("", "<note><text></text></note>", "<other><text>x</text></other>", "not xml", "<!DOCTYPE x><note><text>x</text></note>",
+                 "<note><text>" + "x" * 201 + "</text></note>"):
+        assert (await client.post(f"{F}/xml-note", content=body, headers={"content-type": "application/xml"})).status_code == 400, body[:20]

@@ -1,6 +1,6 @@
 # KT — The adversarial group: trying to break clrsig
 
-Written 2026-11-22 for `clrsig` v0.8.4. Read this to see what was tried, what broke, and where it is pinned.
+Written 2026-11-22 for `clrsig` v0.8.4; updated the same day for v0.8.5, which fixed all seven findings below. Read this to see what was tried, what broke, and where it is pinned.
 
 ## Why
 
@@ -18,7 +18,7 @@ Rule for undefined behavior: where no standard says what clrsig should do (a dup
 | Random specs | `scripts/fuzz_specs.py`, CI step (60 seeds) | random valid OpenAPI 3.0.3 documents; clrsig must load, generate, build every probe against a closed port and diff each with itself, with no crash or hang. 900 seeds were run when it was written: no failure |
 | Scenario robustness | `clrsig/scenarios/conform-fail-edge-assertions.yaml` | JSON paths and headers on the hostile bodies, integers beyond 2^53, extractions that find nothing |
 
-## What it found (all open, `docs/clrsig-findings.md`)
+## What it found (all fixed in v0.8.5, `docs/clrsig-findings.md`)
 
 | Finding | Summary | Severity |
 |---|---|---|
@@ -30,7 +30,7 @@ Rule for undefined behavior: where no standard says what clrsig should do (a dup
 | F-031 | Integers above 2^53 are rounded and printed as `9.2e+18` by `jsonpath` assertions and **extractions**, so a chained request sends a corrupted id | data corruption |
 | F-032 | A failed extraction exits 0 and the headline says PASSED, next to "1 failed" in the same report | false pass |
 
-F-031 and F-032 are the serious ones: a CI job that chains requests with extracted ids, or trusts the exit code of `run`, is wrong in both.
+F-031 and F-032 were the serious ones: a CI job that chains requests with extracted ids, or trusts the exit code of `run`, was wrong in both. v0.8.5 fixed them, and the expectations flipped (the hostile cases now fail where they should, with `CS-RESP-008`, `CS-RESP-015` and `CS-PROBE-006`). Checking the fixes found three more, F-033 to F-035 (`docs/kts/beyond-the-catalog.md`).
 
 ## What held
 

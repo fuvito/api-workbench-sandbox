@@ -1,6 +1,6 @@
 # spec against spec: expected `clrsig diff` and `clrsig impact` outcomes
 
-Generated from `expectations/diff.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/diff.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.4.
+Generated from `expectations/diff.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/diff.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.5.
 
 | Pair (`specs/diff/<case>/v1.yaml`, `v2.yaml`) | Highest level | Check | Exit code at --fail-on breaking / warning / info | Changes reported |
 |---|---|---|---|---|

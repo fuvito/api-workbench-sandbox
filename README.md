@@ -22,7 +22,7 @@ Environment variables: `PORT` (8080), `HOST` (127.0.0.1), `PUBLIC_BASE_URL`, `DR
 
 The `ok` family also serves a small OpenAPI 3.1 variant at `GET /ok/openapi-3.1.yaml` (`specs/ok-3.1.yaml`: health, products and customers in the 3.1 dialect: type arrays with `"null"`, `const`, `examples` lists). It describes the same behavior, so it must conform too (`expectations/ok-31.yaml`).
 
-It serves a third document, `GET /ok/openapi-features.yaml` (`specs/ok-features.yaml`): one small operation per OpenAPI feature `ok.yaml` does not use (parameter styles, `not`, `multipleOf`, formats, a response link, TRACE, CSV/PNG/NDJSON bodies, `requestBodies`, oauth2 and openIdConnect). Its expectations are `expectations/ok-features.yaml`; the commands and flags pinned in `expectations/ok.yaml` are listed in `docs/commands-and-flags.md`.
+It serves a third document, `GET /ok/openapi-features.yaml` (`specs/ok-features.yaml`): one small operation per OpenAPI feature `ok.yaml` does not use (parameter styles, `not`, `multipleOf`, formats, a response link, TRACE, CSV/PNG/NDJSON bodies, `requestBodies`, oauth2 and openIdConnect). A plain-language guide to every kind of problem these fixtures show, how clrsig finds it, and notes for making videos is in `docs/contract-and-conformance-guide.md`. It also has credentials (valid, unknown, expired, read-only tokens), a cookie session, Link-header pagination and an XML request body, which `docs/clrsig-gaps.md` explains (what clrsig cannot cover). Its expectations are `expectations/ok-features.yaml`; the commands and flags pinned in `expectations/ok.yaml` are listed in `docs/commands-and-flags.md`.
 
 Reset returns `204` and is not declared in the public specs. When `ADMIN_TOKEN` is set, reset and `GET <prefix>/__admin/state` need `Authorization: Bearer <ADMIN_TOKEN>`. State is in memory, shared by all callers, and lost on restart.
 
@@ -40,9 +40,9 @@ clrsig run clrsig/scenarios/ok-latency.yaml --env clrsig/environments/ok.yaml --
 clrsig run clrsig/scenarios/ok-parameters-and-paging.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 ```
 
-Expected with `clrsig` v0.8.4: all scenarios pass, `conform` reports 65 of 65 operations and `conform --negative` runs 62 probes that all pass. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
+Expected with `clrsig` v0.8.5: all scenarios pass, `conform` reports 65 of 65 operations and `conform --negative` runs 62 probes that all pass. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
 
-Verified with released `clrsig` v0.8.4 (earlier versions have known issues; see `docs/clrsig-findings.md`). With a spec that has `servers`, `-b` is the family's base (`http://localhost:8080/ok`) and `--paths` takes the spec's own paths.
+Verified with released `clrsig` v0.8.5 (earlier versions have known issues; see `docs/clrsig-findings.md`). With a spec that has `servers`, `-b` is the family's base (`http://localhost:8080/ok`) and `--paths` takes the spec's own paths.
 
 ## Run all the checks
 
@@ -156,7 +156,7 @@ No handler makes an outbound request from caller input: there is no HTTP client 
 
 ## Troubleshooting
 
-- **A response check passes in a plain `clrsig conform` run with an older `clrsig`:** v0.7.1 and earlier skip response validation for specs with `servers` (F-010). Use v0.8.4 or later.
+- **A response check passes in a plain `clrsig conform` run with an older `clrsig`:** v0.7.1 and earlier skip response validation for specs with `servers` (F-010). Use v0.8.5 or later.
 - **Timing cases fail on Windows:** the host overshoots delays; run against the Docker container.
 - **Reset answers `401`:** `ADMIN_TOKEN` is set; send the bearer token, and export `ADMIN_TOKEN` for the runner.
 - **State looks wrong:** it is shared by every caller and lost on restart; reset the family first.
@@ -165,7 +165,7 @@ No handler makes an outbound request from caller input: there is no HTTP client 
 
 ## Known gaps and Cloud Run
 
-Known gaps: the open ClearSignal findings F-026 to F-032 (`docs/clrsig-findings.md`), the `local_only` transport and large-body cases (not verified on Cloud Run), unconfirmed fake credentials, and the report polling delay (poll-count progression, not wall-clock). Cloud Run is not deployed yet; preparation, verified settings and an unverified runbook are in `docs/cloud-run-prep.md`. On Cloud Run, scale-to-zero, a restart or an instance replacement erases all state, and simultaneous users share the same stores and can interfere with one another.
+Known gaps: the open ClearSignal findings F-033 to F-035 (`docs/clrsig-findings.md`), the `local_only` transport and large-body cases (not verified on Cloud Run), unconfirmed fake credentials, and the report polling delay (poll-count progression, not wall-clock). Cloud Run is not deployed yet; preparation, verified settings and an unverified runbook are in `docs/cloud-run-prep.md`. On Cloud Run, scale-to-zero, a restart or an instance replacement erases all state, and simultaneous users share the same stores and can interfere with one another.
 
 ## KT notes
 

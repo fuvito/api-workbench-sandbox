@@ -1,6 +1,6 @@
 # clrsig commands and flags exercised here
 
-Beyond the check catalog, the fixtures pin what each `clrsig` command and flag does. The entries are in `expectations/ok.yaml` (section `runs`) and run with the other expectations in CI; when a release changes a flag, the entry flips and the file changes with it. Pinned for `clrsig` v0.8.4.
+Beyond the check catalog, the fixtures pin what each `clrsig` command and flag does. The entries are in `expectations/ok.yaml` (section `runs`) and run with the other expectations in CI; when a release changes a flag, the entry flips and the file changes with it. Pinned for `clrsig` v0.8.5.
 
 | Command or flag | What is pinned | Entry |
 |---|---|---|

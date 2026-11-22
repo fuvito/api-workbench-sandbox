@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info: {title: xml-example, version: "1"}
+servers: [{url: http://localhost:8080/x}]
+paths:
+  /note:
+    post:
+      operationId: postNote
+      requestBody:
+        required: true
+        content:
+          application/xml:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+              xml:
+                name: note
+            example: "<note><text>hello</text></note>"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  text: { type: string }
+              example: "<note><text>hello</text></note>"
