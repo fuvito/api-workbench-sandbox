@@ -1,0 +1,20 @@
+schemaVersion: "1"
+title: conform-fail - a dynamic function that does not exist
+description: >
+  DELIBERATELY BROKEN. The first step uses {{$noSuchFunction}}, which ClearSignal does not know,
+  so the request is not sent (the catalog's CS-RUN-002). The second step is fine and shows that
+  the failure is confined to the step that uses the bad function.
+steps:
+  - label: bad function
+    request:
+      method: GET
+      url: "{{baseUrl}}/requests/param-type/{{$noSuchFunction}}"
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue
+
+  - label: good step
+    request: { method: GET, url: "{{baseUrl}}/health" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue

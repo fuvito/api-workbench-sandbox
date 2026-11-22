@@ -1,0 +1,5 @@
+# DELIBERATELY NOT AN API SPEC: valid YAML, but no openapi version, no paths.
+name: just-a-yaml-file
+items:
+  - one
+  - two

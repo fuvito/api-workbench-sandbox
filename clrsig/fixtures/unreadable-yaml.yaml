@@ -1,0 +1,7 @@
+# DELIBERATELY UNREADABLE: this is not valid YAML (an unclosed flow mapping and a bad indent).
+openapi: 3.0.3
+info: { title: broken, version: 1.0.0
+paths:
+  /x:
+   get:
+      responses: [

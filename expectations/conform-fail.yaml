@@ -44,9 +44,86 @@ cases:
   # CS-GAP-010: the callback is not under paths and is never exercised; the operation that declares it passes.
   - { case: subscribe-with-callback, path: /subscribe, expect: pass, reference: CS-GAP-010, why: "the callback is not exercised and the server never contacts it" }
 
+  # ---- slice 3 controls: the same operations pass with the right environment ----
+  - { case: requests-param-type-ok, path: '/requests/param-type/{itemId}', expect: pass, reference: null, why: "itemId=7 from the right environment: a valid request, a correct response" }
+  - { case: requests-body-value-ok, path: /requests/body-value, expect: pass, reference: null, why: "amount=19.99 from the right environment" }
+
+# ---- requests that do not fit, and runs that cannot happen (slice 3) ----
+# Whole commands: the wrong environment files are next to the right one in clrsig/environments/.
+# `finding.kind` is clrsig's JSON kind; `output` is a regex over everything the command printed.
+runs:
+  # CS-REQ-001 / CS-REQ-002: a value from the environment does not fit the declared type.
+  - name: req-001-wrong-parameter-type
+    check: CS-REQ-001
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-bad-values.yaml", --paths, /conform-fail/requests/param-type, --format, json]
+    exit: 1
+    finding: { kind: request, message: 'path parameter "itemId" does not fit the spec: value abc' }
+  - name: req-002-wrong-body-value
+    check: CS-REQ-002
+    note: "the body message is the JSON parser's text (F-017)"
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-bad-values.yaml", --paths, /conform-fail/requests/body-value, --format, json]
+    exit: 1
+    finding: { kind: request, message: 'request body does not fit the spec: invalid character' }
+
+  # CS-RUN-001 / CS-RUN-002: the request is not sent. Both share the finding kind `missing-value`.
+  - name: run-001-missing-placeholder
+    check: CS-RUN-001
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-missing-value.yaml", --paths, /conform-fail/requests/param-type, --format, json]
+    exit: 1
+    finding: { kind: missing-value, message: 'not sent: no value for \{\{itemId\}\}' }
+  - name: run-002-bad-dynamic-function-in-environment
+    check: CS-RUN-002
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-bad-function.yaml", --paths, /conform-fail/requests/param-type, --format, json]
+    exit: 1
+    finding: { kind: missing-value, message: 'unknown function \$noSuchFunction' }
+  - name: run-002b-bad-dynamic-function-in-scenario
+    check: CS-RUN-002
+    note: "in a scenario the whole run aborts with exit 2 before any step (F-016)"
+    args: [run, "{root}/clrsig/scenarios/conform-fail-bad-function.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml", --spec, "{spec}"]
+    exit: 2
+    output: 'unknown function \$noSuchFunction'
+
+  # CS-RUN-003: no response.
+  - name: run-003-server-down-wrong-base-url
+    check: CS-RUN-003
+    args: [conform, "{spec}", -b, "http://localhost:1", --paths, /conform-fail/health, --format, json]
+    exit: 1
+    finding: { kind: no-response, message: 'executing request' }
+
+  # CS-RUN-004: the spec cannot be read (exit code 2, an error rather than a failure).
+  - name: run-004a-unreadable-yaml
+    check: CS-RUN-004
+    args: [conform, "{root}/clrsig/fixtures/unreadable-yaml.yaml", -b, "{base}"]
+    exit: 2
+    output: 'parsing spec: loading spec: failed to unmarshal data'
+  - name: run-004b-not-an-openapi-document
+    check: CS-RUN-004
+    args: [conform, "{root}/clrsig/fixtures/not-openapi.yaml", -b, "{base}"]
+    exit: 2
+    output: 'invalid OpenAPI spec: value of openapi must be a non-empty string'
+  - name: run-004c-spec-file-missing
+    check: CS-RUN-004
+    args: [conform, "{root}/clrsig/fixtures/does-not-exist.yaml", -b, "{base}"]
+    exit: 2
+    output: 'reading spec: open '
+  - name: run-004d-spec-url-returns-404
+    check: CS-RUN-004
+    args: [conform, "{base}/conform-fail/nope.yaml"]
+    exit: 2
+    output: 'server returned 404'
+
+  # CS-RUN-005: an unset ${NAME} in the environment file is only a warning; the exit code is unchanged.
+  - name: run-005-unset-environment-variable
+    check: CS-RUN-005
+    unset: [CLRSIG_UNSET_FIXTURE_VAR]
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-unset-var.yaml", --paths, /conform-fail/strict/no-auth, --format, json]
+    exit: 0
+    passed: true
+    output: 'environment variable CLRSIG_UNSET_FIXTURE_VAR is not set'
+
 # What ClearSignal builds from the spec (clrsig generate): pins the two request-generation gaps.
 generation:
-  operations: 23              # one per operation under paths; the callback is not among them (CS-GAP-010)
+  operations: 25              # one per operation under paths; the callback is not among them (CS-GAP-010)
   bodiless:                   # CS-GAP-006: the spec declares a body, ClearSignal writes none
     - { operation: formBody, media: application/x-www-form-urlencoded }
     - { operation: multipartBody, media: multipart/form-data }
@@ -87,3 +164,4 @@ probes:
   # ---- slice 2 operations that generate probes ----
   - { op: /wrong-method, probes: 2, fail: [], reference: CS-RESP-001, why: "a probe passes on any 4xx, so the 405 for the unimplemented PATCH counts as a rejection" }
   - { op: /subscribe, probes: 2, fail: [], reference: null, why: "the server validates the callback URL strictly" }
+  - { op: /requests/body-value, probes: 2, fail: [], reference: null, why: "the server validates the number strictly" }

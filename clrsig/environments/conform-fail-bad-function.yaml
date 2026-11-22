@@ -1,0 +1,10 @@
+schemaVersion: "1"
+# DELIBERATELY BROKEN: itemId uses a dynamic function that does not exist (CS-RUN-002).
+name: conform-fail-bad-function
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/conform-fail"
+  - name: itemId
+    value: "{{$noSuchFunction}}"
+  - name: amount
+    value: "19.99"

@@ -9,3 +9,8 @@ variables:
   # Path parameter for GET /path-param/{id}: a valid integer, as the spec declares it.
   - name: id
     value: "1"
+  # Values for the operations under /requests (slice 3): valid, so those operations pass.
+  - name: itemId
+    value: "7"
+  - name: amount
+    value: "19.99"

@@ -1,0 +1,9 @@
+schemaVersion: "1"
+# DELIBERATELY BROKEN: refers to a process variable that is not set (CS-RUN-005, a warning).
+# Never set CLRSIG_UNSET_FIXTURE_VAR when running this case.
+name: conform-fail-unset-var
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/conform-fail"
+  - name: token
+    value: "${CLRSIG_UNSET_FIXTURE_VAR}"

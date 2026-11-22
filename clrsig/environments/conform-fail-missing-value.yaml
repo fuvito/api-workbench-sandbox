@@ -1,0 +1,7 @@
+schemaVersion: "1"
+# DELIBERATELY INCOMPLETE: itemId and amount are not defined, so the requests that need them
+# cannot be built and are not sent (CS-RUN-001).
+name: conform-fail-missing-value
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/conform-fail"

@@ -21,6 +21,8 @@ tags:
     description: Control group - the same shapes, correctly rejecting bad requests
   - name: disagreement
     description: The spec and the server disagree about what exists
+  - name: requests
+    description: Correct operations whose outcome depends on the environment file ClearSignal is given
 paths:
   /health:
     get:
@@ -415,6 +417,53 @@ paths:
                 "200":
                   description: Acknowledged
 
+  # ------------------------------ requests built from spec + environment (slice 3)
+  /requests/param-type/{itemId}:
+    get:
+      operationId: requestParamType
+      tags: [requests]
+      summary: A correct operation with an integer path parameter
+      description: >
+        Correct on its own: it answers 200 for a numeric id and a declared 400 otherwise. Run it
+        with the right environment (itemId=7) and it passes; with a wrong one (itemId=abc) the
+        request ClearSignal builds does not fit the spec (CS-REQ-001), and with none the request
+        is not sent (CS-RUN-001).
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: The item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdDoc"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /requests/body-value:
+    post:
+      operationId: requestBodyValue
+      tags: [requests]
+      summary: A correct operation whose body value comes from the environment
+      description: >
+        amount has no example, so ClearSignal fills it from the environment variable of the same
+        name. With amount=19.99 the operation passes; with amount=cheap the generated body does
+        not fit the schema (CS-REQ-002).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AmountBody"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -529,3 +578,9 @@ components:
       required: [event]
       properties:
         event: { type: string }
+
+    AmountBody:
+      type: object
+      required: [amount]
+      properties:
+        amount: { type: number, minimum: 0 }

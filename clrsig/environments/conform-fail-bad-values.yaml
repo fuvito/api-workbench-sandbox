@@ -1,0 +1,11 @@
+schemaVersion: "1"
+# DELIBERATELY WRONG: values of the wrong type for the /requests operations.
+# CS-REQ-001: itemId is an integer path parameter. CS-REQ-002: amount is a number in the body.
+name: conform-fail-bad-values
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/conform-fail"
+  - name: itemId
+    value: "abc"
+  - name: amount
+    value: "cheap"

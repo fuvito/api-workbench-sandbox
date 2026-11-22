@@ -19,6 +19,7 @@ scripts/clrsig_spec_copy.py. This is a facility of the test harness only: the sp
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -36,9 +37,10 @@ ROOT = Path(__file__).resolve().parent.parent
 PROBE_LINE = re.compile(r"^\s*(PASS|FAIL)\s+([A-Z]+)\s+(\S+)\s+\S+\s+(.*?)\s+\(expect ")
 
 
-def clrsig(*args: str) -> tuple[int, str, str]:
+def clrsig(*args: str, unset: tuple[str, ...] = ()) -> tuple[int, str, str]:
+    env = {k: v for k, v in os.environ.items() if k not in unset}
     done = subprocess.run(
-        ["clrsig", *args], capture_output=True, text=True, encoding="utf-8", errors="replace"
+        ["clrsig", *args], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env
     )
     return done.returncode, done.stdout, done.stderr
 
@@ -188,6 +190,66 @@ def run_scenarios(spec: dict, copy: Path) -> int:
     return failures
 
 
+# ---- whole commands: wrong environments, scenarios that cannot run, unreadable specs, ... ----
+
+
+def check_run(entry: dict, copy: Path, base_url: str) -> list[str]:
+    """Run one ClearSignal command and compare exit code, finding and output text.
+
+    `args` may use {spec} (the generated spec copy), {base} (the base URL) and {root} (the repo).
+    `unset` lists process variables removed from the command's environment. `finding` applies to
+    the one operation that ran (kind, and a regex over its messages); `output` is a regex over
+    everything the command printed.
+    """
+    args = [a.format(spec=str(copy), base=base_url, root=str(ROOT)) for a in entry["args"]]
+    code, out, err = clrsig(*args, unset=tuple(entry.get("unset") or ()))
+    problems = []
+    if code != entry["exit"]:
+        problems.append(f"exit code {code}, expected {entry['exit']}")
+    text = out + "\n" + err
+    if "output" in entry and not re.search(entry["output"], text):
+        problems.append(f"output does not match /{entry['output']}/: {' '.join(text.split())[:180]}")
+    if "finding" in entry or "passed" in entry:
+        try:
+            ran = [o for o in json.loads(out)["operations"] if not o.get("skipped")]
+        except (json.JSONDecodeError, KeyError):
+            return problems + ["expected a JSON report with operations"]
+        if len(ran) != 1:
+            return problems + [f"expected exactly one operation to run, got {len(ran)}"]
+        op = ran[0]
+        if "passed" in entry and op["passed"] != entry["passed"]:
+            problems.append(f"operation passed={op['passed']}, expected {entry['passed']}")
+        if "finding" in entry:
+            want = entry["finding"]
+            findings = op.get("findings") or []
+            if len(findings) != 1:
+                problems.append(f"expected exactly one finding, got {[f['kind'] for f in findings]}")
+            elif findings[0]["kind"] != want["kind"]:
+                problems.append(f"finding kind '{findings[0]['kind']}', expected '{want['kind']}'")
+            messages = " || ".join(
+                (op.get("violations") or []) + (op.get("requestViolations") or []) + [op.get("blocked") or "", op.get("error") or ""]
+            )
+            if not re.search(want["message"], messages):
+                problems.append(f"message does not match /{want['message']}/: {messages[:200]}")
+    return problems
+
+
+def run_runs(spec: dict, copy: Path, base_url: str) -> int:
+    runs = spec.get("runs") or []
+    if not runs:
+        return 0
+    failures = 0
+    print(f"\ncommands ({len(runs)}): wrong environments, scenarios that cannot run, unreadable specs")
+    for entry in runs:
+        problems = check_run(entry, copy, base_url)
+        label = entry.get("check") or ("pass" + (f" ({entry['reference']})" if entry.get("reference") else ""))
+        print(f"  {'ok  ' if not problems else 'FAIL'}  {entry['name']:<40} exit {entry['exit']}  {label}")
+        for problem in problems:
+            print(f"        - {problem}")
+        failures += bool(problems)
+    return failures
+
+
 # ---- what `clrsig generate` builds from the spec (request generation gaps) ----
 
 
@@ -306,6 +368,15 @@ def print_table(spec: dict) -> int:
             check = case.get("reference") or "none"
             note = case.get("why", "").replace("|", "/")
         print(f"| `{case['case']}` | `{path}` | {expected} | {check} | {exit_code} | {note} |")
+    if spec.get("runs"):
+        print("\n### Commands (wrong environments, scenarios that cannot run, unreadable specs)\n")
+        print("| Run | Check | Exit code | ClearSignal reports |")
+        print("|---|---|---|---|")
+        for run in spec["runs"]:
+            note = (run.get("finding") or {}).get("message") or run.get("output") or ""
+            if run.get("note"):
+                note += f" ({run['note']})"
+            print(f"| `{run['name']}` | {run.get('check', 'none')} | {run['exit']} | {note.replace('|', '/')} |")
     return 0
 
 
@@ -339,6 +410,7 @@ def main() -> int:
             failures += run_whole_spec(spec, copy, args.base_url)
             failures += run_scenarios(spec, copy)
             failures += run_generation(spec, copy)
+            failures += run_runs(spec, copy, args.base_url)
             if spec.get("probes"):
                 failures += run_probes(spec, copy, args.base_url)
 

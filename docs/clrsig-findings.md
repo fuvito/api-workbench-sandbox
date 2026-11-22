@@ -133,11 +133,27 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Not worked around: the spec keeps `required: true` (the correct declaration). `expectations/conform-fail.yaml` records the failure as today's behavior.
   - Closed: —
 
+- [ ] **F-016 — A bad dynamic function aborts a whole scenario with exit 2, and shares its finding kind with a missing value (v0.7.1)**
+  - Type: limitation / catalog mismatch. Found: 2026-11-21, `clrsig` v0.7.1, while building `conform-fail`.
+  - Behavior: `{{$noSuchFunction}}` in an environment value used through `conform` fails that one operation ("not sent: ... unknown function", exit 1), as the catalog's CS-RUN-002 says. The same function in a scenario step makes `clrsig run` print `Error: [step 1] bad function: {{$noSuchFunction}}: unknown function ...` and exit **2** before any step runs: a good step in the same scenario is never executed, and no JSON report is produced. The catalog describes only the failure form. Separately, CS-RUN-001 (no value) and CS-RUN-002 (function failed) both have the finding kind `missing-value`, distinguished only by the `blocked` text.
+  - Repro: `clrsig run clrsig/scenarios/conform-fail-bad-function.yaml --env clrsig/environments/conform-fail.yaml --spec <spec copy>` (exit 2); and `conform` with `clrsig/environments/conform-fail-bad-function.yaml` (exit 1).
+  - Expected: one documented behavior; ideally the step fails (exit 1) and the other steps still run, with a distinct finding kind for a failed function.
+  - Pinned here instead by: `expectations/conform-fail.yaml` runs `run-002-bad-dynamic-function-in-environment` (exit 1) and `run-002b-bad-dynamic-function-in-scenario` (exit 2).
+  - Closed: —
+
+- [ ] **F-017 — A wrong-typed body value from the environment is reported as a JSON syntax error (v0.7.1)**
+  - Type: limitation (message quality). Found: 2026-11-21, `clrsig` v0.7.1.
+  - Behavior: with `amount: cheap` in the environment for a number field, the request check says "the request body does not fit the spec: invalid character 'c' looking for beginning of value". The value was inserted unquoted, so the body is not valid JSON, and the message names neither the field (`amount`) nor the expectation (a number). The catalog's example for CS-REQ-002 (`price="cheap"` where a number is declared) suggests a field-level message ("value must be a number"), which is what a path parameter gets ("path parameter "itemId" does not fit the spec: value abc: an invalid integer").
+  - Repro: `conform --env clrsig/environments/conform-fail-bad-values.yaml --paths /conform-fail/requests/body-value` on the spec copy.
+  - Expected: a message that names the field and the declared type, like the one for path parameters.
+  - Pinned here by: `run req-002-wrong-body-value` in `expectations/conform-fail.yaml` records today's wording.
+  - Closed: —
+
 ---
 
 ## Baseline
 
-Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-015 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
+Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-017 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
 
 ## Notes
 

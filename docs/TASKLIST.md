@@ -64,7 +64,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
 - [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
 
-**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-015 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-017 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [x] Add remaining resource families (customers, payments, invoices, discount codes, notifications, reports, settings, secured examples), kept within the 60 to 70 operation target.
@@ -149,13 +149,13 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Add form/multipart and callback known-gap fixtures: `POST /form` and `/multipart` (CS-GAP-006; they FAIL today with a request-body finding, F-015) and `POST /subscribe` with a callback (CS-GAP-010; passes). 3.1 `webhooks` are not covered (the spec is 3.0.3).
 
 ### Request construction and runtime failures
-- [ ] Add wrong parameter environment value.
-- [ ] Add wrong body environment value.
-- [ ] Add missing placeholder scenario.
-- [ ] Add bad dynamic function scenario.
-- [ ] Add server-down/wrong-base-URL case.
-- [ ] Add unreadable/invalid spec case.
-- [ ] Add unset process-variable warning case.
+- [x] Add wrong parameter environment value (`conform-fail-bad-values.yaml`, `itemId=abc` on `GET /requests/param-type/{itemId}`; CS-REQ-001).
+- [x] Add wrong body environment value (`amount=cheap` on `POST /requests/body-value`; CS-REQ-002, reported as a JSON syntax error, F-017).
+- [x] Add missing placeholder case (`conform-fail-missing-value.yaml`: the request is not sent; CS-RUN-001).
+- [x] Add bad dynamic function cases: through an environment value (exit 1) and in a scenario (the whole run aborts with exit 2, F-016); CS-RUN-002.
+- [x] Add server-down/wrong-base-URL case (`-b http://localhost:1`; CS-RUN-003).
+- [x] Add unreadable/invalid spec cases: invalid YAML, valid YAML that is not OpenAPI, a missing file, a URL that returns 404; all CS-RUN-004, exit code 2.
+- [x] Add unset process-variable warning case (`conform-fail-unset-var.yaml`; CS-RUN-005, a warning, exit code unchanged).
 
 ### Timing and instability
 - [ ] Implement `/slow`.
