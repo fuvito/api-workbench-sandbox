@@ -28,9 +28,9 @@ Observed or documented, not assumed. "Fixture" says what we have; "—" means th
 | Cookie jar: a cookie set by one step is sent by the next | no; the `Set-Cookie` header can be extracted and sent back by hand | `/features/session/*`, scenario `ok-credentials-and-session.yaml` (steps `Session without sending the cookie back`, `Session with the cookie sent back by hand`) |
 | Follow a `Link` header (RFC 8288) for pagination | no; the whole header is one extracted value, there is no parser | `/features/links/items`, the `First page` step |
 | Extract part of a header or of a string (a regex) | no; only a JSONPath on the body, a whole header, or the status | `Log in` (the whole `Set-Cookie`) |
-| An API-key credential in a cookie | the operation is called with it, but the "no credentials" probe keeps sending it (F-035) | `/features/session/me` |
+| An API-key credential in a cookie | the operation is called with it and, since v0.8.6, the "no credentials" probe removes it (F-035 closed) | `/features/session/me` |
 | Interactive OAuth2 and OIDC flows, token refresh | no; `conform` sends a fixed token. A client-credentials exchange can be a scenario step | `/features/oauth2/token`, `oauth2-profile`, `openid-profile` |
-| A response declared `application/x-ndjson` (or another type containing `json` that is not one document) | read as a single JSON document, so a valid NDJSON body fails since v0.8.5 (F-033) | `/features/events.ndjson` |
+| A response declared `application/x-ndjson` (or another type containing `json` that is not one document) | a single JSON document is not assumed since v0.8.6, so a valid NDJSON body passes (F-033 closed); the body is not compared line by line | `/features/events.ndjson` |
 | TLS verification, mutual TLS | flags exist (`--ca-cert`, `--client-cert`, `--client-key`); the server here is plain HTTP | — (Phase 6 is the first place TLS appears) |
 | WebSocket, server-sent events, gRPC, GraphQL | no; OpenAPI cannot describe the first three, and GraphQL has no OpenAPI form | — |
 | HTTP/2 and HTTP/3 behavior, trailers, 1xx responses | not exposed by clrsig; the server stack here (uvicorn, HTTP/1.1) cannot produce them either | — |

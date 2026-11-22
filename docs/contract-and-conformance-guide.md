@@ -1,6 +1,6 @@
 # Contract and conformance testing: the problems, how clrsig finds them, and how to explain them
 
-Written 2026-11-22 for developers, in plain language. Every example is a real fixture in this repository, and every `clrsig` result was produced with **clrsig v0.8.5**.
+Written 2026-11-22 for developers, in plain language. Every example is a real fixture in this repository, and every `clrsig` result was produced with **clrsig v0.8.6**.
 
 **How this guide is organized**
 
@@ -383,7 +383,7 @@ A green result is only as good as the tool. While building these fixtures we fou
 
 ## Part 2: How clrsig finds and helps solve them
 
-Same numbers as Part 1. For each problem: **Check** (the ID in the report), **How it finds it** (the idea), **What you see** (real output), **What to do**, and **Limits** (where clrsig cannot help). Results are for clrsig v0.8.5 against the fixtures of this repository.
+Same numbers as Part 1. For each problem: **Check** (the ID in the report), **How it finds it** (the idea), **What you see** (real output), **What to do**, and **Limits** (where clrsig cannot help). Results are for clrsig v0.8.6 against the fixtures of this repository.
 
 ### The commands, once
 
@@ -456,18 +456,18 @@ Useful flags: `--paths /x,/y` and `--tags a,b` (choose operations), `--env FILE`
 **P13. Valid JSON that looks unusual** and **P14. Compressed, chunked, header-heavy answers**
 - **Check:** none: they **pass**. **How clrsig helps:** the fixtures `hostile-deep-nesting`, `wide-object`, `unicode`, `integer-as-float`, `integer-exponent`, `big-integer`, `negative-zero`, `gzip`, `chunked-stream`, `duplicate-headers` and `big-header` are pinned as "must pass". If a future clrsig release starts failing them, the expectations fail and you see it.
 - **What to do:** if you build your own checker or wrapper, run these fixtures through it. They are the typical places where homemade validators break.
-- **Limits:** none known in v0.8.5 for this group.
+- **Limits:** none known in v0.8.6 for this group.
 
 **P15. Bodies that are not JSON**
 - **Check:** `CS-NC-009` and `CS-NC-003` ("not checked"), `CS-GAP-004`. **How it behaves:** for XML, CSV, images and binary, clrsig checks status, headers and `Content-Type` and does **not** compare the body; it reports nothing about the body.
 - **What to do:** validate those bodies yourself (an XML schema, a CSV header check) or with a scenario assertion on a header or size.
-- **Limits:** the body is **not** verified. One more case is open in v0.8.5: a type with `json` in its name that is not one JSON document (`application/x-ndjson`) is read as one document and fails (see P60).
+- **Limits:** the body is **not** verified. Since v0.8.6 a type like `application/x-ndjson` is no longer read as one JSON document (F-033, see P60), but its lines are not checked either.
 
 ### Group C: Broken bodies and broken connections
 
 **P16. Malformed JSON that parsers treat differently**
 - **Check:** `CS-RESP-008` for the strict failures, `CS-RESP-006` for duplicate keys, `CS-RESP-015` for a number beyond a 64-bit float.
-- **What you see (v0.8.5):** a BOM: `invalid character 'ï'`; invalid UTF-8: `byte 0xff at offset 20 is not UTF-8`; trailing text: `text after the JSON value`; `NaN`: `invalid character 'N'`; a raw line break: `invalid character '\n' in string literal`; duplicate keys: the **last** key wins (`id` is the string `two`, so `value must be an integer`); `1e400`: its own finding `number-out-of-range` that says it is a clrsig limit; a lone surrogate: accepted (valid JSON text).
+- **What you see (v0.8.6):** a BOM: `invalid character 'ï'`; invalid UTF-8: `byte 0xff at offset 20 is not UTF-8`; trailing text: `text after the JSON value`; `NaN`: `invalid character 'N'`; a raw line break: `invalid character '\n' in string literal`; duplicate keys: the **last** key wins (`id` is the string `two`, so `value must be an integer`); `1e400`: its own finding `number-out-of-range` that says it is a clrsig limit; a lone surrogate: accepted (valid JSON text).
 - **What to do:** serve strict JSON. Use your language's real serializer, never string concatenation.
 - **Limits:** for a BOM and for duplicate keys the standards leave the behavior open. clrsig is strict; the fixtures record that choice, so it is not a surprise.
 
@@ -522,7 +522,7 @@ Useful flags: `--paths /x,/y` and `--tags a,b` (choose operations), `--env FILE`
 **P35. Wrong, expired or under-privileged credentials; P36. Other loose validation**
 - **Check:** `CS-GAP-008` and `CS-GAP-009` (known gaps). **What clrsig does:** only the *absence* of credentials is probed; no probes for enum, boundary or unknown-field mistakes.
 - **How you cover it:** write a **scenario** with one step per bad credential and an assertion on the status. The example is `clrsig/scenarios/ok-credentials-and-session.yaml`: unknown token `401`, expired token `401` (with `WWW-Authenticate` saying it expired), read-only token on a write operation `403`, writer token `200`.
-- **Limits:** those probes are not automatic. One more open point in v0.8.5: the "no credentials" probe keeps an API key sent **in a cookie**, so a correct server fails it (see P60).
+- **Limits:** those probes are not automatic. Since v0.8.6 the "no credentials" probe also removes an API key sent **in a cookie** (F-035, see P60).
 
 ### Group G: Time and unstable behavior
 
@@ -574,7 +574,7 @@ Useful flags: `--paths /x,/y` and `--tags a,b` (choose operations), `--env FILE`
 - **Check:** `CS-RUN-004` (exit `2`). **How it behaves:** a broken spec stops the run with a short, clear message and exit code `2`, which is different from `1` (a real finding). It never crashes and never sends a request.
 - **What you see:** `parsing spec: loading spec: failed to unmarshal data ...`; `invalid OpenAPI spec: value of openapi must be a non-empty string`; `server returned 404`; `failed to resolve "components" in fragment ... #/components/schemas/Nope`; `operations "GET /one" and "GET /two" have the same operation id "same"`; `operation GET /u/{id} must define exactly all path parameters (missing: [id])`.
 - **What to do:** run `clrsig generate SPEC --dry-run` as the first CI step: it loads the spec and builds requests without sending anything.
-- **Limits:** one case is open in v0.8.5: a valid XML `example` string is rejected (see P60).
+- **Limits:** a valid XML `example` string was rejected until v0.8.6 (F-034, see P60).
 
 **P54. Valid but awkward specs** and **P55. Big specs**
 - **How clrsig behaves:** loads and builds requests for circular references (`parent`/`children`), self-referencing `allOf`, a discriminator with a mapping (probes for **both** branches), 60 `oneOf` branches (120 probes), a schema 120 levels deep, an impossible `allOf` (a request is still generated, nothing hangs), a JSON spec, `openapi: 3.2.0`, no paths, and odd paths. A 500-operation spec generates, compares and probes in well under a second (2,000 operations in 0.3 s).
@@ -592,7 +592,7 @@ Useful flags: `--paths /x,/y` and `--tags a,b` (choose operations), `--env FILE`
 
 **P59 and P60: false passes, false failures, corrupted data**
 - **How we protect against it:** this repository is the answer: a fixture for every case **with the correct expected result written down**. `scripts/check_expectations.py` runs clrsig on all of them and compares. If a clrsig release changes any answer, the comparison fails, and you decide: is the new answer right (change the expectation) or wrong (report it)?
-- **What happened in practice:** Thirty-five wrong answers or limits were found with these fixtures (F-001 to F-035 in `docs/clrsig-findings.md`). Almost all were fixed quickly by the clrsig team (v0.7.1 to v0.8.5). The seven false passes and data problems from the last round (P59 and most of P60) are fixed in v0.8.5. Three are still open, with reports in `docs/clrsig-findings.md`: an NDJSON response is read as one JSON document (F-033); a valid XML `example` string makes the spec unreadable (F-034); the "no credentials" probe keeps a cookie key (F-035).
+- **What happened in practice:** Thirty-five wrong answers or limits were found with these fixtures (F-001 to F-035 in `docs/clrsig-findings.md`). All were fixed quickly by the clrsig team (v0.7.1 to v0.8.6). The seven false passes and data problems from the last round (P59 and most of P60) are fixed in v0.8.5. The last three were found while checking v0.8.5 and fixed in v0.8.6: an NDJSON response read as one JSON document (F-033); a valid XML `example` string making the spec unreadable (F-034); the "no credentials" probe keeping a cookie key (F-035).
 - **What you do:** pin your tool version in CI (`CLRSIG_VERSION`), keep a fixture set with known answers, and read the release notes before upgrading. Never trust a single green run from a tool you have not tested.
 
 ### One page: which command for which question
@@ -642,8 +642,8 @@ This part is for you, the person making the videos with Google NotebookLM. It sa
 2. **One problem, three beats:** what goes wrong, why it hurts, how clrsig shows it. Always show the real line of clrsig output.
 3. **Use the real fixtures.** Say the endpoint name (for example `/contract-fail/cases/resp-005-missing-required-field`). Viewers can repeat it.
 4. **Explain each word once.** First use of *contract*, *conformance*, *negative probe*, *scenario*, *baseline*, *drift* gets a one-sentence meaning (glossary in 3.5).
-5. **Be honest about limits.** Every episode ends with "what clrsig does *not* see here". Never say "clrsig catches everything". Say "in clrsig v0.8.5".
-6. **Name the version and the date.** "Recorded with clrsig v0.8.5, November 2026." Results can change with new releases (see 3.8).
+5. **Be honest about limits.** Every episode ends with "what clrsig does *not* see here". Never say "clrsig catches everything". Say "in clrsig v0.8.6".
+6. **Name the version and the date.** "Recorded with clrsig v0.8.6, November 2026." Results can change with new releases (see 3.8).
 7. **Do not read tables aloud.** Show them, then say the one thing that matters.
 8. **End with three recap questions** and the next episode's one-line teaser.
 
@@ -744,13 +744,13 @@ Each card gives the **goal**, the **problems** (numbers from Parts 1 and 2), the
 - **Key sentences:** "A broken spec stops the run with exit `2` and a clear message." "Awkward but valid specs must still work."
 - **Demo:** `clrsig generate specs/hostile/missing-ref.yaml --dry-run` (exit 2), `duplicate-operation-id.yaml`; then the valid ones: `circular-ref.yaml`, `discriminator.yaml` with `--negative` (probes for both branches); the 500-operation spec from `scripts/make_specs.py`.
 - **Analogy:** a book with a missing page vs a book with a very long chapter.
-- **Limits:** one valid spec is rejected today: the XML `example` (F-034).
+- **Limits:** no valid spec is rejected today (the XML `example` case, F-034, was fixed in v0.8.6).
 - **Recap:** What does exit code `2` mean? Why start CI with `generate --dry-run`? Name one awkward-but-valid spec feature.
 
 #### Episode 12. Blind spots and wrong answers (8 min)
 - **Problems:** P56 to P60. **Sources:** Part 1 and 2 groups K and L, `docs/clrsig-gaps.md`, `docs/clrsig-findings.md`.
 - **Key sentences:** "A green result means: nothing wrong in what was checked." "A test tool can lie. Test the tool."
-- **Demo:** the "not compared" summary line from `conform-fail-spec-check-states.yaml`; the matrix of gaps; then three real stories: an id above 2^53 becoming `9.2e+18` (F-031); a failed extraction that exited `0` (F-032); an NDJSON response that fails (F-033, still open). Show `scripts/check_expectations.py` flipping when a release changes an answer.
+- **Demo:** the "not compared" summary line from `conform-fail-spec-check-states.yaml`; the matrix of gaps; then three real stories: an id above 2^53 becoming `9.2e+18` (F-031); a failed extraction that exited `0` (F-032); an NDJSON response that failed in v0.8.5 (F-033, fixed in v0.8.6). Show `scripts/check_expectations.py` flipping when a release changes an answer.
 - **Analogy:** a smoke detector: it is useless if nobody tests it.
 - **Limits:** this episode is about limits. Keep the tone positive: the bugs were found because fixtures know the right answer, and most were fixed within days.
 - **Recap:** What does a green run really mean? How do you protect yourself from a tool's bugs? Which things are outside OpenAPI?
@@ -802,7 +802,7 @@ Each card gives the **goal**, the **problems** (numbers from Parts 1 and 2), the
 
 **Series instructions** (paste into the customize box of every Video or Audio Overview):
 
-> You are explaining API contract testing and conformance testing to working developers who have little testing background. Use simple, concrete language and short sentences. Explain each technical word once. Start with a short everyday story, then show the problem, why it hurts, and how the tool `clrsig` finds it. Use only facts that are in the selected sources. Quote the real `clrsig` output lines and the real fixture names (for example `/contract-fail/cases/resp-005-missing-required-field`). Do not invent commands, flags, check IDs or results. Say that results are for clrsig v0.8.5. End with the limits: what the tool does not see in this topic. End with three recap questions. Keep a friendly, calm tone. Do not read tables aloud; say the one point that matters.
+> You are explaining API contract testing and conformance testing to working developers who have little testing background. Use simple, concrete language and short sentences. Explain each technical word once. Start with a short everyday story, then show the problem, why it hurts, and how the tool `clrsig` finds it. Use only facts that are in the selected sources. Quote the real `clrsig` output lines and the real fixture names (for example `/contract-fail/cases/resp-005-missing-required-field`). Do not invent commands, flags, check IDs or results. Say that results are for clrsig v0.8.6. End with the limits: what the tool does not see in this topic. End with three recap questions. Keep a friendly, calm tone. Do not read tables aloud; say the one point that matters.
 
 **Episode focus** (add one line after the series instructions, taken from the episode card), for example:
 
@@ -836,7 +836,7 @@ Add the glossary (3.5) to every source so the words are explained in each episod
 ### 3.8 Recording the demos and checking the facts
 
 **Set up once**
-1. Install clrsig v0.8.5 (`scoop install clrsig`, `brew install clrsig`, or the Docker image `ghcr.io/fuvito/api-workbench:v0.8.5`) and check `clrsig --version`.
+1. Install clrsig v0.8.6 (`scoop install clrsig`, `brew install clrsig`, or the Docker image `ghcr.io/fuvito/api-workbench:v0.8.6`) and check `clrsig --version`.
 2. Build and start the practice server: `docker build -t api-workbench-sandbox .` then `docker run --rm -p 8080:8080 api-workbench-sandbox`. Do **not** set `ADMIN_TOKEN` for the demos (the scenarios reset the server without a token).
 3. Use a large terminal font, a dark theme with high contrast, and show **one command and its output per screen**.
 4. Reset the server between demos: `curl -X POST http://localhost:8080/conform-fail/__admin/reset` (and `/ok/__admin/reset`).
@@ -847,11 +847,11 @@ Add the glossary (3.5) to every source so the words are explained in each episod
 - [ ] The clrsig version on screen equals the version in the notes (`clrsig --version`).
 - [ ] Every command in the episode ran as shown, and the output matches what the narration says. The expected results are in `docs/*-cases.md`; to check everything at once run `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml` (about 3 minutes; all must say `ALL AS EXPECTED`).
 - [ ] No claim says clrsig finds "everything". Each episode names its limits.
-- [ ] The open problems quoted (F-033, F-034, F-035) are still open: read `docs/clrsig-findings.md`; if clrsig fixed them, update the guide and the episode.
+- [ ] F-033, F-034 and F-035 are fixed in v0.8.6; if you quote them, say "found, then fixed".
 - [ ] No secrets on screen: the credentials in the examples are fake test values (`test-token`, `test-user`, `test-pass`, `test-api-key`).
 - [ ] The date and version are in the video description.
 
 ### 3.9 After publishing
 
 - Keep the guide and the expectations in step: when a new clrsig release changes an answer, `check_expectations.py` fails; update the expectation, the guide, and re-record only the affected episode (the episode cards say which problems each one covers).
-- Pin the version in the video description: "Recorded with clrsig v0.8.5".
+- Pin the version in the video description: "Recorded with clrsig v0.8.6".

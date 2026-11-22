@@ -400,10 +400,10 @@ runs:
     output: 'failed to resolve "components".*#/components/schemas/Nope'
   - name: hostile-spec-xml-example
     reference: F-034
-    note: "a valid XML example string is rejected as 'value must be an object' (F-034)"
+    note: "a valid XML example string loads and generates a request (F-034 closed in v0.8.6)"
     args: [generate, "{root}/specs/hostile/xml-example.yaml", --dry-run]
-    exit: 2
-    output: 'invalid example: value must be an object'
+    exit: 0
+    output: 'request\(s\) generated'
   - name: hostile-spec-duplicate-operation-id
     reference: CS-RUN-004
     args: [generate, "{root}/specs/hostile/duplicate-operation-id.yaml", --dry-run]

@@ -24,7 +24,6 @@ whole_spec:
   reset: true
   covers_all: true
   failing:
-    - /features/events.ndjson     # application/x-ndjson is read as one JSON document (F-033)
     - /features/xml-note          # no XML request body is generated: "value is required but missing" (CS-GAP-006)
 
 generation:
@@ -46,7 +45,7 @@ scenarios:
       A reserved word is refused (not): { passed: true }
       CSV content type: { passed: true }
       PNG content type: { passed: true }
-      NDJSON content type: { passed: false, note: "application/x-ndjson is read as one JSON document and fails as 'text after the JSON value' (F-033)" }
+      NDJSON content type: { passed: true }
 
   # What `conform` cannot do (CS-GAP-008 and others): the server has an expired and a read-only token, a session
   # in a cookie and a Link-header list; the scenario walks through them. clrsig keeps no cookie jar between steps
@@ -90,7 +89,7 @@ probes:
   - { op: /features/credentials/profile, probes: 1, fail: [] }
   - { op: /features/credentials/write-area, probes: 1, fail: [] }
   - { op: /features/session/login, probes: 4, fail: [] }
-  - { op: /features/session/me, probes: 1, fail: [{ probe: "no credentials", check: CS-PROBE-004, reference: F-035 }], note: "the probe still sends the session cookie, so the correct server answers 200 (F-035)" }
+  - { op: /features/session/me, probes: 1, fail: [] }
   - { op: /features/oauth2-profile, probes: 1, fail: [] }
   - { op: /features/openid-profile, probes: 1, fail: [] }
   - { op: /features/pipe-delimited, probes: 1, fail: [] }
@@ -99,7 +98,7 @@ probes:
 runs:
   - name: trace-is-not-a-read-only-method
     reference: null
-    note: "--read-only lists the TRACE operation as skipped instead of sending it (F-025 closed in v0.8.4); exit 1 because the NDJSON operation fails (F-033)"
+    note: "--read-only lists the TRACE operation as skipped instead of sending it (F-025 closed in v0.8.4); exit 0 since v0.8.6 (the NDJSON operation passes, F-033 closed)"
     args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok-features.yaml", --read-only]
-    exit: 1
+    exit: 0
     output: 'SKIP\s+TRACE\s+/features/trace'

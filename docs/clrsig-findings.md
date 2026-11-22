@@ -291,39 +291,39 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Closed: 2026-11-22, verified with released `clrsig` v0.8.5: a failed extraction fails the step and the run (exit 1, `FAILED  0 passed, 1 failed`).
 
 
-- [ ] **F-033 — A response declared `application/x-ndjson` (or any `*json` type that is not one document) is read as a single JSON document and fails (v0.8.5)**
+- [x] **F-033 — A response declared `application/x-ndjson` (or any `*json` type that is not one document) is read as a single JSON document and fails (v0.8.5)**
   - Type: bug (false failure). Found: 2026-11-22, `clrsig` v0.8.5, with `GET /ok/features/events.ndjson`.
   - Behavior: the server answers `Content-Type: application/x-ndjson` with three JSON objects, one per line (valid newline-delimited JSON), and the spec declares `application/x-ndjson` with `type: string`. v0.8.4 passed it (it read only the first value, F-027); v0.8.5 reads the body as one JSON document, now strictly, and fails it: `the response body is not valid JSON (text after the JSON value)`. NDJSON is not one JSON document, so a correct response fails. A media type that merely contains `json` is not necessarily JSON.
   - Repro: `clrsig conform specs/ok-features.yaml -b http://localhost:8080/ok --env clrsig/environments/ok-features.yaml --paths /features/events.ndjson`.
   - Expected: a type that is not `application/json` or a `+json` type is not parsed as one document (like `text/csv`, CS-NC-009), or NDJSON is read line by line.
   - Pinned here by: `expectations/ok-features.yaml` (`whole_spec.failing`, the scenario step `NDJSON content type`).
   - Issue: https://github.com/fuvito/api-workbench/issues/11
-  - Closed: —
+  - Closed: 2026-11-22, verified with released `clrsig` v0.8.6: `GET /ok/features/events.ndjson` passes (three JSON lines, `application/x-ndjson`); a `+json` body with text after the value still fails.
 
-- [ ] **F-034 — A valid OpenAPI document with an XML `example` string is rejected (v0.8.5)**
+- [x] **F-034 — A valid OpenAPI document with an XML `example` string is rejected (v0.8.5)**
   - Type: bug (valid input rejected, exit 2). Found: 2026-11-22, `clrsig` v0.8.5, while building the CS-GAP-006 fixture.
   - Behavior: a media type object for `application/xml` with `example: "<note><text>hello</text></note>"` and an object schema (`xml: {name: note}`) makes every command fail with `invalid operation POST: invalid example: value must be an object`, exit 2. The same happens for an XML example in a response. OpenAPI says the example "SHOULD be in the correct format as specified by the media type", and for XML that is an XML string. The example is validated against the JSON schema, as if the media type were JSON.
   - Repro: `clrsig generate specs/hostile/xml-example.yaml --dry-run` (exit 2).
   - Expected: the document loads; an example for a non-JSON media type is not validated as JSON (or is parsed as that type).
   - Pinned here by: `expectations/conform-fail.yaml`, run `hostile-spec-xml-example` (`reference: F-034`). The CS-GAP-006 fixture `POST /features/xml-note` carries no `example`, only so that it is a separate fixture; the spec above is the valid one.
   - Issue: https://github.com/fuvito/api-workbench/issues/12
-  - Closed: —
+  - Closed: 2026-11-22, verified with released `clrsig` v0.8.6: `clrsig generate specs/hostile/xml-example.yaml --dry-run` exits 0 and generates the request.
 
 
-- [ ] **F-035 — The "no credentials" probe keeps an API key sent in a cookie, so a correct server fails it (v0.8.5)**
+- [x] **F-035 — The "no credentials" probe keeps an API key sent in a cookie, so a correct server fails it (v0.8.5)**
   - Type: bug (false probe failure). Found: 2026-11-22, `clrsig` v0.8.5, with `GET /ok/features/session/me`.
   - Behavior: the operation is secured by `type: apiKey, in: cookie, name: session`. The probe "no credentials (expect 401/403)" should send the request without the credential, but the request still carries `Cookie: session=<apiKey value>` (seen by a server that logs the headers: both the operation call and the probe send it). A server that rightly accepts a valid session answers 200, and clrsig reports `server accepted invalid request with 200` and fails the run. The probe does drop the credential for bearer, basic and API keys in a header (`oauth2-profile`, `openid-profile` and the credentials operations pass).
   - Repro: `clrsig conform specs/ok-features.yaml -b http://localhost:8080/ok --env clrsig/environments/ok-features.yaml --negative --paths /features/session/me` against the server, with a valid session (`apiKey=sess-seed`, seeded at every reset).
   - Expected: the probe sends the request without the cookie, so a server that checks the session answers 401.
   - Pinned here by: `expectations/ok-features.yaml` (the probe of `/features/session/me` fails, `reference: F-035`).
   - Issue: https://github.com/fuvito/api-workbench/issues/13
-  - Closed: —
+  - Closed: 2026-11-22, verified with released `clrsig` v0.8.6: the probe of `/features/session/me` passes: the cookie is removed and the server answers 401.
 
 ---
 
 ## Baseline
 
-Fixtures and expectations are verified against released `clrsig` **v0.8.5** (installed with Scoop; CI pins the same release). F-003 to F-021 were found with v0.7.1; v0.8.2 fixed all of them except F-016, v0.8.3 fixed F-016 and F-022, and v0.8.4 fixed F-023, F-024 and F-025. The adversarial group (`docs/kts/adversarial-group.md`) found F-026 to F-032, all fixed in v0.8.5. Open: F-033, F-034 and F-035 (found with v0.8.5).
+Fixtures and expectations are verified against released `clrsig` **v0.8.6** (installed with Scoop; CI pins the same release). F-003 to F-021 were found with v0.7.1; v0.8.2 fixed all of them except F-016, v0.8.3 fixed F-016 and F-022, and v0.8.4 fixed F-023, F-024 and F-025. The adversarial group (`docs/kts/adversarial-group.md`) found F-026 to F-032, all fixed in v0.8.5. F-033, F-034 and F-035 (found while verifying v0.8.5) are fixed in v0.8.6. Nothing is open.
 
 ## Notes
 

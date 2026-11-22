@@ -1,6 +1,6 @@
 # conform-fail: expected outcomes (response cases, sequences and commands; probes are in the expectations file)
 
-Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.5 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
+Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.6 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
 
 | Case | Path (under `/conform-fail`) | Expected | Check | Exit code | ClearSignal reports (or why it passes) |
 |---|---|---|---|---|---|
@@ -115,7 +115,7 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `hostile-spec-json-file` | none | 0 | 1 request\(s\) generated (the spec is a JSON document) |
 | `hostile-spec-openapi-3-2` | none | 0 | 1 request\(s\) generated (openapi 3.2.0 is newer than the catalog; it loads like 3.1) |
 | `hostile-spec-missing-ref` | none | 2 | failed to resolve "components".*#/components/schemas/Nope (a $ref to a schema that does not exist: a clean error, exit 2) |
-| `hostile-spec-xml-example` | none | 2 | invalid example: value must be an object (a valid XML example string is rejected as 'value must be an object' (F-034)) |
+| `hostile-spec-xml-example` | none | 0 | request\(s\) generated (a valid XML example string loads and generates a request (F-034 closed in v0.8.6)) |
 | `hostile-spec-duplicate-operation-id` | none | 2 | have the same operation id "same" |
 | `hostile-spec-undeclared-path-parameter` | none | 2 | must define exactly all path parameters \(missing: \[id\]\) |
 | `hostile-spec-identical-diff` | none | 0 | No changes (diff of a recursive spec with itself: no changes, no loop) |
