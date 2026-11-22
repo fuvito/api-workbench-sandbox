@@ -1,0 +1,60 @@
+name: Action smoke test
+
+# Does `uses: fuvito/api-workbench@<tag>` run, and does it return the right exit code?
+# Manual only: it is a check of the released Action, not of the fixtures.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "clrsig tag for both the Action and the binary"
+        default: v0.8.7
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the practice server
+        run: |
+          docker build -t api-workbench-sandbox .
+          docker run -d --name awbs -p 8080:8080 api-workbench-sandbox
+          for i in $(seq 1 60); do curl -fsS http://localhost:8080/ok/health >/dev/null && break; sleep 1; done
+
+      - name: conform against a correct server (must pass)
+        id: good
+        uses: fuvito/api-workbench@v0.8.7
+        with:
+          command: conform
+          spec: specs/ok.yaml
+          base-url: http://localhost:8080/ok
+          env: clrsig/environments/ok.yaml
+          version: ${{ inputs.version }}
+          max-response-time: "5000"
+
+      - name: conform against a broken case (must fail with exit 1)
+        id: bad
+        continue-on-error: true
+        uses: fuvito/api-workbench@v0.8.7
+        with:
+          command: conform
+          spec: specs/contract-fail.yaml
+          base-url: http://localhost:8080/contract-fail
+          env: clrsig/environments/contract-fail.yaml
+          paths: /cases/resp-005-missing-required-field
+          explain: "true"
+          version: ${{ inputs.version }}
+
+      - name: Check the two exit codes
+        run: |
+          echo "good=${{ steps.good.outputs.result }} bad=${{ steps.bad.outputs.result }}"
+          [ "${{ steps.good.outputs.result }}" = "0" ]
+          [ "${{ steps.bad.outputs.result }}" = "1" ]
+
+      - name: Server log on failure
+        if: failure()
+        run: docker logs awbs | tail -50
