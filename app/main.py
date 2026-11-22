@@ -65,7 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         elif name == "contract-fail":
             app.include_router(build_contract_fail_router())
         elif name == "conform-fail":
-            app.include_router(build_conform_fail_router())
+            app.include_router(build_conform_fail_router(store))
 
     app.add_exception_handler(ApiError, api_error_handler)
     app.add_exception_handler(TooManySlowRequests, too_many_slow_handler)

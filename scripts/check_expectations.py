@@ -24,6 +24,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import urllib.request
 from pathlib import Path
 
 import yaml
@@ -32,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from clrsig_spec_copy import make_copy  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
+CLOUD = False  # --cloud: skip every entry marked `local_only: true` (transport behavior not verified on Cloud Run)
 # `PASS|FAIL <METHOD> <path> <dash> <description> (expect ...)`; the dash is matched loosely so a
 # console encoding difference cannot break parsing.
 PROBE_LINE = re.compile(r"^\s*(PASS|FAIL)\s+([A-Z]+)\s+(\S+)\s+\S+\s+(.*?)\s+\(expect ")
@@ -63,6 +65,20 @@ def case_path(spec: dict, case: dict) -> str:
     return spec["prefix"] + (case.get("path") or f"/cases/{case['case']}")
 
 
+def skipped(entry: dict) -> bool:
+    return CLOUD and bool(entry.get("local_only"))
+
+
+def reset_family(spec: dict, base_url: str) -> None:
+    """POST <prefix>/__admin/reset so counters and stores start from the seed state."""
+    request = urllib.request.Request(f"{base_url}{spec['prefix']}/__admin/reset", method="POST")
+    if os.environ.get("ADMIN_TOKEN"):
+        request.add_header("Authorization", f"Bearer {os.environ['ADMIN_TOKEN']}")
+    with urllib.request.urlopen(request, timeout=10) as response:
+        if response.status != 204:
+            raise SystemExit(f"reset answered {response.status}")
+
+
 # ---- response cases: one operation at a time ----
 
 
@@ -71,18 +87,38 @@ def check_case(case: dict, spec: dict, copy: Path, base_url: str) -> list[str]:
     path = case_path(spec, case)
     # --paths is a prefix filter and ClearSignal writes path parameters as {{id}}, so filter on the
     # part before the first parameter and compare the normalized path.
-    code, out, _ = clrsig(*conform_args(spec, copy, base_url), "--paths", path.split("{")[0], "--format", "json")
+    code, out, _ = clrsig(
+        *conform_args(spec, copy, base_url), "--paths", path.split("{")[0], "--format", "json",
+        *[str(a) for a in case.get("args") or []],
+    )
     report = load_json(out, case["case"])
-    ran = [op for op in report["operations"] if not op.get("skipped")]
-    if len(ran) != 1 or ran[0]["path"].replace("{{", "{").replace("}}", "}") != path:
-        return [f"expected exactly one operation to run at {path}, got {[o['path'] for o in ran]}"]
+    ran_all = [op for op in report["operations"] if not op.get("skipped")]
+    # --paths is a PREFIX filter, so /unavailable also runs /unavailable-then-ok. Pick the
+    # operation(s) by exact path and judge the outcome from them, not from the whole command's exit
+    # code. The extra calls are harmless: every stateful case resets its family first.
+    ran = [o for o in ran_all if o["path"].replace("{{", "{").replace("}}", "}") == path]
+    want_ops = case.get("operations", 1)  # a path can carry several methods (GET and PUT)
+    if len(ran) != want_ops:
+        return [f"expected {want_ops} operation(s) at {path}, got {[o['method'] + ' ' + o['path'] for o in ran_all]}"]
+    derived = 0 if all(o["passed"] for o in ran) else 1
+    if len(ran_all) == len(ran) and code != derived:
+        return [f"exit code {code} does not match the operation outcome ({derived})"]
+    if want_ops > 1:
+        if case["expect"] != "pass":
+            return ["a multi-operation case can only expect a pass"]
+        bad = [o["method"] for o in ran if not o["passed"] or o.get("findings")]
+        return [f"operations that did not pass: {bad}"] if bad else []
     op = ran[0]
     findings = op.get("findings") or []
     problems: list[str] = []
+    code = derived
 
     # Response problems are in `violations`, problems with the request ClearSignal built in
-    # `requestViolations`.
-    messages = (op.get("violations") or []) + (op.get("requestViolations") or [])
+    # `requestViolations`, and a request that got no answer in `error` / `blocked`.
+    messages = (
+        (op.get("violations") or []) + (op.get("requestViolations") or [])
+        + [m for m in (op.get("error"), op.get("blocked")) if m]
+    )
 
     if case["expect"] == "pass":
         if code != 0:
@@ -116,6 +152,9 @@ def run_response_cases(spec: dict, copy: Path, base_url: str, only: set[str] | N
     for case in cases:
         if only and case["case"] not in only:
             continue
+        if skipped(case):
+            print(f"  skip  {case['case']:<36} (local only)")
+            continue
         problems = check_case(case, spec, copy, base_url)
         label = case.get("check") or ("pass" + (f" ({case['reference']})" if case.get("reference") else ""))
         print(f"  {'ok  ' if not problems else 'FAIL'}  {case['case']:<36} {label}")
@@ -129,8 +168,19 @@ def run_whole_spec(spec: dict, copy: Path, base_url: str) -> int:
     """Acceptance: the plain conform run exits 1 exactly when some case should fail, and the
     failing operations are exactly the expected ones."""
     cases = spec.get("cases") or []
-    expected_failing = {case_path(spec, c) for c in cases if c["expect"] == "fail"}
-    code, out, _ = clrsig(*conform_args(spec, copy, base_url), "--format", "json")
+    options = spec.get("whole_spec") or {}
+    if CLOUD:
+        return 0  # the whole-spec outcome includes local-only cases; it is verified locally
+    # With request timeouts or counters in play the whole-spec outcome differs from the per-case
+    # outcomes, so `whole_spec.failing` can list the failing paths explicitly.
+    if "failing" in options:
+        expected_failing = {spec["prefix"] + p for p in options["failing"]}
+    else:
+        expected_failing = {case_path(spec, c) for c in cases if c["expect"] == "fail"}
+    if options.get("reset"):
+        reset_family(spec, base_url)
+    extra = ["--request-timeout", str(options["request_timeout"])] if options.get("request_timeout") else []
+    code, out, _ = clrsig(*conform_args(spec, copy, base_url), "--format", "json", *extra)
     report = load_json(out, "whole spec")
     failing = {
         o["path"].replace("{{", "{").replace("}}", "}")
@@ -169,12 +219,19 @@ def check_scenario(entry: dict, copy: Path) -> list[tuple[str, list[str], str]]:
         schema_assertions = [a for a in assertions if a.get("name") != "spec conformance" and a["type"] == "schema"]
         problems = []
         got_a = "violation" if a_failed else "ok"
-        if got_a != want["spec_check"]:
+        if "spec_check" in want and got_a != want["spec_check"]:
             problems.append(f"spec check (A) was '{got_a}', expected '{want['spec_check']}'")
         got_b = "-" if not schema_assertions else ("ok" if all(a["passed"] for a in schema_assertions) else "fail")
-        if want["schema_assertion"] != "none" and got_b != want["schema_assertion"]:
+        if want.get("schema_assertion", "none") != "none" and got_b != want["schema_assertion"]:
             problems.append(f"schema assertion (B) was '{got_b}', expected '{want['schema_assertion']}'")
-        results.append((name, problems, f"A={got_a} B={got_b}"))
+        # Plain step outcome, for scenarios whose steps assert the CORRECT behavior and so fail
+        # exactly where the server is wrong.
+        if "passed" in want and step["passed"] != want["passed"]:
+            problems.append(f"step passed={step['passed']}, expected {want['passed']}")
+        if "error" in want and not re.search(want["error"], step.get("error") or ""):
+            problems.append(f"step error does not match /{want['error']}/: {(step.get('error') or '')[:120]}")
+        shown = f"A={got_a} B={got_b}" if "spec_check" in want else f"passed={step['passed']}"
+        results.append((name, problems, shown))
     return results
 
 
@@ -193,7 +250,7 @@ def run_scenarios(spec: dict, copy: Path) -> int:
 # ---- whole commands: wrong environments, scenarios that cannot run, unreadable specs, ... ----
 
 
-def check_run(entry: dict, copy: Path, base_url: str) -> list[str]:
+def check_run(entry: dict, copy: Path, base_url: str, prefix: str = "") -> list[str]:
     """Run one ClearSignal command and compare exit code, finding and output text.
 
     `args` may use {spec} (the generated spec copy), {base} (the base URL) and {root} (the repo).
@@ -214,6 +271,15 @@ def check_run(entry: dict, copy: Path, base_url: str) -> list[str]:
             ran = [o for o in json.loads(out)["operations"] if not o.get("skipped")]
         except (json.JSONDecodeError, KeyError):
             return problems + ["expected a JSON report with operations"]
+        if entry.get("op"):
+            # --paths is a prefix filter: pick the operation by its exact path, and judge the exit
+            # code from that operation alone (the others it dragged in are not under test).
+            target = prefix + entry["op"]
+            ran = [o for o in ran if o["path"].replace("{{", "{").replace("}}", "}") == target]
+            problems = [p for p in problems if not p.startswith("exit code")]
+            derived = 0 if all(o["passed"] for o in ran) else 1
+            if ran and derived != entry["exit"]:
+                problems.append(f"operation outcome exit {derived}, expected {entry['exit']}")
         if len(ran) != 1:
             return problems + [f"expected exactly one operation to run, got {len(ran)}"]
         op = ran[0]
@@ -234,16 +300,76 @@ def check_run(entry: dict, copy: Path, base_url: str) -> list[str]:
     return problems
 
 
-def run_runs(spec: dict, copy: Path, base_url: str) -> int:
+def run_runs(spec: dict, copy: Path, base_url: str) -> int:  # noqa: C901
     runs = spec.get("runs") or []
     if not runs:
         return 0
     failures = 0
     print(f"\ncommands ({len(runs)}): wrong environments, scenarios that cannot run, unreadable specs")
     for entry in runs:
-        problems = check_run(entry, copy, base_url)
+        if skipped(entry):
+            print(f"  skip  {entry['name']:<40} (local only)")
+            continue
+        problems = check_run(entry, copy, base_url, spec["prefix"])
         label = entry.get("check") or ("pass" + (f" ({entry['reference']})" if entry.get("reference") else ""))
         print(f"  {'ok  ' if not problems else 'FAIL'}  {entry['name']:<40} exit {entry['exit']}  {label}")
+        for problem in problems:
+            print(f"        - {problem}")
+        failures += bool(problems)
+    return failures
+
+
+# ---- call sequences: state-dependent behavior (a counter, a degrading delay) ----
+
+
+def run_sequences(spec: dict, copy: Path, base_url: str) -> int:
+    """Reset the family, call one operation several times, and compare each outcome in order.
+
+    `outcomes` is a list of pass / fail per call. `fail` pins the finding every failed call must
+    have. `repeat: 2` runs the whole sequence again after another reset and demands the same
+    outcomes (determinism). `args` are extra clrsig arguments (for example a request timeout).
+    """
+    sequences = spec.get("sequences") or []
+    if not sequences:
+        return 0
+    failures = 0
+    print(f"\nsequences ({len(sequences)}): state after a reset, call by call")
+    for seq in sequences:
+        if skipped(seq):
+            print(f"  skip  {seq['name']:<40} (local only)")
+            continue
+        path = spec["prefix"] + seq["path"]
+        problems: list[str] = []
+        runs = seq.get("repeat", 1)
+        shown = ""
+        for attempt in range(runs):
+            reset_family(spec, base_url)
+            got = []
+            for call in range(1, len(seq["outcomes"]) + 1):
+                code, out, _ = clrsig(
+                    *conform_args(spec, copy, base_url), "--paths", path, "--format", "json",
+                    *[str(a) for a in seq.get("args") or []],
+                )
+                ran = [o for o in load_json(out, seq["name"])["operations"] if not o.get("skipped")]
+                if len(ran) != 1:
+                    problems.append(f"call {call}: expected one operation, got {len(ran)}")
+                    got.append("?")
+                    continue
+                op = ran[0]
+                got.append("pass" if op["passed"] else "fail")
+                if not op["passed"] and seq.get("fail"):
+                    want = seq["fail"]
+                    findings = op.get("findings") or []
+                    text = " || ".join((op.get("violations") or []) + [op.get("error") or "", op.get("blocked") or ""])
+                    if len(findings) != 1 or findings[0]["kind"] != want["kind"]:
+                        problems.append(f"call {call}: finding {[f['kind'] for f in findings]}, expected {want['kind']}")
+                    if not re.search(want["message"], text):
+                        problems.append(f"call {call}: message does not match /{want['message']}/: {text[:120]}")
+            if got != seq["outcomes"]:
+                problems.append(f"run {attempt + 1}: outcomes {got}, expected {seq['outcomes']}")
+            shown = " ".join("P" if g == "pass" else "F" for g in got)
+        label = seq.get("check") or "pass"
+        print(f"  {'ok  ' if not problems else 'FAIL'}  {seq['name']:<40} {shown}  {label}{'  x' + str(runs) if runs > 1 else ''}")
         for problem in problems:
             print(f"        - {problem}")
         failures += bool(problems)
@@ -350,6 +476,9 @@ def run_probes(spec: dict, copy: Path, base_url: str) -> int:
 def covered_paths(spec: dict) -> set[str]:
     paths = {case.get("path") or f"/cases/{case['case']}" for case in spec.get("cases") or []}
     paths |= {entry["op"] for entry in spec.get("probes") or []}
+    paths |= {seq["path"] for seq in spec.get("sequences") or []}
+    paths |= {run["covers"] for run in spec.get("runs") or [] if run.get("covers")}
+    paths |= {step["covers"] for sc in spec.get("scenarios") or [] for step in sc["steps"].values() if step.get("covers")}
     paths |= set(spec.get("ignore") or [])
     return paths
 
@@ -367,7 +496,21 @@ def print_table(spec: dict) -> int:
             expected, exit_code = "passes", 0
             check = case.get("reference") or "none"
             note = case.get("why", "").replace("|", "/")
+        if case.get("args"):
+            note += f" (with {' '.join(str(a) for a in case['args'])})"
+        if case.get("local_only"):
+            note += " (local only)"
         print(f"| `{case['case']}` | `{path}` | {expected} | {check} | {exit_code} | {note} |")
+    if spec.get("sequences"):
+        print("\n### Sequences (reset first, then call by call)\n")
+        print("| Sequence | Path | Outcomes (P = pass, F = fail) | Check on failure | Notes |")
+        print("|---|---|---|---|---|")
+        for seq in spec["sequences"]:
+            outcomes = " ".join("P" if o == "pass" else "F" for o in seq["outcomes"])
+            extra = f"with {' '.join(str(a) for a in seq['args'])}" if seq.get("args") else ""
+            if seq.get("repeat", 1) > 1:
+                extra += f"; repeated {seq['repeat']} times after a reset, identical"
+            print(f"| `{seq['name']}` | `{seq['path']}` | {outcomes} | {seq.get('check', 'none')} | {extra.strip('; ')} |")
     if spec.get("runs"):
         print("\n### Commands (wrong environments, scenarios that cannot run, unreadable specs)\n")
         print("| Run | Check | Exit code | ClearSignal reports |")
@@ -386,7 +529,10 @@ def main() -> int:
     parser.add_argument("--base-url", default="http://localhost:8080")
     parser.add_argument("--only", help="comma-separated case names to run (response cases only)")
     parser.add_argument("--table", action="store_true", help="print the response-case table as markdown and exit")
+    parser.add_argument("--cloud", action="store_true", help="skip entries marked local_only (transport behavior not verified on Cloud Run)")
     args = parser.parse_args()
+    global CLOUD
+    CLOUD = args.cloud
 
     spec = yaml.safe_load((ROOT / args.expectations).read_text(encoding="utf-8"))
     if args.table:
@@ -411,6 +557,7 @@ def main() -> int:
             failures += run_scenarios(spec, copy)
             failures += run_generation(spec, copy)
             failures += run_runs(spec, copy, args.base_url)
+            failures += run_sequences(spec, copy, args.base_url)
             if spec.get("probes"):
                 failures += run_probes(spec, copy, args.base_url)
 

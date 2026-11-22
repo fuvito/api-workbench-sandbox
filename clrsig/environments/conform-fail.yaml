@@ -14,3 +14,8 @@ variables:
     value: "7"
   - name: amount
     value: "19.99"
+  # Values for the timing cases (slice 4): a short fixed latency and a small large-body.
+  - name: ms
+    value: "200"
+  - name: mb
+    value: "1"

@@ -51,7 +51,7 @@ uv run python scripts/check_expectations.py --only resp-003-missing-required-hea
 
 **Important (F-010 in `docs/clrsig-findings.md`):** `clrsig` v0.7.1 silently skips response validation for any spec that has a `servers` entry, so `clrsig conform specs/contract-fail.yaml` reports everything as PASS. The runner therefore checks a generated copy (`scripts/clrsig_spec_copy.py`: no `servers`, base path in each path, run with `-b`). Do not read a plain `clrsig conform` PASS on these specs as proof of anything.
 
-## `conform-fail` cases (in progress; slices 1 to 3)
+## `conform-fail` cases (in progress; slices 1 to 4)
 
 Slice 1 is in: seven `/conform-fail/lenient/*` operations that accept bad requests and seven `/conform-fail/strict/*` twins that reject them, so `clrsig conform --negative` finds exactly four failed probes (CS-PROBE-001 to 004) and passes everything else. The expected outcome of every case is in `expectations/conform-fail.yaml`.
 
@@ -62,6 +62,15 @@ uv run python scripts/check_expectations.py --expectations expectations/conform-
 Slice 2 adds operations where the spec and the server disagree: a declared route the server does not serve, a declared method it does not implement, a path parameter typed differently, a header only the server knows, form and multipart bodies, and a callback. The case table is `docs/conform-fail-cases.md`.
 
 Slice 3 adds failures caused by the spec plus the environment file ClearSignal is given, before any response matters. Each wrong environment sits next to the right one in `clrsig/environments/` (`conform-fail-bad-values.yaml`, `-missing-value.yaml`, `-bad-function.yaml`, `-unset-var.yaml`) and is marked DELIBERATELY WRONG; the unreadable specs are in `clrsig/fixtures/`. The commands and their expected outcomes are listed in `docs/conform-fail-cases.md`.
+
+Slice 4 adds timing and instability: `/slow`, `/flaky`, `/rate-limited`, `/latency/*`, `/unavailable*`, `/redirect-loop`, `/large*`, `/timeout/*`, `/idempotent` and `/lost-update`. Counters live in the family's store and `POST /conform-fail/__admin/reset` restores them. ClearSignal measures no response time (F-018), so timing is pinned through request timeouts, and **the timing expectations must be run against the Docker container**: on a Windows host the server's delays overshoot intermittently, so the same expectations can fail there.
+
+```
+docker build -t api-workbench-sandbox . && docker run -d --name awbs -p 8080:8080 api-workbench-sandbox
+uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml    # about 2 minutes
+```
+
+Entries marked `local_only` (transport behavior, bodies over 32 MB) are not claimed for Cloud Run; `--cloud` skips them.
 
 Same caveat as `contract-fail` (F-010), plus two about probes: `clrsig` ignores `--paths` for probes (F-013) and leaves them out of the JSON and JUnit reports (F-014), so the runner reads the text report.
 

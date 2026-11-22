@@ -1,0 +1,9 @@
+schemaVersion: "1"
+# A fixed latency of 3 seconds for GET /latency/{ms}: it passes with a long enough request
+# timeout and fails ("no response") with a short one. Nothing else about the server changes.
+name: conform-fail-latency-3s
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/conform-fail"
+  - name: ms
+    value: "3000"

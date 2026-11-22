@@ -32,6 +32,7 @@ Read `docs/PRD.md` and `docs/TASKLIST.md` before making substantial changes. The
 ## Verifying response behavior with ClearSignal
 
 - `clrsig` v0.7.1 skips response validation for specs with `servers` (F-010). Verify response behavior only through `scripts/clrsig_spec_copy.py` (or `scripts/check_expectations.py`, which does it); never claim "conform passes" from a plain run.
+- Timing expectations are verified against the Docker container, not a Windows host (delays overshoot there). Entries marked `local_only` are transport behavior not verified on Cloud Run.
 - Expected outcomes of failure cases live in `expectations/*.yaml` and are checked by `scripts/check_expectations.py`. Change an expectation only when ClearSignal's behavior changed, never to match a handler you edited.
 
 ## Before coding

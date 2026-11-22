@@ -48,6 +48,64 @@ cases:
   - { case: requests-param-type-ok, path: '/requests/param-type/{itemId}', expect: pass, reference: null, why: "itemId=7 from the right environment: a valid request, a correct response" }
   - { case: requests-body-value-ok, path: /requests/body-value, expect: pass, reference: null, why: "amount=19.99 from the right environment" }
 
+  # ---- slice 4: timing and instability ----
+  # ClearSignal does not measure response time (CS-GAP-005, improvement request F-018), so timing
+  # shows only through timeouts: a case "outlasts" a timeout when `args` sets a short one.
+  # `local_only` marks transport behavior not verified on Cloud Run (run with --cloud to skip).
+  - { case: slow, path: /slow, args: ['--request-timeout', 1500], expect: fail, check: CS-RUN-003, kind: no-response, message: 'context deadline exceeded', note: "15 s against a 1.5 s timeout" }
+  - { case: latency-within-timeout, path: '/latency/{ms}', expect: pass, reference: CS-GAP-005, why: "200 ms answered correctly; response time is not measured" }
+  - { case: unavailable, path: /unavailable, expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 503, but the spec declares only 200' }
+  - { case: redirect-loop, path: /redirect-loop, expect: fail, check: CS-RUN-003, kind: no-response, message: 'stopped after 10 redirects' }
+  - { case: hang, path: /timeout/hang, args: ['--request-timeout', 1500], local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'context deadline exceeded' }
+  - { case: slow-headers-outlasts-timeout, path: /timeout/slow-headers, args: ['--request-timeout', 1500], local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'executing request.*context deadline exceeded' }
+  - { case: slow-headers-within-timeout, path: /timeout/slow-headers, local_only: true, expect: pass, reference: CS-GAP-005, why: "4 s against the default 10 s timeout" }
+  - { case: slow-body, path: /timeout/slow-body, args: ['--request-timeout', 3000], local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'reading response body: context deadline exceeded', note: "headers arrive at once; the timeout hits while reading the body" }
+  - { case: truncated-body, path: /timeout/truncated-body, local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'reading response body: unexpected EOF', note: "the notes said CS-RUN-003 or CS-RESP-008: it is CS-RUN-003 (no response)" }
+  - { case: connection-reset, path: /timeout/connection-reset, local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'EOF' }
+  - { case: large-1mb, path: /large, expect: pass, reference: CS-NC-003, why: "a binary body is not compared" }
+  - { case: large-json-1mb, path: /large/json, expect: pass, reference: null, why: "a valid 1 MB JSON body" }
+  - { case: after-write-outlasts-timeout, path: /timeout/after-write, args: ['--request-timeout', 1500], local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'context deadline exceeded', note: "the write still took effect, see the scenario" }
+  - { case: after-write-records, path: /timeout/after-write/records, expect: pass, reference: null, why: "the records written so far" }
+  - { case: idempotent-create, path: /idempotent, expect: pass, reference: null, why: "a single request cannot show the missing idempotency; see the scenario" }
+  - { case: idempotent-records, path: /idempotent/records, expect: pass, reference: null, why: "the records created so far" }
+  - { case: lost-update, path: /lost-update, operations: 2, expect: pass, reference: null, why: "GET and PUT each conform; the lost update shows only in a scenario" }
+
+# State-dependent behavior: reset, then call the operation several times and compare call by call.
+# Every counter lives in the store, so the same reset always gives the same sequence.
+sequences:
+  - { name: flaky-every-third-call, path: /flaky, outcomes: [pass, pass, fail, pass, pass, fail], check: CS-RESP-001, fail: { kind: undeclared-status, message: 'answered 500, but the spec declares only 200' } }
+  - { name: rate-limited-after-three-calls, path: /rate-limited, outcomes: [pass, pass, pass, fail, fail, fail], check: CS-RESP-001, fail: { kind: undeclared-status, message: 'answered 429, but the spec declares only 200' } }
+  - { name: unavailable-then-ok, path: /unavailable-then-ok, outcomes: [fail, fail, pass, pass], check: CS-RESP-001, fail: { kind: undeclared-status, message: 'answered 503, but the spec declares only 200' } }
+  # Delays 100, 400, 700, 1000, 1300 ms against an 850 ms timeout (150 ms margins).
+  - { name: degrading-latency, path: /latency/degrading, args: ['--request-timeout', 850], outcomes: [pass, pass, pass, fail, fail], check: CS-RUN-003, fail: { kind: no-response, message: 'context deadline exceeded' } }
+  # Seeded delays 160, 906, 477, 477, 507, 264 ms against a 700 ms timeout (at least 190 ms margins),
+  # and the same sequence again after another reset: jitter that repeats.
+  - { name: seeded-jitter-repeats, path: /latency/jitter, args: ['--request-timeout', 700], repeat: 2, outcomes: [pass, fail, pass, pass, pass, pass], check: CS-RUN-003, fail: { kind: no-response, message: 'context deadline exceeded' } }
+
+# The whole spec in one run, after a reset and with a 3 s request timeout, so the slow cases time out
+# and the counters are all at their first call. Only the paths listed here may fail.
+whole_spec:
+  reset: true
+  request_timeout: 3000
+  failing:
+    - /ghost
+    - /orphan
+    - /wrong-method
+    - '/path-param/{id}'
+    - /requires-extra-header
+    - /form
+    - /multipart
+    - /slow
+    - /unavailable
+    - /unavailable-then-ok
+    - /redirect-loop
+    - /timeout/hang
+    - /timeout/slow-headers
+    - /timeout/slow-body
+    - /timeout/truncated-body
+    - /timeout/connection-reset
+    - /timeout/after-write
+
 # ---- requests that do not fit, and runs that cannot happen (slice 3) ----
 # Whole commands: the wrong environment files are next to the right one in clrsig/environments/.
 # `finding.kind` is clrsig's JSON kind; `output` is a regex over everything the command printed.
@@ -112,6 +170,56 @@ runs:
     exit: 2
     output: 'server returned 404'
 
+  # ---- slice 4: the default timeout, a fixed latency on both sides of the timeout, and the 50 MB cap ----
+  - name: slow-outlasts-the-default-timeout
+    check: CS-RUN-003
+    note: "takes about 10 s: the default request timeout"
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail.yaml", --paths, /conform-fail/slow, --format, json]
+    exit: 1
+    finding: { kind: no-response, message: 'context deadline exceeded' }
+  - name: latency-3s-with-a-1s-timeout
+    op: '/latency/{ms}'
+    check: CS-RUN-003
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-latency-3s.yaml", --paths, "/conform-fail/latency/", --request-timeout, "1000", --format, json]
+    exit: 1
+    finding: { kind: no-response, message: 'context deadline exceeded' }
+  - name: latency-3s-with-a-6s-timeout
+    op: '/latency/{ms}'
+    reference: CS-GAP-005
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-latency-3s.yaml", --paths, "/conform-fail/latency/", --request-timeout, "6000", --format, json]
+    exit: 0
+    passed: true
+  # The client reads at most 50 MB and cuts the rest off without a word (F-019).
+  - name: large-binary-near-the-cap
+    op: '/large'
+    local_only: true
+    reference: CS-NC-003
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-large-near-cap.yaml", --paths, /conform-fail/large, --format, json]
+    exit: 0
+    passed: true
+  - name: large-binary-over-the-cap
+    op: '/large'
+    local_only: true
+    reference: CS-NC-003
+    note: "51 MB: silently truncated, still a pass because binary bodies are not compared (F-019)"
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-large-over-cap.yaml", --paths, /conform-fail/large, --format, json]
+    exit: 0
+    passed: true
+  - name: large-json-near-the-cap
+    op: '/large/json'
+    local_only: true
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-large-near-cap.yaml", --paths, /conform-fail/large/json, --format, json]
+    exit: 0
+    passed: true
+  - name: large-json-over-the-cap
+    op: '/large/json'
+    local_only: true
+    check: CS-RESP-008
+    note: "valid JSON cut at 50 MB is reported as unexpected EOF: a false failure (F-019)"
+    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-large-over-cap.yaml", --paths, /conform-fail/large/json, --format, json]
+    exit: 1
+    finding: { kind: other, message: 'unexpected EOF' }
+
   # CS-RUN-005: an unset ${NAME} in the environment file is only a warning; the exit code is unchanged.
   - name: run-005-unset-environment-variable
     check: CS-RUN-005
@@ -123,7 +231,7 @@ runs:
 
 # What ClearSignal builds from the spec (clrsig generate): pins the two request-generation gaps.
 generation:
-  operations: 25              # one per operation under paths; the callback is not among them (CS-GAP-010)
+  operations: 47              # one per operation under paths; the callback is not among them (CS-GAP-010)
   bodiless:                   # CS-GAP-006: the spec declares a body, ClearSignal writes none
     - { operation: formBody, media: application/x-www-form-urlencoded }
     - { operation: multipartBody, media: multipart/form-data }
@@ -138,6 +246,22 @@ scenarios:
       undocumented: { spec_check: ok, schema_assertion: none, reference: CS-NC-001, note: "the server has it, the spec does not: nothing is compared, and no report format shows 'not checked'" }
       ghost:        { spec_check: violation, schema_assertion: none, check: CS-RESP-001 }
       orphan:       { spec_check: violation, schema_assertion: none, check: CS-RESP-001 }
+
+  # Three write bugs only a scenario can see. The steps assert the CORRECT behavior, so a step
+  # fails exactly where the server is wrong (passed: false).
+  - file: clrsig/scenarios/conform-fail-write-bugs.yaml
+    env: clrsig/environments/conform-fail.yaml
+    steps:
+      reset:                          { passed: true }
+      first request with a key:       { passed: true }
+      same key again:                 { passed: true }
+      one record for one key:         { passed: false, note: "BUG: a repeated Idempotency-Key created a second record" }
+      read value and ETag:            { passed: true }
+      first writer:                   { passed: true }
+      stale writer is refused:        { passed: false, note: "BUG: If-Match is ignored, the stale writer got 200" }
+      "first writer's value survives": { passed: false, note: "BUG: the stale writer overwrote the first writer's value" }
+      timed-out write:                { passed: false, error: 'context deadline exceeded', note: "the request timed out ..." }
+      the write took effect anyway:   { passed: true, note: "... yet the record exists: a retry would duplicate it" }
 
 # `clrsig conform --negative`: each operation's negative probes (see the header).
 probes:
@@ -165,3 +289,6 @@ probes:
   - { op: /wrong-method, probes: 2, fail: [], reference: CS-RESP-001, why: "a probe passes on any 4xx, so the 405 for the unimplemented PATCH counts as a rejection" }
   - { op: /subscribe, probes: 2, fail: [], reference: null, why: "the server validates the callback URL strictly" }
   - { op: /requests/body-value, probes: 2, fail: [], reference: null, why: "the server validates the number strictly" }
+  - { op: /large, probes: 1, fail: [], reference: null, why: "a missing mb is rejected" }
+  - { op: /large/json, probes: 1, fail: [], reference: null, why: "a missing mb is rejected" }
+  - { op: /lost-update, probes: 2, fail: [], reference: null, why: "the body is validated; the ignored If-Match is not probed (CS-GAP-009)" }

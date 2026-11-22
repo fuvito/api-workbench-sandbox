@@ -21,6 +21,8 @@ tags:
     description: Control group - the same shapes, correctly rejecting bad requests
   - name: disagreement
     description: The spec and the server disagree about what exists
+  - name: instability
+    description: Slow, flaky, throttled, unavailable and otherwise unstable behavior
   - name: requests
     description: Correct operations whose outcome depends on the environment file ClearSignal is given
 paths:
@@ -464,6 +466,380 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
 
+  # ----------------------------------------- timing and instability (slice 4)
+  # Every state-dependent behavior below is a counter held in this family's store: POST
+  # /conform-fail/__admin/reset restores it. Nothing runs in the background.
+
+  /slow:
+    get:
+      operationId: slow
+      tags: [instability]
+      summary: Waits longer than ClearSignal's default timeout
+      description: >
+        Answers after 15 seconds (times LATENCY_SCALE). With the default 10 second timeout the request times out (CS-RUN-003).
+      responses:
+        "200":
+          description: A correct answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /flaky:
+    get:
+      operationId: flaky
+      tags: [instability]
+      summary: Fails every 3rd call with 500, otherwise correct
+      description: >
+        The 500 is not declared in the spec (CS-RESP-001). A run that passes sometimes; reset restores the counter.
+      responses:
+        "200":
+          description: A correct answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /rate-limited:
+    get:
+      operationId: rateLimited
+      tags: [instability]
+      summary: Answers 429 after 3 calls
+      description: >
+        The 429 is not declared in the spec (CS-RESP-001). Counter based, so deterministic; reset restores it.
+      responses:
+        "200":
+          description: A correct answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /latency/{ms}:
+    get:
+      operationId: latencyFixed
+      tags: [instability]
+      summary: Answers correctly after exactly ms milliseconds
+      description: >
+        ms is capped at 30000. Nothing fails unless the client timeout is shorter; ClearSignal does not measure response time (CS-GAP-005).
+      parameters:
+        - name: ms
+          in: path
+          required: true
+          schema: { type: integer, minimum: 0, maximum: 30000 }
+      responses:
+        "200":
+          description: A correct answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /latency/jitter:
+    get:
+      operationId: latencyJitter
+      tags: [instability]
+      summary: Answers after a delay between min and max
+      description: >
+        The delays are a fixed pseudo-random sequence (seeded), so a run after reset sees the same delays every time.
+      parameters:
+        - name: min
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 30000, default: 100 }
+        - name: max
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 30000, default: 1000 }
+      responses:
+        "200":
+          description: A correct answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /latency/degrading:
+    get:
+      operationId: latencyDegrading
+      tags: [instability]
+      summary: Every call is slower than the last
+      description: >
+        The delay grows by 300 ms per call from 100 ms, capped at 5 s. Reset restores the first call.
+      responses:
+        "200":
+          description: A correct answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /unavailable:
+    get:
+      operationId: unavailable
+      tags: [instability]
+      summary: Always 503 with Retry-After
+      description: >
+        The 503 is not declared in the spec (CS-RESP-001).
+      responses:
+        "200":
+          description: A correct answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /unavailable-then-ok:
+    get:
+      operationId: unavailableThenOk
+      tags: [instability]
+      summary: 503 for the first 2 calls after reset, then correct
+      description: >
+        The 503 is not declared in the spec (CS-RESP-001) while it lasts.
+      responses:
+        "200":
+          description: A correct answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /redirect-loop:
+    get:
+      operationId: redirectLoop
+      tags: [instability]
+      summary: Redirects to itself
+      description: >
+        Only ever redirects to its own path, never elsewhere. ClearSignal stops after too many redirects.
+      responses:
+        "200":
+          description: A correct answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /large:
+    get:
+      operationId: large
+      tags: [instability]
+      summary: A body of mb megabytes
+      description: >
+        mb is capped at 60. ClearSignal reads at most 50 MB of a response. Cloud Run does not pass
+        responses this large, so the cases above 32 MB are local only.
+      parameters:
+        - name: mb
+          in: query
+          required: true
+          schema: { type: integer, minimum: 0, maximum: 60 }
+      responses:
+        "200":
+          description: Bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /large/json:
+    get:
+      operationId: largeJson
+      tags: [instability]
+      summary: A JSON body of about mb megabytes
+      description: >
+        A valid JSON object whose single string is mb megabytes long. ClearSignal reads at most
+        50 MB of a response, so above that the body it sees is cut off in the middle.
+      parameters:
+        - name: mb
+          in: query
+          required: true
+          schema: { type: integer, minimum: 0, maximum: 60 }
+      responses:
+        "200":
+          description: A JSON object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BigDoc"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /timeout/hang:
+    get:
+      operationId: timeoutHang
+      tags: [instability]
+      summary: Accepts the request and does not answer
+      description: >
+        Waits 30 seconds (times LATENCY_SCALE) before answering. Local only until verified on Cloud Run.
+      responses:
+        "200":
+          description: A correct answer, if one ever arrives
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /timeout/slow-headers:
+    get:
+      operationId: timeoutSlowHeaders
+      tags: [instability]
+      summary: Waits before sending any headers
+      description: >
+        Sends nothing for 4 seconds (times LATENCY_SCALE), then answers. Local only until verified on Cloud Run.
+      responses:
+        "200":
+          description: A correct answer, if one ever arrives
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /timeout/slow-body:
+    get:
+      operationId: timeoutSlowBody
+      tags: [instability]
+      summary: Sends headers at once, then trickles the body
+      description: >
+        50 bytes at 5 per second, 10 seconds in all (times LATENCY_SCALE). Local only until verified on Cloud Run.
+      responses:
+        "200":
+          description: A correct answer, if one ever arrives
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /timeout/truncated-body:
+    get:
+      operationId: timeoutTruncatedBody
+      tags: [instability]
+      summary: Declares Content-Length 1000, sends 100 bytes and closes
+      description: >
+        The connection is closed before the declared body is complete. Local only until verified on Cloud Run.
+      responses:
+        "200":
+          description: A correct answer, if one ever arrives
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /timeout/connection-reset:
+    get:
+      operationId: timeoutConnectionReset
+      tags: [instability]
+      summary: Closes the connection without answering
+      description: >
+        A TCP reset with no response bytes. Local only until verified on Cloud Run.
+      responses:
+        "200":
+          description: A correct answer, if one ever arrives
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingDoc"
+
+  /timeout/after-write:
+    post:
+      operationId: timeoutAfterWrite
+      tags: [instability]
+      summary: Does the write, then waits past the client timeout
+      description: >
+        The record is stored first and the answer comes 15 seconds later (times LATENCY_SCALE).
+        A client that times out and retries creates a duplicate.
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+
+  /timeout/after-write/records:
+    get:
+      operationId: timeoutAfterWriteRecords
+      tags: [instability]
+      summary: The records written by /timeout/after-write
+      responses:
+        "200":
+          $ref: "#/components/responses/Records"
+
+  /idempotent:
+    post:
+      operationId: idempotentCreate
+      tags: [instability]
+      summary: Should treat a repeated Idempotency-Key as the same request
+      description: >
+        BUG ON PURPOSE: a repeated Idempotency-Key creates a second record. Only visible in a
+        scenario with two steps.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+
+  /idempotent/records:
+    get:
+      operationId: idempotentRecords
+      tags: [instability]
+      summary: The records created by /idempotent
+      responses:
+        "200":
+          $ref: "#/components/responses/Records"
+
+  /lost-update:
+    get:
+      operationId: lostUpdateGet
+      tags: [instability]
+      summary: The current value and its ETag
+      responses:
+        "200":
+          description: The value
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValueDoc"
+    put:
+      operationId: lostUpdatePut
+      tags: [instability]
+      summary: Should refuse a stale If-Match
+      description: >
+        BUG ON PURPOSE: the server ignores If-Match, so two writers with the same stale ETag both
+        succeed and the second silently overwrites the first. Only visible in a scenario.
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string, example: "*" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValueBody"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValueDoc"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "412":
+          $ref: "#/components/responses/BadRequest"
+        "428":
+          $ref: "#/components/responses/BadRequest"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -479,7 +855,19 @@ components:
       description: A search text
       schema: { type: string, minLength: 1, example: abc }
 
+  headers:
+    ETag:
+      description: Version of the value, for If-Match
+      required: true
+      schema: { type: string }
+
   responses:
+    Records:
+      description: Records written so far
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RecordsDoc"
     Created:
       description: Accepted
       content:
@@ -584,3 +972,37 @@ components:
       required: [amount]
       properties:
         amount: { type: number, minimum: 0 }
+
+    TimingDoc:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        call: { type: integer }
+        delayMs: { type: integer }
+    RecordsDoc:
+      type: object
+      required: [total, items]
+      properties:
+        total: { type: integer }
+        items:
+          type: array
+          items:
+            type: object
+    ValueDoc:
+      type: object
+      required: [value, version]
+      properties:
+        value: { type: string }
+        version: { type: integer }
+    ValueBody:
+      type: object
+      required: [value]
+      properties:
+        value: { type: string, minLength: 1, example: updated }
+
+    BigDoc:
+      type: object
+      required: [data]
+      properties:
+        data: { type: string }

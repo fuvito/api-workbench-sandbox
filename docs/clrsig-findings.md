@@ -149,11 +149,27 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Pinned here by: `run req-002-wrong-body-value` in `expectations/conform-fail.yaml` records today's wording.
   - Closed: —
 
+- [ ] **F-018 — Improvement request: no way to assert or limit response time (v0.7.1)**
+  - Type: enhancement (the catalog already lists it as CS-GAP-005). Raised: 2026-11-21, while building the timing cases of `conform-fail`.
+  - Today: a response that takes 4 seconds, or that gets slower with every call, passes as long as it arrives before the request timeout. The JSON report already carries `durationMs` per operation, but nothing can fail on it: scenario assertions are `status`, `header`, `jsonpath` and `schema` only. The only way to turn slowness into a failure is to set a shorter `--request-timeout`, which also aborts the request (no response to compare) and applies to every operation alike.
+  - Request: (1) a scenario assertion such as `{ type: duration, operator: lt, expected: 500 }`; (2) a `conform` flag such as `--max-response-time <ms>` (and a per-operation override), reporting a distinct finding that keeps the response so it is still compared with the spec; (3) record the duration in baselines and coverage so a run that "gets slower" can be seen over time.
+  - Why it matters here: `latency-within-timeout`, `degrading-latency` and `seeded-jitter-repeats` can only be pinned through timeouts today; with this feature they could assert the actual durations.
+  - Pinned meanwhile by: `expectations/conform-fail.yaml` (`latency-within-timeout` references CS-GAP-005; the degrading and jitter sequences use `--request-timeout`).
+  - Closed: —
+
+- [ ] **F-019 — A response over 50 MB is silently truncated, and valid JSON then fails as "unexpected EOF" (v0.7.1)**
+  - Type: bug (false failure, and a silent cap). Found: 2026-11-21, `clrsig` v0.7.1.
+  - Behavior: the executor reads at most 50 MB + 1 byte of a response (`defaultMaxBodySize` in `executor/executor.go`) and keeps whatever it read, with no error, warning or note. `GET /conform-fail/large` (a 51 MB binary body) passes because binary bodies are not compared, so nothing shows that the body was cut. `GET /conform-fail/large/json` (a 51 MB body that is valid JSON, `Content-Length` correct) FAILS with "unexpected EOF" (finding kind `other`), as if the server had sent invalid JSON; the same endpoint at 49 MB passes. The message never mentions the size cap.
+  - Repro: `clrsig conform <spec copy> -b http://localhost:8080 --env clrsig/environments/conform-fail-large-over-cap.yaml --paths /conform-fail/large/json` (and `...-near-cap.yaml` for the 49 MB pass).
+  - Expected: say that the response exceeded the read limit (a distinct finding or a warning that names the limit and the real size from `Content-Length`), not a JSON syntax error; ideally make the limit configurable.
+  - Pinned here by: `large-json-over-the-cap` and `large-binary-over-the-cap` in `expectations/conform-fail.yaml` (local only: Cloud Run does not pass bodies this large).
+  - Closed: —
+
 ---
 
 ## Baseline
 
-Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-017 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
+Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-019 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
 
 ## Notes
 

@@ -1,0 +1,8 @@
+schemaVersion: "1"
+# A body just OVER ClearSignal's 50 MB read cap (51 MB). Local only.
+name: conform-fail-large-over-cap
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/conform-fail"
+  - name: mb
+    value: "51"

@@ -1,0 +1,9 @@
+schemaVersion: "1"
+# A body just UNDER ClearSignal's 50 MB read cap (49 MB). Local only: Cloud Run does not pass
+# responses this large.
+name: conform-fail-large-near-cap
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/conform-fail"
+  - name: mb
+    value: "49"

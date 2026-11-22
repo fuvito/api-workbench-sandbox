@@ -119,4 +119,11 @@ def contract_fail_seed() -> SeedData:
 
 
 def conform_fail_seed() -> SeedData:
-    return {"widgets": {"w-1": {"id": "w-1", "name": "Alpha"}}}
+    return {
+        "widgets": {"w-1": {"id": "w-1", "name": "Alpha"}},
+        # Counters behind the timing and instability cases; reset puts every one back to zero.
+        "counters": {},
+        "writes": {},
+        "idempotent": {},
+        "lost_update": {"main": {"id": "main", "value": "initial", "version": 1}},
+    }

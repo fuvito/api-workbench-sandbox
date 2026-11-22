@@ -94,6 +94,9 @@ def unprocessable(message: str) -> ApiError:
     return ApiError(422, "unprocessable", message)
 
 
+# Families whose invalid input is answered 400 with the declared error shape (not FastAPI's 422).
+VALIDATED_400 = ("/ok/", "/conform-fail/")
+
 # Paths whose error responses are RFC 7807 problem+json (declared that way in the spec).
 PROBLEM_PREFIXES = ("/ok/customers",)
 
@@ -121,11 +124,12 @@ async def too_many_slow_handler(request: Request, _: TooManySlowRequests) -> JSO
 
 
 async def validation_error_handler(request: Request, exc: RequestValidationError):
-    """Malformed input on /ok is 400 with the declared error shape.
+    """Malformed input on /ok and /conform-fail is 400 with the declared error shape.
 
-    FastAPI's default is 422 with a different body, so it is kept for other families.
+    FastAPI's default is 422 with a different body; both families declare 400 for invalid input,
+    so the default is kept only for the other family (contract-fail has no input to validate).
     """
-    if not request.url.path.startswith("/ok/"):
+    if not request.url.path.startswith(VALIDATED_400):
         return await request_validation_exception_handler(request, exc)
     first = exc.errors()[0]
     where = ".".join(str(p) for p in first["loc"])

@@ -1,0 +1,92 @@
+schemaVersion: "1"
+title: conform-fail - write bugs that only a scenario can see
+description: >
+  Three server bugs that no single request reveals. Each step asserts the CORRECT behavior, so a
+  step fails exactly where the server is wrong (the expected outcome of every step is recorded in
+  expectations/conform-fail.yaml):
+    1. /idempotent ignores the Idempotency-Key, so a repeated key creates a second record.
+    2. /lost-update ignores If-Match, so a stale writer overwrites the first writer.
+    3. /timeout/after-write writes first and answers late, so a client that times out and retries
+       creates a duplicate: the write took effect although the request "failed".
+  Run with --spec <spec copy> (F-010). The first step resets the family.
+
+steps:
+  - label: reset
+    request: { method: POST, url: "{{baseUrl}}/__admin/reset" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  # ---- 1. idempotency key ignored ----
+  - label: first request with a key
+    request:
+      method: POST
+      url: "{{baseUrl}}/idempotent"
+      headers: [{ name: Idempotency-Key, value: "order-42" }]
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+    failPolicy: stop
+
+  - label: same key again
+    request:
+      method: POST
+      url: "{{baseUrl}}/idempotent"
+      headers: [{ name: Idempotency-Key, value: "order-42" }]
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+    failPolicy: stop
+
+  - label: one record for one key
+    request: { method: GET, url: "{{baseUrl}}/idempotent/records" }
+    assertions:
+      - { type: jsonpath, path: "$.total", operator: eq, expected: "1" }
+    failPolicy: continue
+
+  # ---- 2. lost update ----
+  - label: read value and ETag
+    request: { method: GET, url: "{{baseUrl}}/lost-update" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    extractions:
+      - { name: etagA, source: header, path: ETag }
+    failPolicy: stop
+
+  - label: first writer
+    request:
+      method: PUT
+      url: "{{baseUrl}}/lost-update"
+      headers: [{ name: If-Match, value: "{{etagA}}" }]
+      body: { type: json, content: '{"value":"alice"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: stop
+
+  - label: stale writer is refused
+    request:
+      method: PUT
+      url: "{{baseUrl}}/lost-update"
+      headers: [{ name: If-Match, value: "{{etagA}}" }]
+      body: { type: json, content: '{"value":"bob"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 412 }
+    failPolicy: continue
+
+  - label: first writer's value survives
+    request: { method: GET, url: "{{baseUrl}}/lost-update" }
+    assertions:
+      - { type: jsonpath, path: "$.value", operator: eq, expected: "alice" }
+    failPolicy: continue
+
+  # ---- 3. a write that took effect before the timeout ----
+  - label: timed-out write
+    timeoutMs: 1500
+    request: { method: POST, url: "{{baseUrl}}/timeout/after-write" }
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+    failPolicy: continue
+
+  - label: the write took effect anyway
+    request: { method: GET, url: "{{baseUrl}}/timeout/after-write/records" }
+    assertions:
+      - { type: jsonpath, path: "$.total", operator: eq, expected: "1" }
+    failPolicy: continue

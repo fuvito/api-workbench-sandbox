@@ -64,7 +64,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
 - [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
 
-**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-017 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-019 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [x] Add remaining resource families (customers, payments, invoices, discount codes, notifications, reports, settings, secured examples), kept within the 60 to 70 operation target.
@@ -158,21 +158,21 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Add unset process-variable warning case (`conform-fail-unset-var.yaml`; CS-RUN-005, a warning, exit code unchanged).
 
 ### Timing and instability
-- [ ] Implement `/slow`.
-- [ ] Implement deterministic `/flaky` counter.
-- [ ] Implement `/rate-limited`.
-- [ ] Implement fixed `/latency/{ms}` with a safe cap.
-- [ ] Implement jitter latency.
-- [ ] Implement degrading latency and reset behavior.
-- [ ] Implement hanging request within hosting limits.
-- [ ] Implement slow headers and slow body where supported.
-- [ ] Implement truncated body and connection reset where supported.
-- [ ] Implement write-then-timeout behavior.
-- [ ] Implement unavailable (`503`) and unavailable-then-OK cases.
-- [ ] Implement redirect loop.
-- [ ] Implement bounded large responses around the client size cap.
-- [ ] Add idempotency and lost-update failure cases.
-- [ ] Mark transport cases that cannot be reproduced reliably on Cloud Run as local-only.
+- [x] Implement `/slow` (15 s times `LATENCY_SCALE`, past the default 10 s timeout; CS-RUN-003).
+- [x] Implement deterministic `/flaky` counter (every 3rd call is a 500; pass, pass, fail repeating; reset restores it).
+- [x] Implement `/rate-limited` (counter based: the 4th call and later get an undeclared 429 with `Retry-After`).
+- [x] Implement fixed `/latency/{ms}` with a safe cap (0 to 30000 ms, 400 outside).
+- [x] Implement jitter latency (a seeded sequence per call number, so a run after reset repeats exactly: 160, 906, 477, 477, 507, 264 ms with the defaults).
+- [x] Implement degrading latency and reset behavior (100 ms, then +300 ms per call, capped at 5 s; reset restarts it).
+- [x] Implement hanging request within hosting limits (`/timeout/hang`: 30 s times `LATENCY_SCALE`, then gives up; local only).
+- [x] Implement slow headers (`/timeout/slow-headers`, 4 s) and slow body (`/timeout/slow-body`: headers at once, 50 bytes at 5 per second); local only.
+- [x] Implement truncated body (declares 1000 bytes, sends 100; CS-RUN-003, not CS-RESP-008) and connection reset (a TCP reset through the live server's own connection); local only.
+- [x] Implement write-then-timeout behavior (`POST /timeout/after-write`: the record is stored, the answer comes 15 s later; shown by a scenario).
+- [x] Implement unavailable (`503` with `Retry-After`) and unavailable-then-OK (503 for the first 2 calls after reset) cases.
+- [x] Implement redirect loop (`/redirect-loop` only ever redirects to itself; ClearSignal stops after 10 redirects; CS-RUN-003).
+- [x] Implement bounded large responses around the client size cap (`/large` and `/large/json`, 0 to 60 MB; 49 MB passes, 51 MB is silently truncated, F-019); local only.
+- [x] Add idempotency (`POST /idempotent`) and lost-update (`PUT /lost-update`) failure cases, visible only in `clrsig/scenarios/conform-fail-write-bugs.yaml`.
+- [x] Mark transport cases that cannot be reproduced reliably on Cloud Run as local-only (`local_only: true` in the expectations; `--cloud` skips them). Nothing is claimed for Cloud Run until it is verified there (Phase 6).
 
 ### Drift, diff, coverage, and business-rule failures
 - [ ] Implement startup `DRIFT`/`--drift` behavior.
