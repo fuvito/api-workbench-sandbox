@@ -8,10 +8,10 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 
 - [x] Repository name: `api-workbench-sandbox` (decided).
 - [x] Select Python + FastAPI, served by Uvicorn.
-- [ ] Confirm OpenAPI versions for the `ok` API (3.0, 3.1, or both).
-- [ ] Confirm fixed test credentials for bearer, basic, and API-key examples. (In use pending your confirmation: `test-token`, `test-user`/`test-pass`, `test-api-key`; see README.)
+- [x] Confirm OpenAPI versions for the `ok` API: both. `specs/ok.yaml` stays 3.0.3; a small 3.1 variant is added (see "OpenAPI 3.1 variant" below). Decided 2026-11-22.
+- [x] Confirm fixed test credentials for bearer, basic, and API-key examples: `test-token`, `admin-token`, `test-user`/`test-pass`, `test-api-key` (confirmed 2026-11-22).
 - [x] Operation target: 60 to 70 operations (decided; source proposal was 80–120).
-- [ ] Decide where the expected-results file lives and how it relates to the ClearSignal check catalog.
+- [x] Decide where the expected-results file lives and how it relates to the ClearSignal check catalog: `expectations/<family>.yaml`, check IDs from the catalog, kept in step by the nightly CI leg against `api-workbench@main` (decided 2026-11-22).
 - [x] Python 3.13.1 (decided).
 - [x] Dependency management: `uv` (`pyproject.toml` + committed `uv.lock`; decided).
 - [x] Create the standalone repository (`api-workbench-sandbox`).
@@ -96,7 +96,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 
 ### Baseline latency
 - [x] Implement bounded `GET /ok/ok-slow/{ms}` (path confirmed: `/ok-slow/{ms}` relative to `/ok`; 0 to 10000 ms, `400` above the cap, `503` when too many slow requests run).
-- [ ] Implement report polling delay. (Reports already progress by poll count, which the source notes allow: "N seconds or N polls". No wall-clock delay was added; decision pending.)
+- [x] Implement report polling delay: by poll count (202 twice, then 200), no wall-clock delay; deterministic and identical on Cloud Run (decided 2026-11-22).
 - [x] Implement optional bounded delay on list operations: `?delay=<ms>` (0 to 10000) on all eight list operations, declared in the spec.
 - [x] Add `LATENCY_SCALE` (0 to 10, default 1; applied to every deliberate delay; the scaled sleep is capped at 30 s).
 - [x] Verify default ClearSignal timeout passes and shorter configured timeout fails as expected: `ok-latency` passes by default; `--timeout 100` fails the two slow steps (exit 1); `conform --request-timeout 500` against a 1500 ms delay fails with `context deadline exceeded`.
@@ -225,6 +225,14 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [ ] Document that concurrent users share the same API stores in MVP.
 
 **Exit criteria:** The same container runs locally and on Cloud Run; cloud expectations pass, with documented local-only exceptions.
+
+## OpenAPI 3.1 variant (added scope, decided 2026-11-22)
+
+Why: `ok` is the baseline for what ClearSignal must handle, and valid OpenAPI 3.1 (type arrays, `null`, `const`, `examples`) is a different dialect from 3.0.3's `nullable`. It adds a document, not an API: no new handlers or state.
+- [x] Write `specs/ok-3.1.yaml` (15 operations, derived once from `ok.yaml`): a subset of `ok` (health, products, customers) in the 3.1 dialect, describing behavior the server already has.
+- [x] Serve it at `GET /ok/openapi-3.1.yaml` (same `servers` rewrite; not part of the 3.0.3 document).
+- [x] Verify with ClearSignal (generate, conform, probes) through the spec copy; outcome in `expectations/ok-31.yaml`: 11 of 15 operations pass, 4 fail on F-021 (3.1 `examples` ignored); probes 16 of 16.
+- [x] Add to CI, README and a KT note (`docs/kts/ok-openapi-31.md`).
 
 ## Phase 7 — Release readiness
 

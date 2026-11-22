@@ -19,6 +19,7 @@ One note per phase, written when the phase completes. Each covers: what was buil
 | 4d — timing and instability | [phase-4d-timing-and-instability.md](phase-4d-timing-and-instability.md) | Written |
 | 4e — drift, spec changes, coverage, business rules | [phase-4e-drift-diff-coverage-rules.md](phase-4e-drift-diff-coverage-rules.md) | Written |
 | 4 — Phase 4 overview | [phase-4-conform-fail.md](phase-4-conform-fail.md) | Written |
+| OpenAPI 3.1 variant of `ok` | [ok-openapi-31.md](ok-openapi-31.md) | Written |
 | 5 — Expectations and CI | [phase-5-expectations-ci.md](phase-5-expectations-ci.md) | Written |
 | 6 — Cloud Run | phase-6-cloud-run.md | Pending |
 | 7 — Release readiness | phase-7-release.md | Pending |

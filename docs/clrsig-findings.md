@@ -174,11 +174,21 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Pinned here by: `coverage.exit: 1` in `expectations/conform-fail.yaml`.
   - Closed: —
 
+- [ ] **F-021 — OpenAPI 3.1 `examples` (a list) is ignored when building request bodies (v0.7.1)**
+  - Type: bug (false failure). Found: 2026-11-22, `clrsig` v0.7.1, with `specs/ok-3.1.yaml`.
+  - Behavior: in OpenAPI 3.1, `example` in a schema is deprecated and `examples` is a list. `clrsig generate`/`conform` only read `example`: for `POST /customers`, `POST /products`, `PUT /products/{id}` the generated bodies hold `{{email}}`, `{{name}}`, ... placeholders and `conform` reports "not sent: no value for {{name}}, {{price}}, {{stock}}"; `PATCH /products/{id}` is sent an empty body and fails its own `minProperties: 1`. 4 of 15 operations fail; 16 of 16 probes pass.
+  - Isolated: the same spec with `examples: [x]` turned back into `example: x` (everything else 3.1: type arrays with "null", `const`, `license.identifier`) passes 15 of 15 operations and 16 of 16 probes. So type arrays, null and `const` are handled; only `examples` is not.
+  - Repro: `uv run python scripts/clrsig_spec_copy.py specs/ok-3.1.yaml /ok <copy>` then `clrsig conform <copy> -b http://localhost:8080 --env clrsig/environments/ok.yaml`.
+  - Expected: use the first entry of a schema's `examples` (3.1) when `example` is absent.
+  - Pinned here by: `expectations/ok-31.yaml` (the four operations in `whole_spec.failing`).
+  - Handling here: the 3.1 spec stays valid 3.1 and keeps `examples`; it is not bent to avoid the bug.
+  - Closed: —
+
 ---
 
 ## Baseline
 
-Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-020 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
+Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-021 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
 
 ## Notes
 

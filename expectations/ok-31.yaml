@@ -1,0 +1,36 @@
+# Expected ClearSignal outcome for the OpenAPI 3.1 variant of the `ok` API (specs/ok-3.1.yaml).
+#
+# The variant describes a subset of ok (health, products, customers) in the 3.1 dialect: type
+# arrays with "null" instead of `nullable`, `const`, `license.identifier`, and `examples` lists. The
+# server behaves exactly as for the 3.0.3 spec, so every operation must conform. Four do not, because
+# of F-021: clrsig ignores a schema's `examples` list and so cannot build a request body:
+#   POST /customers, POST /products, PUT /products/{productId}   "not sent: no value for {{...}}"
+#   PATCH /products/{productId}                                   sent an empty body, fails minProperties
+# With `example` instead of `examples` all 15 pass (checked by hand), so null/type arrays/const work.
+# When F-021 is fixed, empty `failing`.
+#
+# Run: uv run python scripts/check_expectations.py --expectations expectations/ok-31.yaml   (server on :8080)
+#
+# Holds for clrsig v0.7.1 through the spec copy that works around F-010 (docs/clrsig-findings.md).
+
+format: 1
+family: ok-31
+spec: specs/ok-3.1.yaml
+prefix: /ok
+env: clrsig/environments/ok.yaml
+
+whole_spec:
+  reset: true
+  covers_all: true
+  failing:
+    - /customers
+    - /products
+    - '/products/{productId}'
+
+generation:
+  operations: 15
+
+probes:
+  - { op: /customers, probes: 4, fail: [] }
+  - { op: /products, probes: 6, fail: [] }
+  - { op: '/products/{productId}', probes: 6, fail: [] }

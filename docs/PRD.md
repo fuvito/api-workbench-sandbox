@@ -249,11 +249,11 @@ Cloud deployment follows a successful local implementation.
 Resolve these before or during the first implementation slice:
 1. ~~Python version~~ — decided: 3.13.1. Dependency management: `uv` with `pyproject.toml` and a committed `uv.lock` (decided).
 2. ~~Repository name~~ — decided: `api-workbench-sandbox`.
-3. Fixed credentials for bearer, basic, and API-key examples. (Implemented with `test-token`, `test-user`/`test-pass`, `test-api-key`; awaiting confirmation.)
-4. Whether `ok` ships OpenAPI 3.0 and 3.1 variants.
+3. ~~Fixed credentials~~ — confirmed: `test-token`, `admin-token`, `test-user`/`test-pass`, `test-api-key`.
+4. ~~OpenAPI versions~~ — decided: both. `ok` stays 3.0.3; a small 3.1 variant (`specs/ok-3.1.yaml`, served at `/ok/openapi-3.1.yaml`) describes a subset of the same API. It is an additional document of the `ok` family, not a fourth family.
 5. ~~Operation target~~ — decided: 60 to 70 operations (65 now); every feature area of the source document is covered at that size.
 6. Keep `contract-fail` and `conform-fail` specifications separate (current proposal).
-7. How expectations stay synchronized with ClearSignal's check catalog.
+7. ~~Expectations location and sync~~ — decided: `expectations/<family>.yaml` with catalog check IDs; the nightly CI leg against `api-workbench@main` catches drift.
 8. Public versus private Cloud Run access.
 9. Cloud project, region, and custom domain.
 10. Which transport edge cases remain local-only.

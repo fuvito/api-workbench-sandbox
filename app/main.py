@@ -60,7 +60,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     for name, (prefix, spec_file, seed) in FAMILIES.items():
         store = Store(seed)
         app.state.stores[name] = store
-        app.include_router(build_family_router(prefix, spec_file, store, settings))
+        extra = {"openapi-3.1.yaml": "ok-3.1.yaml"} if name == "ok" else None
+        app.include_router(build_family_router(prefix, spec_file, store, settings, extra))
         if name == "ok":
             app.include_router(build_ok_router(store))
         elif name == "contract-fail":

@@ -1,0 +1,615 @@
+openapi: 3.1.0
+info:
+  title: ok API (OpenAPI 3.1 subset)
+  summary: The same ok API, a subset of it described in the OpenAPI 3.1 dialect
+  version: 1.0.0
+  description: 'A hand-maintained subset of specs/ok.yaml (health, products, customers) in the 3.1 dialect:
+    type arrays with "null" instead of nullable, `const`, and `examples` lists. It describes behavior
+    the server already has, so every operation must conform exactly.'
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+- url: http://localhost:8080/ok
+tags:
+- name: system
+- name: products
+- name: customers
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags:
+      - system
+      summary: Readiness probe
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - status
+                properties:
+                  status:
+                    type: string
+                    const: ok
+  /products:
+    get:
+      operationId: listProducts
+      tags:
+      - products
+      summary: List products (filter, sort, paginate)
+      parameters:
+      - $ref: '#/components/parameters/Delay'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+      - name: q
+        in: query
+        description: Case-insensitive substring of the product name
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+      - name: minPrice
+        in: query
+        schema:
+          type: number
+          minimum: 0
+      - name: maxPrice
+        in: query
+        schema:
+          type: number
+          minimum: 0
+      - name: inStock
+        in: query
+        description: true = stock above zero, false = stock is zero
+        schema:
+          type: boolean
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - name
+          - -name
+          - price
+          - -price
+      responses:
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '200':
+          description: Matching products (one page)
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/TotalCount'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      operationId: createProduct
+      tags:
+      - products
+      summary: Create a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    head:
+      operationId: headProducts
+      tags:
+      - products
+      summary: Total number of products, headers only
+      responses:
+        '200':
+          description: Headers only
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/TotalCount'
+    options:
+      operationId: optionsProducts
+      tags:
+      - products
+      summary: Methods allowed on this resource
+      responses:
+        '204':
+          description: No content
+          headers:
+            Allow:
+              $ref: '#/components/headers/Allow'
+  /products/{productId}:
+    parameters:
+    - $ref: '#/components/parameters/ProductId'
+    get:
+      operationId: getProduct
+      tags:
+      - products
+      summary: Get a product
+      responses:
+        '200':
+          description: The product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: replaceProduct
+      tags:
+      - products
+      summary: Replace a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '200':
+          description: The updated product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateProduct
+      tags:
+      - products
+      summary: Partially update product (at least one field)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductPatch'
+      responses:
+        '200':
+          description: The updated product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteProduct
+      tags:
+      - products
+      summary: Delete a product
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+    head:
+      operationId: headProduct
+      tags:
+      - products
+      summary: Check that a product exists, headers only
+      responses:
+        '200':
+          description: The product exists
+        '404':
+          description: Resource does not exist
+    options:
+      operationId: optionsProduct
+      tags:
+      - products
+      summary: Methods allowed on this resource
+      responses:
+        '204':
+          description: No content
+          headers:
+            Allow:
+              $ref: '#/components/headers/Allow'
+  /customers:
+    get:
+      operationId: listCustomers
+      tags:
+      - customers
+      summary: List customers (paginate)
+      parameters:
+      - $ref: '#/components/parameters/Delay'
+      - $ref: '#/components/parameters/IncludeDeleted'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+      responses:
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '200':
+          description: Customers (one page)
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/TotalCount'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerList'
+        default:
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createCustomer
+      tags:
+      - customers
+      summary: Create a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '409':
+          description: A customer with this email already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        4XX:
+          $ref: '#/components/responses/Problem'
+  /customers/{customerId}:
+    parameters:
+    - $ref: '#/components/parameters/CustomerId'
+    get:
+      operationId: getCustomer
+      tags:
+      - customers
+      summary: Get a customer
+      parameters:
+      - $ref: '#/components/parameters/IncludeDeleted'
+      responses:
+        '200':
+          description: The customer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+    delete:
+      operationId: deleteCustomer
+      tags:
+      - customers
+      summary: Soft-delete a customer (still readable with includeDeleted=true)
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+components:
+  headers:
+    Allow:
+      description: Comma-separated list of allowed methods
+      required: true
+      schema:
+        type: string
+    TotalCount:
+      description: Number of records matching the filters, before pagination
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  parameters:
+    CustomerId:
+      name: customerId
+      in: path
+      required: true
+      schema:
+        type: string
+        examples:
+        - c-1
+    Delay:
+      name: delay
+      in: query
+      description: 'Optional deliberate delay in milliseconds (0 to 10000, scaled by the server''s LATENCY_SCALE).
+        Absent means no delay.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 10000
+        default: 0
+    IncludeDeleted:
+      name: includeDeleted
+      in: query
+      description: Also return soft-deleted records
+      schema:
+        type: boolean
+        default: false
+    Limit:
+      name: limit
+      in: query
+      description: Page size
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Offset:
+      name: offset
+      in: query
+      description: Number of records to skip
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema:
+        type: string
+        examples:
+        - p-1
+  responses:
+    BadRequest:
+      description: Malformed or invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Problem:
+      description: Error in RFC 7807 problem+json form
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ServiceUnavailable:
+      description: Too many deliberately slow requests are in progress; retry
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Customer:
+      type: object
+      required:
+      - id
+      - email
+      - name
+      - createdAt
+      properties:
+        id:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        phone:
+          type: string
+          pattern: ^\+?[0-9]{7,15}$
+        birthDate:
+          type:
+          - string
+          - 'null'
+          format: date
+        externalRef:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        preferences:
+          type: object
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        deletedAt:
+          type: string
+          format: date-time
+          readOnly: true
+    CustomerInput:
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      - name
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          examples:
+          - new@example.com
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          examples:
+          - New Customer
+        phone:
+          type: string
+          pattern: ^\+?[0-9]{7,15}$
+          examples:
+          - '+15550001111'
+        birthDate:
+          type:
+          - string
+          - 'null'
+          format: date
+          examples:
+          - '1985-03-09'
+        externalRef:
+          type: string
+          format: uuid
+          examples:
+          - 3f2b8c1e-5d4a-4c8e-9a7b-1e2d3c4b5a69
+        tags:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+          examples:
+          - - new
+        preferences:
+          type: object
+          maxProperties: 20
+          additionalProperties:
+            type: string
+          examples:
+          - lang: en
+    CustomerList:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+        total:
+          type: integer
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          examples:
+          - not_found
+        message:
+          type: string
+    ProblemDetails:
+      type: object
+      required:
+      - type
+      - title
+      - status
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+    Product:
+      type: object
+      required:
+      - id
+      - name
+      - price
+      - stock
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+        stock:
+          type: integer
+    ProductInput:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - price
+      - stock
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          examples:
+          - Gadget
+        price:
+          type: number
+          minimum: 0
+          examples:
+          - 9.99
+        stock:
+          type: integer
+          minimum: 0
+          examples:
+          - 10
+    ProductList:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        total:
+          type: integer
+    ProductPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          examples:
+          - Renamed
+        price:
+          type: number
+          minimum: 0
+          examples:
+          - 11.5
+        stock:
+          type: integer
+          minimum: 0
+          examples:
+          - 8
