@@ -228,6 +228,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Repro: `clrsig conform specs/conform-fail.yaml -b http://localhost:8080/conform-fail --env clrsig/environments/conform-fail.yaml --paths /hostile/invalid-utf8`.
   - Expected: a failure (`invalid-body`, CS-RESP-008), like the other bodies that are not valid JSON.
   - Pinned here by: `expectations/conform-fail.yaml`, case `hostile-invalid-utf8` (expects the wrong PASS, `reference: F-026`).
+  - Issue: https://github.com/fuvito/api-workbench/issues/4
   - Closed: —
 
 - [ ] **F-027 — Text after the JSON value in a response body is ignored (v0.8.4)**
@@ -237,6 +238,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Note: a scenario's `jsonpath` assertion on the same body does reject it (`invalid character 'g' after top-level value`), so `conform` and `run` disagree about the same response.
   - Expected: a failure (`invalid-body`, CS-RESP-008).
   - Pinned here by: `expectations/conform-fail.yaml`, case `hostile-trailing-garbage` (expects the wrong PASS, `reference: F-027`).
+  - Issue: https://github.com/fuvito/api-workbench/issues/5
   - Closed: —
 
 - [ ] **F-028 — A valid JSON number beyond float64 is a failure with no check ID (v0.8.4)**
@@ -246,6 +248,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Note: a scenario's `jsonpath` assertion on the same body fails too (`cannot unmarshal number 1e400 into Go value of type float64`).
   - Expected: either pass (a number the schema allows) or a finding with its own kind, a check ID and a message that says the number is outside what Clear Signal can represent.
   - Pinned here by: `expectations/conform-fail.yaml`, case `hostile-float-overflow` (`check: null`, `reference: F-028`).
+  - Issue: https://github.com/fuvito/api-workbench/issues/6
   - Closed: —
 
 
@@ -255,6 +258,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Repro: `clrsig conform specs/hostile/only-post.yaml -b http://localhost:1 --negative --env clrsig/environments/ok.yaml --request-timeout 300` (exit 1).
   - Expected: the headline says FAILED (or ERROR) when any probe errored, as the exit code does.
   - Pinned here by: `expectations/conform-fail.yaml`, run `probe-summary-says-passed-when-all-errored` (`reference: F-029`).
+  - Issue: https://github.com/fuvito/api-workbench/issues/7
   - Closed: —
 
 
@@ -264,6 +268,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Repro: `clrsig run clrsig/scenarios/conform-fail-edge-assertions.yaml --env clrsig/environments/conform-fail.yaml --spec specs/conform-fail.yaml` (steps `duplicate header, joined` and `set-cookie header`).
   - Expected: the assertion sees every value (joined with `, ` or any of them), so a second cookie can be checked.
   - Pinned here by: `expectations/conform-fail.yaml` (scenario `conform-fail-edge-assertions.yaml`, those two steps `passed: false`).
+  - Issue: https://github.com/fuvito/api-workbench/issues/8
   - Closed: —
 
 - [ ] **F-031 — An integer above 2^53 is rounded and printed in exponent form by `jsonpath` assertions and extractions (v0.8.4)**
@@ -272,6 +277,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Repro: `clrsig run clrsig/scenarios/conform-fail-edge-assertions.yaml --env clrsig/environments/conform-fail.yaml --spec specs/conform-fail.yaml` (steps `integer one above int64` and `read an id above 2^53 into a variable`).
   - Expected: an integer keeps its digits (decode with the number as text, or as int64 when it fits), in assertions and in extractions.
   - Pinned here by: `expectations/conform-fail.yaml` (the assertion step `passed: false`; the extraction step pins `extracted: {bigId: "9.223372036854776e+18"}`).
+  - Issue: https://github.com/fuvito/api-workbench/issues/9
   - Closed: —
 
 
@@ -281,6 +287,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Repro: `clrsig run clrsig/scenarios/conform-fail-failed-extraction.yaml --env clrsig/environments/conform-fail.yaml --spec specs/conform-fail.yaml; echo $?` prints `PASSED  0 passed, 1 failed` and `0`.
   - Expected: a failed extraction fails the step and the run (exit 1, headline FAILED, `passed: false`), like a failed assertion; the three report formats agree.
   - Pinned here by: `expectations/conform-fail.yaml`, run `failed-extraction-exits-zero` and the two extraction steps of `conform-fail-edge-assertions.yaml` (`passed: true`, with the error text).
+  - Issue: https://github.com/fuvito/api-workbench/issues/10
   - Closed: —
 
 ---
