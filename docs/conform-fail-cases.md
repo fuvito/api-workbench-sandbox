@@ -1,6 +1,6 @@
 # conform-fail: expected outcomes (response cases, sequences and commands; probes are in the expectations file)
 
-Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.7.1 and assume the F-010 spec copy (see `docs/clrsig-findings.md`). A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
+Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.2 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
 
 | Case | Path (under `/conform-fail`) | Expected | Check | Exit code | ClearSignal reports (or why it passes) |
 |---|---|---|---|---|---|
@@ -9,8 +9,8 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `wrong-method` | `/wrong-method` | fails | CS-RESP-001 | 1 | answered 405, but the spec declares only 200 |
 | `path-param-type` | `/path-param/{id}` | fails | CS-RESP-001 | 1 | answered 400, but the spec declares only 200 |
 | `requires-extra-header` | `/requires-extra-header` | fails | CS-RESP-001 | 1 | answered 400, but the spec declares only 201 |
-| `form-body` | `/form` | fails | CS-REQ-002 | 1 | request body does not fit the spec: value is required but missing |
-| `multipart-body` | `/multipart` | fails | CS-REQ-002 | 1 | request body does not fit the spec: value is required but missing |
+| `form-body` | `/form` | passes | CS-REQ-003 | 0 | the form fields are generated from the schema |
+| `multipart-body` | `/multipart` | passes | CS-REQ-003 | 0 | the multipart parts are generated from the schema |
 | `subscribe-with-callback` | `/subscribe` | passes | CS-GAP-010 | 0 | the callback is not exercised and the server never contacts it |
 | `requests-param-type-ok` | `/requests/param-type/{itemId}` | passes | none | 0 | itemId=7 from the right environment: a valid request, a correct response |
 | `requests-body-value-ok` | `/requests/body-value` | passes | none | 0 | amount=19.99 from the right environment |
@@ -56,10 +56,10 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | Run | Check | Exit code | ClearSignal reports |
 |---|---|---|---|
 | `req-001-wrong-parameter-type` | CS-REQ-001 | 1 | path parameter "itemId" does not fit the spec: value abc |
-| `req-002-wrong-body-value` | CS-REQ-002 | 1 | request body does not fit the spec: invalid character (the body message is the JSON parser's text (F-017)) |
+| `req-002-wrong-body-value` | CS-REQ-002 | 1 | request body field "amount" takes its value from \{\{amount\}\}, which is "cheap" |
 | `run-001-missing-placeholder` | CS-RUN-001 | 1 | not sent: no value for \{\{itemId\}\} |
 | `run-002-bad-dynamic-function-in-environment` | CS-RUN-002 | 1 | unknown function \$noSuchFunction |
-| `run-002b-bad-dynamic-function-in-scenario` | CS-RUN-002 | 2 | unknown function \$noSuchFunction (in a scenario the whole run aborts with exit 2 before any step (F-016)) |
+| `run-002b-bad-dynamic-function-in-scenario` | CS-RUN-002 | 2 | unknown function \$noSuchFunction (in a scenario the whole run still aborts with exit 2 before any step (F-016)) |
 | `run-003-server-down-wrong-base-url` | CS-RUN-003 | 1 | executing request |
 | `run-004a-unreadable-yaml` | CS-RUN-004 | 2 | parsing spec: loading spec: failed to unmarshal data |
 | `run-004b-not-an-openapi-document` | CS-RUN-004 | 2 | invalid OpenAPI spec: value of openapi must be a non-empty string |
@@ -69,7 +69,7 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `latency-3s-with-a-1s-timeout` | CS-RUN-003 | 1 | context deadline exceeded |
 | `latency-3s-with-a-6s-timeout` | none | 0 |  |
 | `large-binary-near-the-cap` | none | 0 |  |
-| `large-binary-over-the-cap` | none | 0 |  (51 MB: silently truncated, still a pass because binary bodies are not compared (F-019)) |
+| `large-binary-over-the-cap` | none | 0 |  (51 MB: cut off, still a pass because binary bodies are not compared) |
 | `large-json-near-the-cap` | none | 0 |  |
-| `large-json-over-the-cap` | CS-RESP-008 | 1 | unexpected EOF (valid JSON cut at 50 MB is reported as unexpected EOF: a false failure (F-019)) |
+| `large-json-over-the-cap` | CS-RESP-013 | 1 | larger than the 50 MB Clear Signal reads (valid JSON over the 50 MB read limit is reported as too large, not as a syntax error) |
 | `run-005-unset-environment-variable` | CS-RUN-005 | 0 | environment variable CLRSIG_UNSET_FIXTURE_VAR is not set |

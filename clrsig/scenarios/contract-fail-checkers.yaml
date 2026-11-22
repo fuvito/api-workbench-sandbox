@@ -4,8 +4,7 @@ description: >
   One step per case, each with ClearSignal's step spec check (checker A, from --spec) AND an
   explicit `schema` assertion (checker B, by operationId). The catalog says they differ:
   B ignores the status, the Content-Type and headers, and does not look at writeOnly.
-  Run with --spec <spec copy> (see scripts/clrsig_spec_copy.py and F-010); the schema
-  assertion itself matches by operationId and is not affected by F-010.
+  Run with --spec specs/contract-fail.yaml; the schema assertion itself matches by operationId.
   Every step uses failPolicy: continue so one failing case does not hide the others.
 
 steps:

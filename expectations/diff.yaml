@@ -7,7 +7,7 @@
 #
 # Run: uv run python scripts/check_expectations.py --expectations expectations/diff.yaml
 #
-# Holds for clrsig v0.7.1 (oasdiff rules as bundled). Do not edit a spec pair to change an
+# Holds for clrsig v0.8.2 (oasdiff rules as bundled). Do not edit a spec pair to change an
 # expectation.
 #
 # Where the notes disagree with what oasdiff reports: `deprecated-operation` is INFO
@@ -59,7 +59,7 @@ diffs:
 
 # `clrsig impact <base> <revision> <scenario>...`: which scenario steps call a breaking change.
 # Exit 1 when a step matches, 0 when none does. A placeholder in the step URL path stands for one
-# path segment (the notes expected this to be missed, CS-GAP-007; the catalog and v0.7.1 say it is
+# path segment (the notes expected this to be missed, CS-GAP-007; the catalog and v0.8.2 say it is
 # matched, so that gap is closed).
 impacts:
   - name: step-with-a-literal-id

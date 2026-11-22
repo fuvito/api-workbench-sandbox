@@ -8,7 +8,7 @@ description: >
     2. /lost-update ignores If-Match, so a stale writer overwrites the first writer.
     3. /timeout/after-write writes first and answers late, so a client that times out and retries
        creates a duplicate: the write took effect although the request "failed".
-  Run with --spec <spec copy> (F-010). The first step resets the family.
+  Run with --spec specs/conform-fail.yaml. The first step resets the family.
 
 steps:
   - label: reset

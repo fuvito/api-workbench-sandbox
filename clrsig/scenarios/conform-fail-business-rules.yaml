@@ -6,7 +6,7 @@ description: >
   step fails exactly where the server is wrong; the contract checks alone cannot see any of it
   (the responses match the spec). The expected outcome of every step is in
   expectations/conform-fail.yaml. The stale If-Match rule is the PUT /lost-update case of
-  conform-fail-write-bugs.yaml. Run with --spec <spec copy> (F-010). The first step resets the family.
+  conform-fail-write-bugs.yaml. Run with --spec specs/conform-fail.yaml. The first step resets the family.
 
 steps:
   - label: reset

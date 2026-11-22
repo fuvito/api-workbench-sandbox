@@ -20,7 +20,7 @@ Environment variables: `PORT` (8080), `HOST` (127.0.0.1), `PUBLIC_BASE_URL`, `DR
 | contract-fail | `/contract-fail` | `/contract-fail/openapi.yaml` | `GET /contract-fail/health` | `POST /contract-fail/__admin/reset` |
 | conform-fail | `/conform-fail` | `/conform-fail/openapi.yaml` | `GET /conform-fail/health` | `POST /conform-fail/__admin/reset` |
 
-The `ok` family also serves a small OpenAPI 3.1 variant at `GET /ok/openapi-3.1.yaml` (`specs/ok-3.1.yaml`: health, products and customers in the 3.1 dialect: type arrays with `"null"`, `const`, `examples` lists). It describes the same behavior, so it must conform too; `clrsig` v0.7.1 cannot build request bodies from 3.1 `examples` (F-021), pinned in `expectations/ok-31.yaml`.
+The `ok` family also serves a small OpenAPI 3.1 variant at `GET /ok/openapi-3.1.yaml` (`specs/ok-3.1.yaml`: health, products and customers in the 3.1 dialect: type arrays with `"null"`, `const`, `examples` lists). It describes the same behavior, so it must conform too (`expectations/ok-31.yaml`).
 
 Reset returns `204` and is not declared in the public specs. When `ADMIN_TOKEN` is set, reset and `GET <prefix>/__admin/state` need `Authorization: Bearer <ADMIN_TOKEN>`. State is in memory, shared by all callers, and lost on restart.
 
@@ -38,9 +38,9 @@ clrsig run clrsig/scenarios/ok-latency.yaml --env clrsig/environments/ok.yaml --
 clrsig run clrsig/scenarios/ok-parameters-and-paging.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 ```
 
-Expected with `clrsig` v0.7.1: all scenarios and `conform --negative`'s probes pass. `conform` itself reports 63 of 65 operations: `GET /lookup` and `GET /preferences` fail because `clrsig` cannot build an explode-false array or a required cookie (F-009, F-008 in `docs/clrsig-findings.md`); the server is correct and the scenarios cover both. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
+Expected with `clrsig` v0.8.2: all scenarios pass, `conform` reports 65 of 65 operations and `conform --negative` runs 62 probes that all pass. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
 
-Verified with released `clrsig` v0.7.1 (earlier versions have known issues; see `docs/clrsig-findings.md`).
+Verified with released `clrsig` v0.8.2 (earlier versions have known issues; see `docs/clrsig-findings.md`). With a spec that has `servers`, `-b` is the family's base (`http://localhost:8080/ok`) and `--paths` takes the spec's own paths.
 
 ## Run all the checks
 
@@ -56,7 +56,7 @@ uv run python scripts/check_expectations.py --expectations expectations/diff.yam
 
 Each prints one line per case and ends with `ALL AS EXPECTED` (exit 0) or `<n> MISMATCH(ES)` (exit 1): a case that unexpectedly passes, fails with another check, or changes exit code is a mismatch. `--section`, `--only` and `--cloud` narrow a run. The plain commands in "Run ClearSignal" below do not verify response behavior (F-010); these runners do.
 
-CI (`.github/workflows/ci.yml`): pytest, then the Docker image is built and started, `/health` of each family is polled, and the five expectation files run against the container (timing needs it). Pushes and pull requests use the released `clrsig` pinned in `CLRSIG_VERSION`; a nightly run builds `clrsig` from `api-workbench@main` to catch ClearSignal regressions. When a `clrsig` release changes behavior, the expectations that encode a known bug (F-003 to F-020) must flip with it; update them in the same change that bumps `CLRSIG_VERSION`.
+CI (`.github/workflows/ci.yml`): pytest, then the Docker image is built and started, `/health` of each family is polled, and the five expectation files run against the container (timing needs it). Pushes and pull requests use the released `clrsig` pinned in `CLRSIG_VERSION`; a nightly run builds `clrsig` from `api-workbench@main` to catch ClearSignal regressions. When a `clrsig` release changes behavior, the expectations that encode a known bug (today F-016 and F-022) must flip with it; update them in the same change that bumps `CLRSIG_VERSION`.
 
 ## `contract-fail` cases
 
@@ -67,7 +67,7 @@ uv run python scripts/check_expectations.py          # server running on :8080; 
 uv run python scripts/check_expectations.py --only resp-003-missing-required-header
 ```
 
-**Important (F-010 in `docs/clrsig-findings.md`):** `clrsig` v0.7.1 silently skips response validation for any spec that has a `servers` entry, so `clrsig conform specs/contract-fail.yaml` reports everything as PASS. The runner therefore checks a generated copy (`scripts/clrsig_spec_copy.py`: no `servers`, base path in each path, run with `-b`). Do not read a plain `clrsig conform` PASS on these specs as proof of anything.
+A plain run works too: `clrsig conform specs/contract-fail.yaml -b http://localhost:8080/contract-fail` reports 25 of 36 operations failing. (`clrsig` v0.7.1 silently skipped response validation for specs with `servers`, F-010, and needed a generated copy of the spec; that is fixed in v0.8.2.)
 
 ## `conform-fail` cases
 
@@ -91,10 +91,9 @@ uv run python scripts/check_expectations.py --expectations expectations/conform-
 ```
 
 Read before trusting a result:
-- **Timing expectations must run against the Docker container.** On a Windows host the server's delays overshoot intermittently, so the same expectations can fail there. ClearSignal measures no response time (F-018), so timing is pinned through request timeouts.
+- **Timing expectations must run against the Docker container.** On a Windows host the server's delays overshoot intermittently, so the same expectations can fail there. Timing is pinned through request timeouts (`clrsig` v0.8.2 can also limit response time, `--max-response-time`, but the expectations do not use it yet).
 - Entries marked `local_only` (transport behavior, bodies over 32 MB) are not claimed for Cloud Run; `--cloud` skips them.
 - Every wrong environment is marked DELIBERATELY WRONG. Run the drift cases with real servers: the runner starts them itself.
-- The F-010 caveat of `contract-fail` applies here too (and to coverage), and the probes need the text report (F-013, F-014).
 
 ## Latency
 
@@ -152,7 +151,7 @@ No handler makes an outbound request from caller input: there is no HTTP client 
 
 ## Troubleshooting
 
-- **A response check "passes" in a plain `clrsig conform` run:** it may have been skipped; specs with `servers` skip response validation (F-010). Use `scripts/clrsig_spec_copy.py` or `check_expectations.py`.
+- **A response check passes in a plain `clrsig conform` run with an older `clrsig`:** v0.7.1 and earlier skip response validation for specs with `servers` (F-010). Use v0.8.2 or later.
 - **Timing cases fail on Windows:** the host overshoots delays; run against the Docker container.
 - **Reset answers `401`:** `ADMIN_TOKEN` is set; send the bearer token, and export `ADMIN_TOKEN` for the runner.
 - **State looks wrong:** it is shared by every caller and lost on restart; reset the family first.
@@ -161,7 +160,7 @@ No handler makes an outbound request from caller input: there is no HTTP client 
 
 ## Known gaps and Cloud Run
 
-Known gaps: the open ClearSignal findings (F-003 to F-021, `docs/clrsig-findings.md`), the `local_only` transport and large-body cases (not verified on Cloud Run), unconfirmed fake credentials, and the report polling delay (poll-count progression, not wall-clock). Cloud Run is not deployed yet; preparation, verified settings and an unverified runbook are in `docs/cloud-run-prep.md`. On Cloud Run, scale-to-zero, a restart or an instance replacement erases all state, and simultaneous users share the same stores and can interfere with one another.
+Known gaps: the open ClearSignal findings (F-016 and F-022, `docs/clrsig-findings.md`), the `local_only` transport and large-body cases (not verified on Cloud Run), unconfirmed fake credentials, and the report polling delay (poll-count progression, not wall-clock). Cloud Run is not deployed yet; preparation, verified settings and an unverified runbook are in `docs/cloud-run-prep.md`. On Cloud Run, scale-to-zero, a restart or an instance replacement erases all state, and simultaneous users share the same stores and can interfere with one another.
 
 ## KT notes
 

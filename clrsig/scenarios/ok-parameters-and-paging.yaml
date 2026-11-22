@@ -3,8 +3,8 @@ title: ok - cursor paging, bulk operations, parameters and 403
 description: >
   Walks the cursor-paginated notifications, bulk create and delete (200 or 207), header and
   cookie parameters, array/date/date-time query parameters, and the 401/403 split on /stats.
-  The cookie and the array query string are written explicitly because ClearSignal v0.7.1
-  does not build them from the spec (F-008, F-009 in docs/clrsig-findings.md).
+  The cookie and the array query string are written explicitly so the scenario pins what the
+  server accepts, independent of how a client builds the request.
   Run with --spec <url>/ok/openapi.yaml.
 
 steps:
@@ -188,7 +188,7 @@ steps:
       - { type: jsonpath, path: "$.ratio", operator: eq, expected: "0.25" }
     failPolicy: continue
 
-  - label: The array as ClearSignal v0.7.1 writes it is rejected (F-009)
+  - label: A bracketed array is rejected
     request: { method: GET, url: "{{baseUrl}}/lookup?ids=%5B1%202%203%5D" }
     assertions:
       - { type: status, operator: eq, expected: 400 }

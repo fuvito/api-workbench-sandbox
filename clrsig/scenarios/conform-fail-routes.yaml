@@ -3,9 +3,9 @@ title: conform-fail - routes the spec and the server disagree about
 description: >
   Scenario steps on routes where the spec and the server disagree. The undocumented route
   exists on the server but not in the spec: a step on it cannot be compared with anything
-  (the catalog's CS-NC-001, "not checked"; ClearSignal v0.7.1 shows no sign of that state in any
+  (the catalog's CS-NC-001, "not checked"; ClearSignal shows no sign of that state in any
   report). The other two steps show how the step spec check sees a declared route the server
-  does not serve. Run with --spec <spec copy> (see scripts/clrsig_spec_copy.py and F-010).
+  does not serve. Run with --spec specs/conform-fail.yaml.
 
 steps:
   - label: undocumented

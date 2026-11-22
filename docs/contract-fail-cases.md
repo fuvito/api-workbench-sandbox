@@ -1,6 +1,6 @@
 # contract-fail: expected outcomes
 
-Generated from `expectations/contract-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/contract-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.7.1 and assume the F-010 spec copy (see `docs/clrsig-findings.md`). A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
+Generated from `expectations/contract-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/contract-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.2 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
 
 | Case | Path (under `/contract-fail`) | Expected | Check | Exit code | ClearSignal reports (or why it passes) |
 |---|---|---|---|---|---|
@@ -25,10 +25,10 @@ Generated from `expectations/contract-fail.yaml` by `uv run python scripts/check
 | `resp-007c-uniqueitems` | `/cases/resp-007c-uniqueitems` | fails | CS-RESP-007 | 1 | duplicate items found |
 | `resp-007d-null-not-nullable` | `/cases/resp-007d-null-not-nullable` | fails | CS-RESP-007 | 1 | Value is not nullable |
 | `resp-007e-bad-datetime` | `/cases/resp-007e-bad-datetime` | fails | CS-RESP-007 | 1 | format "date-time" |
-| `resp-008-invalid-json` | `/cases/resp-008-invalid-json` | fails | CS-RESP-008 | 1 | invalid character |
-| `resp-008b-empty-body` | `/cases/resp-008b-empty-body` | fails | CS-RESP-008 | 1 | EOF |
-| `resp-009-oneof-no-match` | `/cases/resp-009-oneof-no-match` | fails | CS-RESP-009 | 1 | doesn't match schema due to |
-| `resp-poly-discriminator-wrong` | `/cases/resp-poly-discriminator-wrong` | fails | CS-RESP-009 | 1 | doesn't match schema due to |
+| `resp-008-invalid-json` | `/cases/resp-008-invalid-json` | fails | CS-RESP-008 | 1 | not valid JSON \(invalid character |
+| `resp-008b-empty-body` | `/cases/resp-008b-empty-body` | fails | CS-RESP-008 | 1 | the response body is empty |
+| `resp-009-oneof-no-match` | `/cases/resp-009-oneof-no-match` | fails | CS-RESP-009 | 1 | matches none of the 2 shapes |
+| `resp-poly-discriminator-wrong` | `/cases/resp-poly-discriminator-wrong` | fails | CS-RESP-009 | 1 | matches none of the 2 shapes |
 | `resp-010-extra-property-closed` | `/cases/resp-010-extra-property-closed` | fails | CS-RESP-010 | 1 | property "extra" is unsupported |
 | `resp-011-writeonly-leak` | `/cases/resp-011-writeonly-leak` | fails | CS-RESP-011 | 1 | writeOnly property "password" in response |
 | `resp-012-xml-valid` | `/cases/resp-012-xml-valid` | passes | CS-NC-009 | 0 | application/xml has no decoder: the body is not compared and nothing is reported |

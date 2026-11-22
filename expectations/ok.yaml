@@ -1,17 +1,13 @@
 # Expected ClearSignal outcome for the `ok` API: it must conform exactly.
 #
-#   whole_spec   one plain `conform` run over every operation. Only the two operations in `failing`
-#                may fail, and both are ClearSignal bugs, not fixture bugs:
-#                  GET /preferences  F-008  a required cookie parameter is never sent
-#                  GET /lookup       F-009  an explode=false array query parameter is sent as "[1 2 3]"
-#                When those are fixed the entries must be removed (the run then expects exit 0).
+#   whole_spec   one plain `conform` run over every operation: all 65 must pass (exit 0).
 #   scenarios    every step of the five ok scenarios must pass.
-#   probes       `conform --negative` runs 44 probes and every one passes: the server rejects what it should.
+#   probes       `conform --negative` runs 62 probes and every one passes: the server rejects what it should.
 #
 # Run: uv run python scripts/check_expectations.py --expectations expectations/ok.yaml   (server on :8080)
 #
-# These expectations hold for clrsig v0.7.1 run through the spec copy that works around F-010
-# (docs/clrsig-findings.md). Do not edit a spec or handler to change an expectation.
+# These expectations hold for clrsig v0.8.2 run against the standard spec (docs/clrsig-findings.md).
+# Do not edit a spec or handler to change an expectation.
 
 format: 1
 family: ok
@@ -22,9 +18,6 @@ env: clrsig/environments/ok.yaml
 whole_spec:
   reset: true
   covers_all: true
-  failing:
-    - /preferences
-    - /lookup
 
 generation:
   operations: 65
@@ -122,7 +115,7 @@ scenarios:
       theme cookie: { passed: true }
       Missing theme cookie is 400: { passed: true }
       lookup parses every parameter type: { passed: true }
-      The array as ClearSignal v0.7.1 writes it is rejected (F-009): { passed: true }
+      A bracketed array is rejected: { passed: true }
       No token is 401: { passed: true }
       A valid token without the admin scope is 403: { passed: true }
       The admin token is 200: { passed: true }
@@ -168,7 +161,8 @@ probes:
   - { op: '/lookup', probes: 1, fail: [] }
   - { op: '/me', probes: 1, fail: [] }
   - { op: '/orders', probes: 4, fail: [] }
-  - { op: '/orders/{orderId}', probes: 4, fail: [] }
+  - { op: '/orders/{orderId}', probes: 6, fail: [] }
+  - { op: /payments, probes: 16, fail: [], why: "both oneOf branches are probed (missing field, wrong type); the server rejects every one" }
   - { op: '/partner-status', probes: 1, fail: [] }
   - { op: '/products', probes: 6, fail: [] }
   - { op: '/products/bulk', probes: 2, fail: [] }

@@ -64,7 +64,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
 - [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
 
-**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-020 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-021 closed with v0.8.2 except F-016; F-022 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [x] Add remaining resource families (customers, payments, invoices, discount codes, notifications, reports, settings, secured examples), kept within the 60 to 70 operation target.
@@ -75,11 +75,11 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Add response headers: `X-Total-Count`, `Allow`, `ETag`, `Location`, `Retry-After`, `WWW-Authenticate`, `X-RateLimit-*`, `X-Request-Id` (echoed or generated), optional `Cache-Control`.
 - [ ] Add `$ref`, `allOf`, `oneOf`, `anyOf`, discriminators, nullable/type arrays, maps, and additionalProperties cases. (Done: all except 3.1 type arrays, which wait for the 3.0/3.1 decision; `nullable` uses 3.0.)
 - [x] Add JSON, problem+json (customers), and text/plain (`GET /ok/version`) media types.
-- [x] Add bearer, basic, and API-key (header and query) security examples. Verified by `ok-schemas-and-security.yaml`; `conform` only authenticates bearer (F-005).
+- [x] Add bearer, basic, and API-key (header and query) security examples. Verified by `ok-schemas-and-security.yaml`; `conform` authenticates every scheme since v0.8.2 (F-005 closed).
 - [x] Add pagination (offset and cursor), filtering, sorting, bulk operations (atomic create, partial delete with 200/207), sub-resources, and actions.
 - [x] Add idempotency and ETag/If-Match examples.
 - [x] Grow toward the agreed operation target: 65 operations (target 60 to 70).
-- [ ] Verify every valid operation conforms. (`conform` passes 63 of 65 operations; the two failures are `GET /lookup` and `GET /preferences`, caused by `clrsig` findings F-009 and F-008, not by the server. The scenarios cover both operations.)
+- [x] Verify every valid operation conforms: `conform` passes 65 of 65 operations with `clrsig` v0.8.2 (v0.7.1 failed `GET /lookup` and `GET /preferences`, F-009 and F-008, closed).
 
 ### Light business rules
 - [x] Unique-value conflicts (`409`): customer email, case-insensitive, freed by soft delete. (Product SKU and tag name are not modeled.)
@@ -123,9 +123,9 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Add multi-problem case and document first-reported behavior.
 - [x] Add known-gap cases (`gap-format-email-uuid`, `gap-undeclared-header`, `gap-slow-response`) and not-checked cases (`nc-002-no-content-declared`, `nc-octet-stream`, `nc-no-content-type`, undocumented path). `nc-204-with-body` became `nc-002-no-content-declared`: HTTP forbids a body on a 204.
 - [x] Add scenario/expectation for every case: `expectations/contract-fail.yaml` (35 cases) and `clrsig/scenarios/contract-fail-checkers.yaml` (both response checkers side by side).
-- [x] Verify exact check IDs and exit codes: `scripts/check_expectations.py` runs every case, the whole spec and the scenario (35/35 cases, 14/14 steps). Verified through a spec copy because of F-010; IDs are recognized by finding kind and message because of F-012.
+- [x] Verify exact check IDs and exit codes: `scripts/check_expectations.py` runs every case, the whole spec and the scenario (35/35 cases, 14/14 steps). Since v0.8.2 the runner uses the standard specs (F-010 closed) and the `checkId` of each finding (F-012 closed).
 
-**ClearSignal findings from this phase:** F-010 (response checks silently skipped for specs with `servers`; the working copy `scripts/clrsig_spec_copy.py` is temporary), F-011 (imprecise kinds and messages), F-012 (no check IDs in output).
+**ClearSignal findings from this phase:** F-010 (response checks silently skipped for specs with `servers`), F-011 (imprecise kinds and messages), F-012 (no check IDs in output); all closed with v0.8.2, and the spec-copy script is deleted.
 
 **Exit criteria:** Every listed case has a spec operation, handler behavior, expected result, and automated verification.
 
@@ -146,13 +146,13 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Implement wrong-method case (`PATCH /wrong-method`: the server implements only PUT; CS-RESP-001).
 - [x] Implement path-parameter type mismatch (`GET /path-param/{id}`: integer in the spec, UUID on the server; CS-RESP-001).
 - [x] Implement undeclared extra-header requirement (`POST /requires-extra-header`; CS-RESP-001).
-- [x] Add form/multipart and callback known-gap fixtures: `POST /form` and `/multipart` (CS-GAP-006; they FAIL today with a request-body finding, F-015) and `POST /subscribe` with a callback (CS-GAP-010; passes). 3.1 `webhooks` are not covered (the spec is 3.0.3).
+- [x] Add form/multipart and callback known-gap fixtures: `POST /form` and `/multipart` (CS-GAP-006 is closed: v0.8.2 builds the bodies and they pass, F-015) and `POST /subscribe` with a callback (CS-GAP-010; passes). 3.1 `webhooks` are not covered (the spec is 3.0.3).
 
 ### Request construction and runtime failures
 - [x] Add wrong parameter environment value (`conform-fail-bad-values.yaml`, `itemId=abc` on `GET /requests/param-type/{itemId}`; CS-REQ-001).
-- [x] Add wrong body environment value (`amount=cheap` on `POST /requests/body-value`; CS-REQ-002, reported as a JSON syntax error, F-017).
+- [x] Add wrong body environment value (`amount=cheap` on `POST /requests/body-value`; CS-REQ-002, the message names the field and the declared type since v0.8.2, F-017).
 - [x] Add missing placeholder case (`conform-fail-missing-value.yaml`: the request is not sent; CS-RUN-001).
-- [x] Add bad dynamic function cases: through an environment value (exit 1) and in a scenario (the whole run aborts with exit 2, F-016); CS-RUN-002.
+- [x] Add bad dynamic function cases: through an environment value (exit 1) and in a scenario (the whole run aborts with exit 2, F-016, still open); CS-RUN-002.
 - [x] Add server-down/wrong-base-URL case (`-b http://localhost:1`; CS-RUN-003).
 - [x] Add unreadable/invalid spec cases: invalid YAML, valid YAML that is not OpenAPI, a missing file, a URL that returns 404; all CS-RUN-004, exit code 2.
 - [x] Add unset process-variable warning case (`conform-fail-unset-var.yaml`; CS-RUN-005, a warning, exit code unchanged).
@@ -170,7 +170,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Implement write-then-timeout behavior (`POST /timeout/after-write`: the record is stored, the answer comes 15 s later; shown by a scenario).
 - [x] Implement unavailable (`503` with `Retry-After`) and unavailable-then-OK (503 for the first 2 calls after reset) cases.
 - [x] Implement redirect loop (`/redirect-loop` only ever redirects to itself; ClearSignal stops after 10 redirects; CS-RUN-003).
-- [x] Implement bounded large responses around the client size cap (`/large` and `/large/json`, 0 to 60 MB; 49 MB passes, 51 MB is silently truncated, F-019); local only.
+- [x] Implement bounded large responses around the client size cap (`/large` and `/large/json`, 0 to 60 MB; 49 MB passes, 51 MB is reported as CS-RESP-013, F-019); local only.
 - [x] Add idempotency (`POST /idempotent`) and lost-update (`PUT /lost-update`) failure cases, visible only in `clrsig/scenarios/conform-fail-write-bugs.yaml`.
 - [x] Mark transport cases that cannot be reproduced reliably on Cloud Run as local-only (`local_only: true` in the expectations; `--cloud` skips them). Nothing is claimed for Cloud Run until it is verified there (Phase 6).
 
@@ -179,7 +179,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Add drift 0 and drift 1 expectations: the baseline ratchet with a real server per level (3 known/0 new at drift 0; 3 known/1 new, exit 1, CS-RUN-006 at drift 1; 1 fixed in the other direction; a missing baseline is exit 2).
 - [x] Add all spec-diff v1/v2 fixture pairs (13 under `specs/diff/`, one change each; `expectations/diff.yaml`). The notes' `deprecated-operation` is INFO in oasdiff, not WARN; the WARN case is `optional-param-removed`.
 - [x] Add impact cases (`clrsig/scenarios/impact/`): a literal id and a `{{userId}}` placeholder are both matched (CS-IMP-001); the notes expected the placeholder to be missed (CS-GAP-007), but that gap is closed in v0.7.1 and the catalog.
-- [x] Add coverage-signal scenarios (`clrsig/scenarios/coverage-gaps.yaml` with `specs/coverage/coverage.yaml`: one gap each of CS-COV-001 to 004). The command exits 1 on gaps (F-020); the standard spec matches nothing (F-010).
+- [x] Add coverage-signal scenarios (`clrsig/scenarios/coverage-gaps.yaml` with `specs/coverage/coverage.yaml`: one gap each of CS-COV-001 to 004). The command exits 0 since v0.8.2 (F-020) and matches the standard spec (F-010).
 - [x] Add business-rule failure scenarios (`clrsig/scenarios/conform-fail-business-rules.yaml`): stock, state transition, duplicate email, insufficient funds answered 200, unstable pagination, expired token; the stale ETag rule is the existing `PUT /lost-update` scenario.
 
 **Exit criteria:** Each case has an explicit expected result and is checked by the test harness.
@@ -231,7 +231,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 Why: `ok` is the baseline for what ClearSignal must handle, and valid OpenAPI 3.1 (type arrays, `null`, `const`, `examples`) is a different dialect from 3.0.3's `nullable`. It adds a document, not an API: no new handlers or state.
 - [x] Write `specs/ok-3.1.yaml` (15 operations, derived once from `ok.yaml`): a subset of `ok` (health, products, customers) in the 3.1 dialect, describing behavior the server already has.
 - [x] Serve it at `GET /ok/openapi-3.1.yaml` (same `servers` rewrite; not part of the 3.0.3 document).
-- [x] Verify with ClearSignal (generate, conform, probes) through the spec copy; outcome in `expectations/ok-31.yaml`: 11 of 15 operations pass, 4 fail on F-021 (3.1 `examples` ignored); probes 16 of 16.
+- [x] Verify with ClearSignal (generate, conform, probes) outcome in `expectations/ok-31.yaml`: 15 of 15 operations pass and 16 of 16 probes (F-021 closed with v0.8.2).
 - [x] Add to CI, README and a KT note (`docs/kts/ok-openapi-31.md`).
 
 ## Phase 7 — Release readiness
@@ -260,3 +260,11 @@ A feature is done only when:
 - Expected check IDs and exit codes are recorded.
 - CI verifies the expectation.
 - Local/cloud differences are documented where applicable.
+
+## ClearSignal v0.8.2 migration
+
+- [x] Verify every open finding against v0.8.2: F-003 to F-021 closed except F-016 (partly fixed); new F-022 (`writeOnly` finding without `checkId`).
+- [x] Move the expectations runner to the standard specs (no spec copy) and to `checkId`; delete `scripts/clrsig_spec_copy.py`.
+- [x] Flip the expectations the fixes changed (`ok` 65 of 65, form and multipart pass, new probes, CS-RESP-013, coverage exit 0, `lost-update` missing `If-Match` probe fails).
+- [x] Pin CI to `v0.8.2` (`CLRSIG_VERSION`).
+- [ ] Optional: use `--max-response-time` and the `duration` assertion for the timing cases (F-018 closed).

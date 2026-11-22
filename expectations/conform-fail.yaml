@@ -1,16 +1,16 @@
 # Expected ClearSignal outcome for the conform-fail cases.
 #
 # Same conventions as expectations/contract-fail.yaml (read its header). Sections in this file:
-#   probes   `clrsig conform --negative`: each operation's negative probes. ClearSignal prints no
-#            check IDs and puts no probe in JSON/JUnit (F-014) and ignores --paths for probes
-#            (F-013), so the runner runs `--negative` once and reads the text report.
+#   probes   `clrsig conform --negative`: each operation's negative probes. The runner runs
+#            `--negative` once for the whole spec and reads the text report; probes carry no check
+#            ID, so `probe_kinds` maps the start of each description to its CS-PROBE ID.
 #            `probes` is how many probes ClearSignal generates for the operation: when that
 #            changes (for example the day it probes enums or unknown fields, CS-GAP-009) the case
 #            must be reviewed. `fail` lists the probe descriptions that must FAIL, with their ID.
 #
 # Run: uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml
 #
-# Holds for clrsig v0.7.1 through the F-010 spec copy. Do not edit a spec or handler to change
+# Holds for clrsig v0.8.2 against the standard spec. Do not edit a spec or handler to change
 # an expectation.
 
 format: 1
@@ -25,22 +25,22 @@ probe_kinds:
   "missing required field": CS-PROBE-001
   "wrong type for field": CS-PROBE-002
   "missing required query param": CS-PROBE-003
+  "missing required header": CS-PROBE-003
   "no credentials": CS-PROBE-004
 
 # ---- spec and server disagree about what exists (slice 2) ----
 # Plain `conform` on each operation. A declared route the server does not serve answers 404/405/400,
 # which the spec does not declare: CS-RESP-001 every time (the notes' "and a conformance failure").
 cases:
-  - { case: ghost, path: /ghost, expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 404, but the spec declares only 200' }
-  - { case: orphan, path: /orphan, expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 405, but the spec declares only 204' }
-  - { case: wrong-method, path: /wrong-method, expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 405, but the spec declares only 200' }
-  - { case: path-param-type, path: '/path-param/{id}', expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 400, but the spec declares only 200' }
-  - { case: requires-extra-header, path: /requires-extra-header, expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 400, but the spec declares only 201' }
-  # CS-GAP-006: ClearSignal cannot build form or multipart bodies. Because the body is `required`,
-  # its own bodiless request fails validation and the operation FAILS although server and spec agree
-  # (F-015). Recorded as what happens today; the check is the request-body one (CS-REQ-002).
-  - { case: form-body, path: /form, expect: fail, check: CS-REQ-002, kind: request, message: 'request body does not fit the spec: value is required but missing', note: "consequence of CS-GAP-006, see F-015" }
-  - { case: multipart-body, path: /multipart, expect: fail, check: CS-REQ-002, kind: request, message: 'request body does not fit the spec: value is required but missing', note: "consequence of CS-GAP-006, see F-015" }
+  - { case: ghost, path: /ghost, expect: fail, check: CS-RESP-001, message: 'answered 404, but the spec declares only 200' }
+  - { case: orphan, path: /orphan, expect: fail, check: CS-RESP-001, message: 'answered 405, but the spec declares only 204' }
+  - { case: wrong-method, path: /wrong-method, expect: fail, check: CS-RESP-001, message: 'answered 405, but the spec declares only 200' }
+  - { case: path-param-type, path: '/path-param/{id}', expect: fail, check: CS-RESP-001, message: 'answered 400, but the spec declares only 200' }
+  - { case: requires-extra-header, path: /requires-extra-header, expect: fail, check: CS-RESP-001, message: 'answered 400, but the spec declares only 201' }
+  # CS-REQ-003: ClearSignal builds form and multipart bodies from the spec (CS-GAP-006 is closed, F-015),
+  # so both operations pass as the correct server and spec they are.
+  - { case: form-body, path: /form, expect: pass, reference: CS-REQ-003, why: "the form fields are generated from the schema" }
+  - { case: multipart-body, path: /multipart, expect: pass, reference: CS-REQ-003, why: "the multipart parts are generated from the schema" }
   # CS-GAP-010: the callback is not under paths and is never exercised; the operation that declares it passes.
   - { case: subscribe-with-callback, path: /subscribe, expect: pass, reference: CS-GAP-010, why: "the callback is not exercised and the server never contacts it" }
 
@@ -52,19 +52,19 @@ cases:
   # ClearSignal does not measure response time (CS-GAP-005, improvement request F-018), so timing
   # shows only through timeouts: a case "outlasts" a timeout when `args` sets a short one.
   # `local_only` marks transport behavior not verified on Cloud Run (run with --cloud to skip).
-  - { case: slow, path: /slow, args: ['--request-timeout', 1500], expect: fail, check: CS-RUN-003, kind: no-response, message: 'context deadline exceeded', note: "15 s against a 1.5 s timeout" }
+  - { case: slow, path: /slow, args: ['--request-timeout', 1500], expect: fail, check: CS-RUN-003, message: 'context deadline exceeded', note: "15 s against a 1.5 s timeout" }
   - { case: latency-within-timeout, path: '/latency/{ms}', expect: pass, reference: CS-GAP-005, why: "200 ms answered correctly; response time is not measured" }
-  - { case: unavailable, path: /unavailable, expect: fail, check: CS-RESP-001, kind: undeclared-status, message: 'answered 503, but the spec declares only 200' }
-  - { case: redirect-loop, path: /redirect-loop, expect: fail, check: CS-RUN-003, kind: no-response, message: 'stopped after 10 redirects' }
-  - { case: hang, path: /timeout/hang, args: ['--request-timeout', 1500], local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'context deadline exceeded' }
-  - { case: slow-headers-outlasts-timeout, path: /timeout/slow-headers, args: ['--request-timeout', 1500], local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'executing request.*context deadline exceeded' }
+  - { case: unavailable, path: /unavailable, expect: fail, check: CS-RESP-001, message: 'answered 503, but the spec declares only 200' }
+  - { case: redirect-loop, path: /redirect-loop, expect: fail, check: CS-RUN-003, message: 'stopped after 10 redirects' }
+  - { case: hang, path: /timeout/hang, args: ['--request-timeout', 1500], local_only: true, expect: fail, check: CS-RUN-003, message: 'context deadline exceeded' }
+  - { case: slow-headers-outlasts-timeout, path: /timeout/slow-headers, args: ['--request-timeout', 1500], local_only: true, expect: fail, check: CS-RUN-003, message: 'executing request.*context deadline exceeded' }
   - { case: slow-headers-within-timeout, path: /timeout/slow-headers, local_only: true, expect: pass, reference: CS-GAP-005, why: "4 s against the default 10 s timeout" }
-  - { case: slow-body, path: /timeout/slow-body, args: ['--request-timeout', 3000], local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'reading response body: context deadline exceeded', note: "headers arrive at once; the timeout hits while reading the body" }
-  - { case: truncated-body, path: /timeout/truncated-body, local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'reading response body: unexpected EOF', note: "the notes said CS-RUN-003 or CS-RESP-008: it is CS-RUN-003 (no response)" }
-  - { case: connection-reset, path: /timeout/connection-reset, local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'EOF' }
+  - { case: slow-body, path: /timeout/slow-body, args: ['--request-timeout', 3000], local_only: true, expect: fail, check: CS-RUN-003, message: 'reading response body: context deadline exceeded', note: "headers arrive at once; the timeout hits while reading the body" }
+  - { case: truncated-body, path: /timeout/truncated-body, local_only: true, expect: fail, check: CS-RUN-003, message: 'reading response body: unexpected EOF', note: "the notes said CS-RUN-003 or CS-RESP-008: it is CS-RUN-003 (no response)" }
+  - { case: connection-reset, path: /timeout/connection-reset, local_only: true, expect: fail, check: CS-RUN-003, message: 'EOF' }
   - { case: large-1mb, path: /large, expect: pass, reference: CS-NC-003, why: "a binary body is not compared" }
   - { case: large-json-1mb, path: /large/json, expect: pass, reference: null, why: "a valid 1 MB JSON body" }
-  - { case: after-write-outlasts-timeout, path: /timeout/after-write, args: ['--request-timeout', 1500], local_only: true, expect: fail, check: CS-RUN-003, kind: no-response, message: 'context deadline exceeded', note: "the write still took effect, see the scenario" }
+  - { case: after-write-outlasts-timeout, path: /timeout/after-write, args: ['--request-timeout', 1500], local_only: true, expect: fail, check: CS-RUN-003, message: 'context deadline exceeded', note: "the write still took effect, see the scenario" }
   - { case: after-write-records, path: /timeout/after-write/records, expect: pass, reference: null, why: "the records written so far" }
   - { case: idempotent-create, path: /idempotent, expect: pass, reference: null, why: "a single request cannot show the missing idempotency; see the scenario" }
   - { case: idempotent-records, path: /idempotent/records, expect: pass, reference: null, why: "the records created so far" }
@@ -78,7 +78,7 @@ cases:
   - { case: rules-create-customer, path: /rules/customers, expect: pass, reference: null, why: "the first customer; the duplicate is only visible in a scenario" }
   - { case: rules-items, path: /rules/items, expect: pass, reference: null, why: "a valid page; the repeat only shows across two pages" }
   - { case: rules-protected-token-not-known, path: /rules/protected, expect: pass, reference: null, why: "ClearSignal's test-token is unknown here: the declared 401" }
-  - { case: rules-withdraw-insufficient-funds, path: /rules/withdrawals, expect: fail, check: CS-RESP-005, kind: missing-field, where: id, message: 'property "id" is missing', note: "500 is above the balance: the declared 422 is answered 200 with an error body; the notes: CS-RESP-001 if 200 is declared with another shape, else a scenario assertion" }
+  - { case: rules-withdraw-insufficient-funds, path: /rules/withdrawals, expect: fail, check: CS-RESP-005, message: 'property "id" is missing', note: "500 is above the balance: the declared 422 is answered 200 with an error body; the notes: CS-RESP-001 if 200 is declared with another shape, else a scenario assertion" }
 
 # State-dependent behavior: reset, then call the operation several times and compare call by call.
 # Every counter lives in the store, so the same reset always gives the same sequence.
@@ -103,8 +103,6 @@ whole_spec:
     - /wrong-method
     - '/path-param/{id}'
     - /requires-extra-header
-    - /form
-    - /multipart
     - /slow
     - /unavailable
     - /unavailable-then-ok
@@ -124,30 +122,29 @@ runs:
   # CS-REQ-001 / CS-REQ-002: a value from the environment does not fit the declared type.
   - name: req-001-wrong-parameter-type
     check: CS-REQ-001
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-bad-values.yaml", --paths, /conform-fail/requests/param-type, --format, json]
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-bad-values.yaml", --paths, "/requests/param-type", --format, json]
     exit: 1
     finding: { kind: request, message: 'path parameter "itemId" does not fit the spec: value abc' }
   - name: req-002-wrong-body-value
     check: CS-REQ-002
-    note: "the body message is the JSON parser's text (F-017)"
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-bad-values.yaml", --paths, /conform-fail/requests/body-value, --format, json]
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-bad-values.yaml", --paths, "/requests/body-value", --format, json]
     exit: 1
-    finding: { kind: request, message: 'request body does not fit the spec: invalid character' }
+    finding: { kind: request, message: 'request body field "amount" takes its value from \{\{amount\}\}, which is "cheap"' }
 
   # CS-RUN-001 / CS-RUN-002: the request is not sent. Both share the finding kind `missing-value`.
   - name: run-001-missing-placeholder
     check: CS-RUN-001
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-missing-value.yaml", --paths, /conform-fail/requests/param-type, --format, json]
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-missing-value.yaml", --paths, "/requests/param-type", --format, json]
     exit: 1
     finding: { kind: missing-value, message: 'not sent: no value for \{\{itemId\}\}' }
   - name: run-002-bad-dynamic-function-in-environment
     check: CS-RUN-002
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-bad-function.yaml", --paths, /conform-fail/requests/param-type, --format, json]
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-bad-function.yaml", --paths, "/requests/param-type", --format, json]
     exit: 1
-    finding: { kind: missing-value, message: 'unknown function \$noSuchFunction' }
+    finding: { kind: dynamic-value-failed, check: CS-RUN-002, message: 'unknown function \$noSuchFunction' }
   - name: run-002b-bad-dynamic-function-in-scenario
     check: CS-RUN-002
-    note: "in a scenario the whole run aborts with exit 2 before any step (F-016)"
+    note: "in a scenario the whole run still aborts with exit 2 before any step (F-016)"
     args: [run, "{root}/clrsig/scenarios/conform-fail-bad-function.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml", --spec, "{spec}"]
     exit: 2
     output: 'unknown function \$noSuchFunction'
@@ -155,7 +152,7 @@ runs:
   # CS-RUN-003: no response.
   - name: run-003-server-down-wrong-base-url
     check: CS-RUN-003
-    args: [conform, "{spec}", -b, "http://localhost:1", --paths, /conform-fail/health, --format, json]
+    args: [conform, "{spec}", -b, "http://localhost:1", --paths, "/health", --format, json]
     exit: 1
     finding: { kind: no-response, message: 'executing request' }
 
@@ -185,78 +182,75 @@ runs:
   - name: slow-outlasts-the-default-timeout
     check: CS-RUN-003
     note: "takes about 10 s: the default request timeout"
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail.yaml", --paths, /conform-fail/slow, --format, json]
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail.yaml", --paths, "/slow", --format, json]
     exit: 1
     finding: { kind: no-response, message: 'context deadline exceeded' }
   - name: latency-3s-with-a-1s-timeout
     op: '/latency/{ms}'
     check: CS-RUN-003
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-latency-3s.yaml", --paths, "/conform-fail/latency/", --request-timeout, "1000", --format, json]
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-latency-3s.yaml", --paths, "/latency/", --request-timeout, "1000", --format, json]
     exit: 1
     finding: { kind: no-response, message: 'context deadline exceeded' }
   - name: latency-3s-with-a-6s-timeout
     op: '/latency/{ms}'
     reference: CS-GAP-005
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-latency-3s.yaml", --paths, "/conform-fail/latency/", --request-timeout, "6000", --format, json]
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-latency-3s.yaml", --paths, "/latency/", --request-timeout, "6000", --format, json]
     exit: 0
     passed: true
-  # The client reads at most 50 MB and cuts the rest off without a word (F-019).
+  # The client reads at most 50 MB; a larger body is reported as CS-RESP-013 (a binary one is still not compared).
   - name: large-binary-near-the-cap
     op: '/large'
     local_only: true
     reference: CS-NC-003
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-large-near-cap.yaml", --paths, /conform-fail/large, --format, json]
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-large-near-cap.yaml", --paths, "/large", --format, json]
     exit: 0
     passed: true
   - name: large-binary-over-the-cap
     op: '/large'
     local_only: true
     reference: CS-NC-003
-    note: "51 MB: silently truncated, still a pass because binary bodies are not compared (F-019)"
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-large-over-cap.yaml", --paths, /conform-fail/large, --format, json]
+    note: "51 MB: cut off, still a pass because binary bodies are not compared"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-large-over-cap.yaml", --paths, "/large", --format, json]
     exit: 0
     passed: true
   - name: large-json-near-the-cap
     op: '/large/json'
     local_only: true
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-large-near-cap.yaml", --paths, /conform-fail/large/json, --format, json]
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-large-near-cap.yaml", --paths, "/large/json", --format, json]
     exit: 0
     passed: true
   - name: large-json-over-the-cap
     op: '/large/json'
     local_only: true
-    check: CS-RESP-008
-    note: "valid JSON cut at 50 MB is reported as unexpected EOF: a false failure (F-019)"
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-large-over-cap.yaml", --paths, /conform-fail/large/json, --format, json]
+    check: CS-RESP-013
+    note: "valid JSON over the 50 MB read limit is reported as too large, not as a syntax error"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-large-over-cap.yaml", --paths, "/large/json", --format, json]
     exit: 1
-    finding: { kind: other, message: 'unexpected EOF' }
+    finding: { kind: body-too-large, check: CS-RESP-013, message: 'larger than the 50 MB Clear Signal reads' }
 
   # CS-RUN-005: an unset ${NAME} in the environment file is only a warning; the exit code is unchanged.
   - name: run-005-unset-environment-variable
     check: CS-RUN-005
     unset: [CLRSIG_UNSET_FIXTURE_VAR]
-    args: [conform, "{spec}", -b, "{base}", --env, "{root}/clrsig/environments/conform-fail-unset-var.yaml", --paths, /conform-fail/strict/no-auth, --format, json]
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-unset-var.yaml", --paths, "/strict/no-auth", --format, json]
     exit: 0
     passed: true
     output: 'environment variable CLRSIG_UNSET_FIXTURE_VAR is not set'
 
 # Coverage signals (catalog 2.3): a scenario that deliberately leaves one gap of each kind, run into
 # a fresh workspace, then `clrsig coverage quality --format json`. The spec is the four-operation
-# subset in specs/coverage/coverage.yaml. The signals are meant to be "not failures", but the command
-# exits 1 when it finds gaps (F-020). With the STANDARD spec (servers present) coverage matches no
-# operation at all, the same cause as F-010: the second block pins that.
+# subset in specs/coverage/coverage.yaml. The signals are not failures: the command exits 0.
 coverage:
   spec: specs/coverage/coverage.yaml
   scenario: clrsig/scenarios/coverage-gaps.yaml
   env: clrsig/environments/conform-fail.yaml
-  exit: 1
+  exit: 0
   totals: { total: 4, covered: 3, notCovered: 1, passing: 3, failing: 0 }
   never_exercised: ['POST /strict/wrong-type']            # CS-COV-001
   happy_path_only: ['GET /strict/missing-query']          # CS-COV-002
   errors_never_triggered:                                 # CS-COV-003
     - { op: 'GET /strict/missing-query', missing: [400] }
   secured_never_authed: ['GET /strict/no-auth']           # CS-COV-004
-  standard_spec: { covered: 0 }
 
 # The baseline ratchet (CS-RUN-006). The drift level is set at startup (--drift=<n>) and never changes
 # while the server runs, so the runner starts one real server per drift level on a free port.
@@ -271,13 +265,10 @@ drift:
     - { name: drift-0-fixes-one-violation, drift: 0, mode: use, file: one, exit: 0, output: 'Baseline: 3 known, 0 new, 1 fixed', fixed: ['GET /drift/report'] }
     - { name: a-missing-baseline-file-is-an-error, drift: 0, mode: use-missing, file: none, exit: 2, output: 'reading baseline' }
 
-# What ClearSignal builds from the spec (clrsig generate): pins the two request-generation gaps.
+# What ClearSignal builds from the spec (clrsig generate): every operation but the callback.
 generation:
   operations: 56              # one per operation under paths; the callback is not among them (CS-GAP-010)
-  bodiless:                   # CS-GAP-006: the spec declares a body, ClearSignal writes none
-    - { operation: formBody, media: application/x-www-form-urlencoded }
-    - { operation: multipartBody, media: multipart/form-data }
-  with_body: [subscribe, lenientMissingField]   # control: JSON bodies are generated
+  with_body: [subscribe, lenientMissingField, formBody, multipartBody]   # JSON, form and multipart bodies are generated
   not_generated: [onEventCallback]
 
 # The undocumented route and the step spec check (checker A) on declared-but-unserved routes.
@@ -357,4 +348,4 @@ probes:
   - { op: /rules/customers, probes: 2, fail: [], reference: null, why: "the body is validated" }
   - { op: /rules/withdrawals, probes: 2, fail: [], reference: null, why: "the body is validated" }
   - { op: /rules/protected, probes: 1, fail: [], reference: null, why: "missing credentials are rejected; the expired token is not probed (CS-GAP-008)" }
-  - { op: /lost-update, probes: 2, fail: [], reference: null, why: "the body is validated; the ignored If-Match is not probed (CS-GAP-009)" }
+  - { op: /lost-update, probes: 3, fail: [{ probe: "missing required header 'If-Match'", check: CS-PROBE-003 }] }   # the server ignores If-Match altogether

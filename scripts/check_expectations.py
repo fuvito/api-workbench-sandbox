@@ -9,12 +9,9 @@ The server must be running (default http://localhost:8080). Exit code 0 only whe
 produced exactly its expected outcome: a case that unexpectedly passes, fails with another
 finding, or changes exit code makes the run fail.
 
-ClearSignal prints no check IDs (F-012), so a response failure is recognized by its JSON finding
-`kind`, its `where` and a regex on the validator's message; a probe by its text in the report
-(F-014: probes are not in JSON). All of it is recorded in the expectations file.
-
-The runner checks a generated spec copy because of ClearSignal finding F-010; see
-scripts/clrsig_spec_copy.py. This is a facility of the test harness only: the specs stay as written.
+A response failure is recognized by the `checkId` ClearSignal puts on each finding in its JSON
+report, plus a regex on the validator's message; a probe by its text in the report. Everything is
+recorded in the expectations file. Written for clrsig v0.8.2 and later.
 """
 
 import argparse
@@ -28,9 +25,6 @@ import urllib.request
 from pathlib import Path
 
 import yaml
-
-sys.path.insert(0, str(Path(__file__).parent))
-from clrsig_spec_copy import make_copy  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 CLOUD = False  # --cloud: skip every entry marked `local_only: true` (transport behavior not verified on Cloud Run)
@@ -54,11 +48,17 @@ def load_json(stdout: str, what: str):
         raise SystemExit(f"cannot read clrsig's JSON for {what}: {exc}\n{stdout[:500]}") from exc
 
 
-def conform_args(spec: dict, copy: Path, base_url: str) -> list[str]:
-    args = ["conform", str(copy), "-b", base_url]
+def conform_args(spec: dict, spec_file: Path, base_url: str) -> list[str]:
+    # the spec keeps its `servers` block (standard), so the base is the family's, prefix included
+    args = ["conform", str(spec_file), "-b", base_url + spec["prefix"]]
     if spec.get("env"):
         args += ["--env", str(ROOT / spec["env"])]
     return args
+
+
+def norm(path: str) -> str:
+    """ClearSignal writes a path parameter as {{id}}; the specs write {id}."""
+    return path.replace("{{", "{").replace("}}", "}")
 
 
 def case_path(spec: dict, case: dict) -> str:
@@ -82,13 +82,13 @@ def reset_family(spec: dict, base_url: str) -> None:
 # ---- response cases: one operation at a time ----
 
 
-def check_case(case: dict, spec: dict, copy: Path, base_url: str) -> list[str]:
+def check_case(case: dict, spec: dict, spec_file: Path, base_url: str) -> list[str]:
     """Return a list of problems (empty means the case behaved as expected)."""
     path = case_path(spec, case)
-    # --paths is a prefix filter and ClearSignal writes path parameters as {{id}}, so filter on the
-    # part before the first parameter and compare the normalized path.
+    # --paths is a prefix filter on the spec's own paths (no family prefix) and ClearSignal writes
+    # path parameters as {{id}}, so filter on the part before the first parameter.
     code, out, _ = clrsig(
-        *conform_args(spec, copy, base_url), "--paths", path.split("{")[0], "--format", "json",
+        *conform_args(spec, spec_file, base_url), "--paths", path.removeprefix(spec["prefix"]).split("{")[0], "--format", "json",
         *[str(a) for a in case.get("args") or []],
     )
     report = load_json(out, case["case"])
@@ -96,7 +96,7 @@ def check_case(case: dict, spec: dict, copy: Path, base_url: str) -> list[str]:
     # --paths is a PREFIX filter, so /unavailable also runs /unavailable-then-ok. Pick the
     # operation(s) by exact path and judge the outcome from them, not from the whole command's exit
     # code. The extra calls are harmless: every stateful case resets its family first.
-    ran = [o for o in ran_all if o["path"].replace("{{", "{").replace("}}", "}") == path]
+    ran = [o for o in ran_all if spec["prefix"] + norm(o["path"]) == path]
     want_ops = case.get("operations", 1)  # a path can carry several methods (GET and PUT)
     if len(ran) != want_ops:
         return [f"expected {want_ops} operation(s) at {path}, got {[o['method'] + ' ' + o['path'] for o in ran_all]}"]
@@ -135,17 +135,19 @@ def check_case(case: dict, spec: dict, copy: Path, base_url: str) -> list[str]:
         problems.append(f"expected exactly one finding, got {len(findings)}: {[f['kind'] for f in findings]}")
     if findings:
         finding = findings[0]
-        if finding["kind"] != case["kind"]:
+        # `reported` is the checkId ClearSignal puts in the report when it differs from the catalog's
+        # (null: the finding carries none, F-022); `check` is the catalog ID the case is about.
+        if finding.get("checkId") != case.get("reported", case["check"]):
+            problems.append(f"check {finding.get('checkId')}, expected {case.get('reported', case['check'])}")
+        if "kind" in case and finding["kind"] != case["kind"]:
             problems.append(f"finding kind '{finding['kind']}', expected '{case['kind']}'")
-        if "where" in case and finding.get("where") != case["where"]:
-            problems.append(f"finding location '{finding.get('where')}', expected '{case['where']}'")
     text = " || ".join(messages)
     if not re.search(case["message"], text):
         problems.append(f"message does not match /{case['message']}/: {text[:160]}")
     return problems
 
 
-def run_response_cases(spec: dict, copy: Path, base_url: str, only: set[str] | None) -> int:
+def run_response_cases(spec: dict, spec_file: Path, base_url: str, only: set[str] | None) -> int:
     cases = spec.get("cases") or []
     failures = 0
     print(f"\nconform, one case at a time ({len(cases)} cases)")
@@ -155,7 +157,7 @@ def run_response_cases(spec: dict, copy: Path, base_url: str, only: set[str] | N
         if skipped(case):
             print(f"  skip  {case['case']:<36} (local only)")
             continue
-        problems = check_case(case, spec, copy, base_url)
+        problems = check_case(case, spec, spec_file, base_url)
         label = case.get("check") or ("pass" + (f" ({case['reference']})" if case.get("reference") else ""))
         print(f"  {'ok  ' if not problems else 'FAIL'}  {case['case']:<36} {label}")
         for problem in problems:
@@ -164,7 +166,7 @@ def run_response_cases(spec: dict, copy: Path, base_url: str, only: set[str] | N
     return failures
 
 
-def run_whole_spec(spec: dict, copy: Path, base_url: str) -> int:
+def run_whole_spec(spec: dict, spec_file: Path, base_url: str) -> int:
     """Acceptance: the plain conform run exits 1 exactly when some case should fail, and the
     failing operations are exactly the expected ones."""
     cases = spec.get("cases") or []
@@ -180,10 +182,10 @@ def run_whole_spec(spec: dict, copy: Path, base_url: str) -> int:
     if options.get("reset"):
         reset_family(spec, base_url)
     extra = ["--request-timeout", str(options["request_timeout"])] if options.get("request_timeout") else []
-    code, out, _ = clrsig(*conform_args(spec, copy, base_url), "--format", "json", *extra)
+    code, out, _ = clrsig(*conform_args(spec, spec_file, base_url), "--format", "json", *extra)
     report = load_json(out, "whole spec")
     failing = {
-        o["path"].replace("{{", "{").replace("}}", "}")
+        spec["prefix"] + norm(o["path"])
         for o in report["operations"]
         if not o.get("passed") and not o.get("skipped")
     }
@@ -204,8 +206,8 @@ def run_whole_spec(spec: dict, copy: Path, base_url: str) -> int:
 # ---- scenario: checker A (step spec check) and checker B (schema assertion) ----
 
 
-def check_scenario(entry: dict, copy: Path) -> list[tuple[str, list[str], str]]:
-    args = ["run", str(ROOT / entry["file"]), "--env", str(ROOT / entry["env"]), "--spec", str(copy), "--format", "json"]
+def check_scenario(entry: dict, spec_file: Path) -> list[tuple[str, list[str], str]]:
+    args = ["run", str(ROOT / entry["file"]), "--env", str(ROOT / entry["env"]), "--spec", str(spec_file), "--format", "json"]
     _, out, _ = clrsig(*args)
     steps = {s["name"]: s for s in load_json(out, entry["file"])["steps"]}
     results = []
@@ -235,11 +237,11 @@ def check_scenario(entry: dict, copy: Path) -> list[tuple[str, list[str], str]]:
     return results
 
 
-def run_scenarios(spec: dict, copy: Path) -> int:
+def run_scenarios(spec: dict, spec_file: Path) -> int:
     failures = 0
     for entry in spec.get("scenarios") or []:
         print(f"\nscenario {entry['file']}")
-        for name, problems, shown in check_scenario(entry, copy):
+        for name, problems, shown in check_scenario(entry, spec_file):
             print(f"  {'ok  ' if not problems else 'FAIL'}  {name:<36} {shown}")
             for problem in problems:
                 print(f"        - {problem}")
@@ -250,15 +252,16 @@ def run_scenarios(spec: dict, copy: Path) -> int:
 # ---- whole commands: wrong environments, scenarios that cannot run, unreadable specs, ... ----
 
 
-def check_run(entry: dict, copy: Path, base_url: str, prefix: str = "") -> list[str]:
+def check_run(entry: dict, spec_file: Path, base_url: str, prefix: str = "") -> list[str]:
     """Run one ClearSignal command and compare exit code, finding and output text.
 
-    `args` may use {spec} (the generated spec copy), {base} (the base URL) and {root} (the repo).
+    `args` may use {spec} (the family's spec), {base} (the server's base URL), {fbase} (the base URL
+    with the family prefix) and {root} (the repo).
     `unset` lists process variables removed from the command's environment. `finding` applies to
     the one operation that ran (kind, and a regex over its messages); `output` is a regex over
     everything the command printed.
     """
-    args = [a.format(spec=str(copy), base=base_url, root=str(ROOT)) for a in entry["args"]]
+    args = [a.format(spec=str(spec_file), base=base_url, fbase=base_url + prefix, root=str(ROOT)) for a in entry["args"]]
     code, out, err = clrsig(*args, unset=tuple(entry.get("unset") or ()))
     problems = []
     if code != entry["exit"]:
@@ -274,8 +277,7 @@ def check_run(entry: dict, copy: Path, base_url: str, prefix: str = "") -> list[
         if entry.get("op"):
             # --paths is a prefix filter: pick the operation by its exact path, and judge the exit
             # code from that operation alone (the others it dragged in are not under test).
-            target = prefix + entry["op"]
-            ran = [o for o in ran if o["path"].replace("{{", "{").replace("}}", "}") == target]
+            ran = [o for o in ran if norm(o["path"]) == entry["op"]]
             problems = [p for p in problems if not p.startswith("exit code")]
             derived = 0 if all(o["passed"] for o in ran) else 1
             if ran and derived != entry["exit"]:
@@ -292,6 +294,8 @@ def check_run(entry: dict, copy: Path, base_url: str, prefix: str = "") -> list[
                 problems.append(f"expected exactly one finding, got {[f['kind'] for f in findings]}")
             elif findings[0]["kind"] != want["kind"]:
                 problems.append(f"finding kind '{findings[0]['kind']}', expected '{want['kind']}'")
+            elif "check" in want and findings[0].get("checkId") != want["check"]:
+                problems.append(f"check {findings[0].get('checkId')}, expected {want['check']}")
             messages = " || ".join(
                 (op.get("violations") or []) + (op.get("requestViolations") or []) + [op.get("blocked") or "", op.get("error") or ""]
             )
@@ -300,7 +304,7 @@ def check_run(entry: dict, copy: Path, base_url: str, prefix: str = "") -> list[
     return problems
 
 
-def run_runs(spec: dict, copy: Path, base_url: str) -> int:  # noqa: C901
+def run_runs(spec: dict, spec_file: Path, base_url: str) -> int:  # noqa: C901
     runs = spec.get("runs") or []
     if not runs:
         return 0
@@ -310,7 +314,7 @@ def run_runs(spec: dict, copy: Path, base_url: str) -> int:  # noqa: C901
         if skipped(entry):
             print(f"  skip  {entry['name']:<40} (local only)")
             continue
-        problems = check_run(entry, copy, base_url, spec["prefix"])
+        problems = check_run(entry, spec_file, base_url, spec["prefix"])
         label = entry.get("check") or ("pass" + (f" ({entry['reference']})" if entry.get("reference") else ""))
         print(f"  {'ok  ' if not problems else 'FAIL'}  {entry['name']:<40} exit {entry['exit']}  {label}")
         for problem in problems:
@@ -322,7 +326,7 @@ def run_runs(spec: dict, copy: Path, base_url: str) -> int:  # noqa: C901
 # ---- call sequences: state-dependent behavior (a counter, a degrading delay) ----
 
 
-def run_sequences(spec: dict, copy: Path, base_url: str) -> int:
+def run_sequences(spec: dict, spec_file: Path, base_url: str) -> int:
     """Reset the family, call one operation several times, and compare each outcome in order.
 
     `outcomes` is a list of pass / fail per call. `fail` pins the finding every failed call must
@@ -338,7 +342,7 @@ def run_sequences(spec: dict, copy: Path, base_url: str) -> int:
         if skipped(seq):
             print(f"  skip  {seq['name']:<40} (local only)")
             continue
-        path = spec["prefix"] + seq["path"]
+        path = seq["path"]
         problems: list[str] = []
         runs = seq.get("repeat", 1)
         shown = ""
@@ -347,7 +351,7 @@ def run_sequences(spec: dict, copy: Path, base_url: str) -> int:
             got = []
             for call in range(1, len(seq["outcomes"]) + 1):
                 code, out, _ = clrsig(
-                    *conform_args(spec, copy, base_url), "--paths", path, "--format", "json",
+                    *conform_args(spec, spec_file, base_url), "--paths", path, "--format", "json",
                     *[str(a) for a in seq.get("args") or []],
                 )
                 ran = [o for o in load_json(out, seq["name"])["operations"] if not o.get("skipped")]
@@ -363,6 +367,8 @@ def run_sequences(spec: dict, copy: Path, base_url: str) -> int:
                     text = " || ".join((op.get("violations") or []) + [op.get("error") or "", op.get("blocked") or ""])
                     if len(findings) != 1 or findings[0]["kind"] != want["kind"]:
                         problems.append(f"call {call}: finding {[f['kind'] for f in findings]}, expected {want['kind']}")
+                    elif "check" in want and findings[0].get("checkId") != want["check"]:
+                        problems.append(f"call {call}: check {findings[0].get('checkId')}, expected {want['check']}")
                     if not re.search(want["message"], text):
                         problems.append(f"call {call}: message does not match /{want['message']}/: {text[:120]}")
             if got != seq["outcomes"]:
@@ -379,14 +385,14 @@ def run_sequences(spec: dict, copy: Path, base_url: str) -> int:
 # ---- what `clrsig generate` builds from the spec (request generation gaps) ----
 
 
-def run_generation(spec: dict, copy: Path) -> int:
+def run_generation(spec: dict, spec_file: Path) -> int:
     """Pin CS-GAP-006 (form and multipart bodies are generated without a body) and CS-GAP-010
     (callbacks are not generated) by looking at the request files ClearSignal writes."""
     gen = spec.get("generation")
     if not gen:
         return 0
     with tempfile.TemporaryDirectory() as out:
-        code, _, err = clrsig("generate", str(copy), "-o", out, "-b", "http://localhost")
+        code, _, err = clrsig("generate", str(spec_file), "-o", out, "-b", "http://localhost")
         files = {f.stem: yaml.safe_load(f.read_text(encoding="utf-8")) for f in Path(out).glob("*.yaml")}
     problems = []
     if code != 0:
@@ -422,12 +428,12 @@ def probe_check(description: str, kinds: dict[str, str]) -> str | None:
     return None
 
 
-def run_probes(spec: dict, copy: Path, base_url: str) -> int:
-    """One `--negative` run for the whole spec (probes ignore --paths, F-013), attributed to each
-    operation from the text report (probes are not in the JSON, F-014)."""
+def run_probes(spec: dict, spec_file: Path, base_url: str) -> int:
+    """One `--negative` run for the whole spec, attributed to each operation from the text report
+    (the JSON report has the probes too, but the text carries the description the expectations quote)."""
     entries = spec.get("probes") or []
     kinds = spec.get("probe_kinds") or {}
-    code, out, _ = clrsig(*conform_args(spec, copy, base_url), "--negative")
+    code, out, _ = clrsig(*conform_args(spec, spec_file, base_url), "--negative")
     seen: dict[str, list[tuple[str, str]]] = {}
     for line in out.splitlines():
         match = PROBE_LINE.match(line)
@@ -438,8 +444,7 @@ def run_probes(spec: dict, copy: Path, base_url: str) -> int:
     print(f"\nnegative probes ({sum(len(v) for v in seen.values())} probes over {len(seen)} operations)")
     expected_failing_total = 0
     for entry in entries:
-        path = spec["prefix"] + entry["op"]
-        probes = seen.get(path, [])
+        probes = seen.get(entry["op"], [])
         failed = [d for status, d in probes if status == "FAIL"]
         expected = entry.get("fail") or []
         expected_failing_total += len(expected)
@@ -459,7 +464,7 @@ def run_probes(spec: dict, copy: Path, base_url: str) -> int:
             print(f"        - {problem}")
         failures += bool(problems)
 
-    unexpected = sorted(set(seen) - {spec["prefix"] + e["op"] for e in entries})
+    unexpected = sorted(set(seen) - {e["op"] for e in entries})
     if unexpected:
         print(f"  FAIL  probes ran for operations not in the expectations: {unexpected}")
         failures += 1
@@ -528,37 +533,29 @@ def run_impacts(spec: dict) -> int:
 # ---- coverage signals ----
 
 
-def strip_prefix(operation: str, prefix: str) -> str:
-    """`GET /conform-fail/strict/x` -> `GET /strict/x` (the spec copy carries the prefix)."""
-    method, _, path = operation.partition(" ")
-    return f"{method} {path.removeprefix(prefix)}"
-
-
 def run_coverage(spec: dict, base_url: str) -> int:
     """Run the gap-leaving scenario into a fresh workspace and read the four quality signals as JSON."""
     cov = spec.get("coverage")
     if not cov:
         return 0
-    prefix = spec["prefix"]
     problems = []
     with tempfile.TemporaryDirectory() as tmp:
-        copy = Path(tmp) / "coverage.yaml"
-        make_copy(str(ROOT / cov["spec"]), prefix, str(copy))
+        spec_file = ROOT / cov["spec"]
         workspace = Path(tmp) / "workspace"
         workspace.mkdir()
-        run_args = ["run", str(ROOT / cov["scenario"]), "--env", str(ROOT / cov["env"]), "--spec", str(copy), "-w", str(workspace)]
+        run_args = ["run", str(ROOT / cov["scenario"]), "--env", str(ROOT / cov["env"]), "--spec", str(spec_file), "-w", str(workspace)]
         code, _, _ = clrsig(*run_args)
         if code != 0:
             problems.append(f"the scenario run exited {code}, expected 0")
-        code, out, _ = clrsig("coverage", "quality", str(copy), "-w", str(workspace), "--format", "json")
+        code, out, _ = clrsig("coverage", "quality", str(spec_file), "-w", str(workspace), "--format", "json")
         if code != cov["exit"]:
-            problems.append(f"coverage quality exit code {code}, expected {cov['exit']} (F-020)")
+            problems.append(f"coverage quality exit code {code}, expected {cov['exit']}")
         report = load_json(out, "coverage quality")
         for key, got, want in (
-            ("never_exercised", [strip_prefix(o, prefix) for o in report.get("neverExercised") or []], cov["never_exercised"]),
-            ("happy_path_only", [strip_prefix(o, prefix) for o in report.get("happyPathOnly") or []], cov["happy_path_only"]),
-            ("secured_never_authed", [strip_prefix(o, prefix) for o in report.get("securedNeverAuthed") or []], cov["secured_never_authed"]),
-            ("errors_never_triggered", [f"{strip_prefix(e['operation'], prefix)} -> {e['missing']}" for e in report.get("errorsNeverTriggered") or []],
+            ("never_exercised", report.get("neverExercised") or [], cov["never_exercised"]),
+            ("happy_path_only", report.get("happyPathOnly") or [], cov["happy_path_only"]),
+            ("secured_never_authed", report.get("securedNeverAuthed") or [], cov["secured_never_authed"]),
+            ("errors_never_triggered", [f"{e['operation']} -> {e['missing']}" for e in report.get("errorsNeverTriggered") or []],
              [f"{e['op']} -> {e['missing']}" for e in cov["errors_never_triggered"]]),
         ):
             if sorted(got) != sorted(want):
@@ -568,16 +565,6 @@ def run_coverage(spec: dict, base_url: str) -> int:
             if totals.get(key) != want:
                 problems.append(f"totals.{key} = {totals.get(key)}, expected {want}")
 
-        # The same scenario with the STANDARD spec (servers present): coverage matches nothing (F-010).
-        std = cov.get("standard_spec")
-        if std:
-            ws2 = Path(tmp) / "workspace-standard"
-            ws2.mkdir()
-            clrsig("run", str(ROOT / cov["scenario"]), "--env", str(ROOT / cov["env"]), "--spec", str(ROOT / cov["spec"]), "-w", str(ws2))
-            _, out2, _ = clrsig("coverage", "quality", str(ROOT / cov["spec"]), "-w", str(ws2), "--format", "json")
-            report2 = load_json(out2, "coverage quality (standard spec)")
-            if (report2.get("totals") or {}).get("covered") != std["covered"]:
-                problems.append(f"standard spec: covered {(report2.get('totals') or {}).get('covered')}, expected {std['covered']}")
     print(f"\ncoverage signals (fresh workspace, {cov['scenario']})")
     print(f"  {'ok  ' if not problems else 'FAIL'}  CS-COV-001 {len(cov['never_exercised'])}, CS-COV-002 {len(cov['happy_path_only'])}, CS-COV-003 {len(cov['errors_never_triggered'])}, CS-COV-004 {len(cov['secured_never_authed'])}")
     for problem in problems:
@@ -619,7 +606,7 @@ def _start_server(drift: int) -> tuple[subprocess.Popen, str]:
     raise SystemExit(f"the drift-{drift} server did not start")
 
 
-def run_drift(spec: dict, copy: Path) -> int:
+def run_drift(spec: dict, spec_file: Path) -> int:
     """Record baselines at one drift level and run at another: the ratchet (CS-RUN-006)."""
     drift = spec.get("drift")
     if not drift:
@@ -635,7 +622,7 @@ def run_drift(spec: dict, copy: Path) -> int:
                 if level not in servers:
                     servers[level] = _start_server(level)
                 url = servers[level][1]
-                args = [*conform_args(spec, copy, url), "--paths", ",".join(spec["prefix"] + p for p in drift["paths"])]
+                args = [*conform_args(spec, spec_file, url), "--paths", ",".join(drift["paths"])]
                 file = baselines.setdefault(step["file"], Path(tmp) / f"{step['file']}.yaml")
                 if step["mode"] == "write":
                     args += ["--write-baseline", str(file)]
@@ -653,9 +640,8 @@ def run_drift(spec: dict, copy: Path) -> int:
                 for kind in ("NEW", "FIXED"):
                     got = sorted(re.findall(rf"^\s*{kind}\s+(\S+ \S+)", text, re.M))
                     expected = sorted(step.get(kind.lower()) or [])
-                    got_plain = sorted(strip_prefix(g, spec["prefix"]) for g in got)
-                    if got_plain != expected:
-                        problems.append(f"{kind} {got_plain}, expected {expected}")
+                    if got != expected:
+                        problems.append(f"{kind} {got}, expected {expected}")
                 label = step.get("check") or "baseline"
                 print(f"  {'ok  ' if not problems else 'FAIL'}  {step['name']:<44} drift {level}  exit {step['exit']}  {label}")
                 for problem in problems:
@@ -761,7 +747,7 @@ def main() -> int:
     CLOUD = args.cloud
 
     spec = yaml.safe_load((ROOT / args.expectations).read_text(encoding="utf-8"))
-    if spec.get("family") == "diff":  # spec against spec: no server, no spec copy
+    if spec.get("family") == "diff":  # spec against spec: no server, no spec to prepare
         if args.table:
             return print_diff_table(spec)
         print(f"{clrsig('--version')[1].strip()}  |  {args.expectations}  |  no server needed")
@@ -774,8 +760,7 @@ def main() -> int:
     print(f"{clrsig('--version')[1].strip()}  |  {args.expectations}  |  {args.base_url}")
 
     with tempfile.TemporaryDirectory() as tmp:
-        copy = Path(tmp) / "spec.yaml"
-        make_copy(str(ROOT / spec["spec"]), spec["prefix"], str(copy))
+        spec_file = ROOT / spec["spec"]
         failures = 0
 
         in_spec = set(yaml.safe_load((ROOT / spec["spec"]).read_text(encoding="utf-8"))["paths"])
@@ -790,24 +775,24 @@ def main() -> int:
             return chosen is None or name in chosen
 
         if wanted("cases") and spec.get("cases"):
-            failures += run_response_cases(spec, copy, args.base_url, only)
+            failures += run_response_cases(spec, spec_file, args.base_url, only)
         if not only:
             if wanted("whole"):
-                failures += run_whole_spec(spec, copy, args.base_url)
+                failures += run_whole_spec(spec, spec_file, args.base_url)
             if wanted("scenarios"):
-                failures += run_scenarios(spec, copy)
+                failures += run_scenarios(spec, spec_file)
             if wanted("generation"):
-                failures += run_generation(spec, copy)
+                failures += run_generation(spec, spec_file)
             if wanted("runs"):
-                failures += run_runs(spec, copy, args.base_url)
+                failures += run_runs(spec, spec_file, args.base_url)
             if wanted("sequences"):
-                failures += run_sequences(spec, copy, args.base_url)
+                failures += run_sequences(spec, spec_file, args.base_url)
             if wanted("coverage"):
                 failures += run_coverage(spec, args.base_url)
             if wanted("drift"):
-                failures += run_drift(spec, copy)
+                failures += run_drift(spec, spec_file)
             if wanted("probes") and spec.get("probes"):
-                failures += run_probes(spec, copy, args.base_url)
+                failures += run_probes(spec, spec_file, args.base_url)
 
     print(f"\n{'ALL AS EXPECTED' if not failures else str(failures) + ' MISMATCH(ES)'}")
     return 1 if failures else 0
