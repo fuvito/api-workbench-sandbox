@@ -19,3 +19,6 @@ variables:
     value: "200"
   - name: mb
     value: "1"
+  # The seeded order for the /rules/orders/{orderId} operations (slice 5).
+  - name: orderId
+    value: "o-1"

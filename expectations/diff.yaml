@@ -1,0 +1,90 @@
+# Expected `clrsig diff` and `clrsig impact` results for the spec-against-spec fixtures.
+#
+# No server is involved: every case is a pair of small specs, specs/diff/<case>/v1.yaml and v2.yaml,
+# with ONE change each. `clrsig diff` classifies each change with oasdiff's own rules and ids
+# (ERR breaking, WARN potentially breaking, INFO informational); `--fail-on breaking|warning|info`
+# sets which level fails the run. `exit` is the exit code at each --fail-on level.
+#
+# Run: uv run python scripts/check_expectations.py --expectations expectations/diff.yaml
+#
+# Holds for clrsig v0.7.1 (oasdiff rules as bundled). Do not edit a spec pair to change an
+# expectation.
+#
+# Where the notes disagree with what oasdiff reports: `deprecated-operation` is INFO
+# (`endpoint-deprecated`), not WARN as the source notes expected; the WARN case (CS-DIFF-002) is
+# `optional-param-removed`.
+
+format: 1
+family: diff
+
+diffs:
+  # ---- breaking (ERR): CS-DIFF-001 ----
+  - { case: removed-endpoint, check: CS-DIFF-001, exit: { breaking: 1, warning: 1, info: 1 }, changes: [{ level: ERR, id: api-path-removed-without-deprecation }] }
+  - { case: new-required-request-field, check: CS-DIFF-001, exit: { breaking: 1, warning: 1, info: 1 }, changes: [{ level: ERR, id: request-property-became-required }] }
+  - { case: optional-to-required-param, check: CS-DIFF-001, exit: { breaking: 1, warning: 1, info: 1 }, changes: [{ level: ERR, id: request-parameter-became-required }] }
+  - { case: enum-value-removed, check: CS-DIFF-001, exit: { breaking: 1, warning: 1, info: 1 }, changes: [{ level: ERR, id: request-parameter-enum-value-removed }] }
+  # The User schema is used by three operations, so a change to it is reported once per use.
+  - case: renamed-field
+    check: CS-DIFF-001
+    exit: { breaking: 1, warning: 1, info: 1 }
+    changes:
+      - { level: ERR, id: response-required-property-removed }
+      - { level: ERR, id: response-required-property-removed }
+      - { level: ERR, id: response-required-property-removed }
+      - { level: INFO, id: response-required-property-added }
+      - { level: INFO, id: response-required-property-added }
+      - { level: INFO, id: response-required-property-added }
+  - case: type-narrowed
+    check: CS-DIFF-001
+    exit: { breaking: 1, warning: 1, info: 1 }
+    changes:
+      - { level: ERR, id: response-property-type-changed }
+      - { level: ERR, id: response-property-type-changed }
+      - { level: ERR, id: response-property-type-changed }
+
+  # ---- warning (WARN): CS-DIFF-002 ----
+  - { case: optional-param-removed, check: CS-DIFF-002, exit: { breaking: 0, warning: 1, info: 1 }, changes: [{ level: WARN, id: request-parameter-removed }] }
+
+  # ---- informational (INFO): CS-DIFF-003 ----
+  - { case: deprecated-operation, check: CS-DIFF-003, exit: { breaking: 0, warning: 0, info: 1 }, changes: [{ level: INFO, id: endpoint-deprecated }] }
+  - { case: endpoint-added, check: CS-DIFF-003, exit: { breaking: 0, warning: 0, info: 1 }, changes: [{ level: INFO, id: endpoint-added }] }
+  - { case: non-success-response-removed, check: CS-DIFF-003, exit: { breaking: 0, warning: 0, info: 1 }, changes: [{ level: INFO, id: response-non-success-status-removed }] }
+
+  # ---- no change at all ----
+  - { case: description-changed, check: null, exit: { breaking: 0, warning: 0, info: 0 }, changes: [] }
+
+  # The pairs the impact cases below use (the same breaking change as removed-endpoint).
+  - { case: impact-hit, check: CS-DIFF-001, exit: { breaking: 1, warning: 1, info: 1 }, changes: [{ level: ERR, id: api-path-removed-without-deprecation }] }
+  - { case: impact-placeholder-path, check: CS-DIFF-001, exit: { breaking: 1, warning: 1, info: 1 }, changes: [{ level: ERR, id: api-path-removed-without-deprecation }] }
+
+# `clrsig impact <base> <revision> <scenario>...`: which scenario steps call a breaking change.
+# Exit 1 when a step matches, 0 when none does. A placeholder in the step URL path stands for one
+# path segment (the notes expected this to be missed, CS-GAP-007; the catalog and v0.7.1 say it is
+# matched, so that gap is closed).
+impacts:
+  - name: step-with-a-literal-id
+    pair: impact-hit
+    check: CS-IMP-001
+    scenarios: [clrsig/scenarios/impact/calls-removed-endpoint.yaml]
+    exit: 1
+    hits: ["calls-removed-endpoint.yaml: Fetch user 1"]
+  - name: step-with-a-placeholder-in-the-path
+    pair: impact-placeholder-path
+    check: CS-IMP-001
+    scenarios: [clrsig/scenarios/impact/calls-removed-endpoint-placeholder.yaml]
+    exit: 1
+    hits: ["calls-removed-endpoint-placeholder.yaml: Fetch a user by variable"]
+  - name: control-steps-on-untouched-operations
+    pair: impact-hit
+    check: null
+    scenarios: [clrsig/scenarios/impact/calls-untouched-endpoints.yaml]
+    exit: 0
+    hits: []
+  - name: the-whole-folder-at-once
+    pair: impact-hit
+    check: CS-IMP-001
+    scenarios: [clrsig/scenarios/impact]
+    exit: 1
+    hits:
+      - "calls-removed-endpoint.yaml: Fetch user 1"
+      - "calls-removed-endpoint-placeholder.yaml: Fetch a user by variable"

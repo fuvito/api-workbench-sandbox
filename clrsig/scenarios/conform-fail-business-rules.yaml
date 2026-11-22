@@ -1,0 +1,120 @@
+schemaVersion: "1"
+title: conform-fail - business rules the server breaks
+description: >
+  The rules of the ok API (stock, order states, unique values, insufficient funds, pagination,
+  expiry), broken here in ways the spec does not describe. Each step asserts the CORRECT rule, so a
+  step fails exactly where the server is wrong; the contract checks alone cannot see any of it
+  (the responses match the spec). The expected outcome of every step is in
+  expectations/conform-fail.yaml. The stale If-Match rule is the PUT /lost-update case of
+  conform-fail-write-bugs.yaml. Run with --spec <spec copy> (F-010). The first step resets the family.
+
+steps:
+  - label: reset
+    request: { method: POST, url: "{{baseUrl}}/__admin/reset" }
+    assertions:
+      - { type: status, operator: eq, expected: 204 }
+    failPolicy: stop
+
+  # ---- stock must never go below zero ----
+  - label: an order above the stock is refused
+    request:
+      method: POST
+      url: "{{baseUrl}}/rules/orders"
+      body: { type: json, content: '{"quantity":8}' }
+    assertions:
+      - { type: status, operator: eq, expected: 422 }
+    failPolicy: continue
+
+  - label: the stock stays at zero or more
+    request: { method: GET, url: "{{baseUrl}}/rules/stock" }
+    assertions:
+      - { type: jsonpath, path: "$.stock", operator: gt, expected: "-1" }
+    failPolicy: continue
+
+  # ---- a shipped order cannot be cancelled ----
+  - label: create an order within the stock
+    request:
+      method: POST
+      url: "{{baseUrl}}/rules/orders"
+      body: { type: json, content: '{"quantity":1}' }
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+    extractions:
+      - { name: shippedOrderId, source: jsonpath, path: "$.id" }
+    failPolicy: stop
+
+  - label: ship it
+    request: { method: POST, url: "{{baseUrl}}/rules/orders/{{shippedOrderId}}/ship" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.status", operator: eq, expected: "shipped" }
+    failPolicy: stop
+
+  - label: a shipped order cannot be cancelled
+    request: { method: POST, url: "{{baseUrl}}/rules/orders/{{shippedOrderId}}/cancel" }
+    assertions:
+      - { type: status, operator: eq, expected: 409 }
+    failPolicy: continue
+
+  # ---- unique email ----
+  - label: first customer
+    request:
+      method: POST
+      url: "{{baseUrl}}/rules/customers"
+      body: { type: json, content: '{"email":"ada@example.com"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+    failPolicy: stop
+
+  - label: a duplicate email is refused
+    request:
+      method: POST
+      url: "{{baseUrl}}/rules/customers"
+      body: { type: json, content: '{"email":"ada@example.com"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 409 }
+    failPolicy: continue
+
+  # ---- insufficient funds ----
+  - label: withdrawing more than the balance is a 422
+    request:
+      method: POST
+      url: "{{baseUrl}}/rules/withdrawals"
+      body: { type: json, content: '{"amount":500}' }
+    assertions:
+      - { type: status, operator: eq, expected: 422 }
+    failPolicy: continue
+
+  # ---- stable pagination ----
+  - label: page 1
+    request: { method: GET, url: "{{baseUrl}}/rules/items?limit=3&offset=0" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    extractions:
+      - { name: lastOnPage1, source: jsonpath, path: "$.items[2].id" }
+    failPolicy: stop
+
+  - label: page 2 does not repeat the last item of page 1
+    request: { method: GET, url: "{{baseUrl}}/rules/items?limit=3&offset=3" }
+    assertions:
+      - { type: jsonpath, path: "$.items[0].id", operator: ne, expected: "{{lastOnPage1}}" }
+    failPolicy: continue
+
+  # ---- an expired token is refused ----
+  - label: a valid token is accepted
+    request:
+      method: GET
+      url: "{{baseUrl}}/rules/protected"
+      headers: [{ name: Authorization, value: "Bearer valid-token" }]
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue
+
+  - label: an expired token is refused
+    request:
+      method: GET
+      url: "{{baseUrl}}/rules/protected"
+      headers: [{ name: Authorization, value: "Bearer expired-token" }]
+    assertions:
+      - { type: status, operator: eq, expected: 401 }
+    failPolicy: continue

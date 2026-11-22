@@ -69,6 +69,16 @@ cases:
   - { case: idempotent-create, path: /idempotent, expect: pass, reference: null, why: "a single request cannot show the missing idempotency; see the scenario" }
   - { case: idempotent-records, path: /idempotent/records, expect: pass, reference: null, why: "the records created so far" }
   - { case: lost-update, path: /lost-update, operations: 2, expect: pass, reference: null, why: "GET and PUT each conform; the lost update shows only in a scenario" }
+  - { case: drift-report-at-drift-0, path: /drift/report, expect: pass, reference: null, why: "the default drift level: total is an integer; at drift 1 it becomes a string (see the drift section)" }
+  # ---- slice 5: business rules the server breaks (the contract checks cannot see them) ----
+  - { case: rules-stock, path: /rules/stock, expect: pass, reference: null, why: "a correct response; the rule is broken elsewhere" }
+  - { case: rules-create-order, path: /rules/orders, expect: pass, reference: null, why: "quantity 1 is within the stock; the response matches the spec" }
+  - { case: rules-ship-order, path: '/rules/orders/{orderId}/ship', expect: pass, reference: null, why: "200 or the declared 409, whichever state o-1 is in" }
+  - { case: rules-cancel-order, path: '/rules/orders/{orderId}/cancel', expect: pass, reference: null, why: "200 (also for a shipped order, the broken rule) or the declared 409" }
+  - { case: rules-create-customer, path: /rules/customers, expect: pass, reference: null, why: "the first customer; the duplicate is only visible in a scenario" }
+  - { case: rules-items, path: /rules/items, expect: pass, reference: null, why: "a valid page; the repeat only shows across two pages" }
+  - { case: rules-protected-token-not-known, path: /rules/protected, expect: pass, reference: null, why: "ClearSignal's test-token is unknown here: the declared 401" }
+  - { case: rules-withdraw-insufficient-funds, path: /rules/withdrawals, expect: fail, check: CS-RESP-005, kind: missing-field, where: id, message: 'property "id" is missing', note: "500 is above the balance: the declared 422 is answered 200 with an error body; the notes: CS-RESP-001 if 200 is declared with another shape, else a scenario assertion" }
 
 # State-dependent behavior: reset, then call the operation several times and compare call by call.
 # Every counter lives in the store, so the same reset always gives the same sequence.
@@ -105,6 +115,7 @@ whole_spec:
     - /timeout/truncated-body
     - /timeout/connection-reset
     - /timeout/after-write
+    - /rules/withdrawals
 
 # ---- requests that do not fit, and runs that cannot happen (slice 3) ----
 # Whole commands: the wrong environment files are next to the right one in clrsig/environments/.
@@ -229,9 +240,40 @@ runs:
     passed: true
     output: 'environment variable CLRSIG_UNSET_FIXTURE_VAR is not set'
 
+# Coverage signals (catalog 2.3): a scenario that deliberately leaves one gap of each kind, run into
+# a fresh workspace, then `clrsig coverage quality --format json`. The spec is the four-operation
+# subset in specs/coverage/coverage.yaml. The signals are meant to be "not failures", but the command
+# exits 1 when it finds gaps (F-020). With the STANDARD spec (servers present) coverage matches no
+# operation at all, the same cause as F-010: the second block pins that.
+coverage:
+  spec: specs/coverage/coverage.yaml
+  scenario: clrsig/scenarios/coverage-gaps.yaml
+  env: clrsig/environments/conform-fail.yaml
+  exit: 1
+  totals: { total: 4, covered: 3, notCovered: 1, passing: 3, failing: 0 }
+  never_exercised: ['POST /strict/wrong-type']            # CS-COV-001
+  happy_path_only: ['GET /strict/missing-query']          # CS-COV-002
+  errors_never_triggered:                                 # CS-COV-003
+    - { op: 'GET /strict/missing-query', missing: [400] }
+  secured_never_authed: ['GET /strict/no-auth']           # CS-COV-004
+  standard_spec: { covered: 0 }
+
+# The baseline ratchet (CS-RUN-006). The drift level is set at startup (--drift=<n>) and never changes
+# while the server runs, so the runner starts one real server per drift level on a free port.
+# Drift 0 behaves as documented; drift 1 breaks one NEW operation (GET /drift/report).
+drift:
+  paths: [/ghost, /orphan, /wrong-method, /drift/report]
+  steps:
+    - { name: record-the-baseline-at-drift-0, drift: 0, mode: write, file: zero, exit: 0, output: 'Baseline written: 3 violations recorded' }
+    - { name: drift-0-against-its-own-baseline, drift: 0, mode: use, file: zero, exit: 0, output: 'Baseline: 3 known, 0 new, 0 fixed' }
+    - { name: drift-1-has-one-new-violation, drift: 1, mode: use, file: zero, exit: 1, check: CS-RUN-006, output: 'Baseline: 3 known, 1 new, 0 fixed', new: ['GET /drift/report'] }
+    - { name: record-a-baseline-at-drift-1, drift: 1, mode: write, file: one, exit: 0, output: 'Baseline written: 4 violations recorded' }
+    - { name: drift-0-fixes-one-violation, drift: 0, mode: use, file: one, exit: 0, output: 'Baseline: 3 known, 0 new, 1 fixed', fixed: ['GET /drift/report'] }
+    - { name: a-missing-baseline-file-is-an-error, drift: 0, mode: use-missing, file: none, exit: 2, output: 'reading baseline' }
+
 # What ClearSignal builds from the spec (clrsig generate): pins the two request-generation gaps.
 generation:
-  operations: 47              # one per operation under paths; the callback is not among them (CS-GAP-010)
+  operations: 56              # one per operation under paths; the callback is not among them (CS-GAP-010)
   bodiless:                   # CS-GAP-006: the spec declares a body, ClearSignal writes none
     - { operation: formBody, media: application/x-www-form-urlencoded }
     - { operation: multipartBody, media: multipart/form-data }
@@ -264,6 +306,26 @@ scenarios:
       the write took effect anyway:   { passed: true, note: "... yet the record exists: a retry would duplicate it" }
 
 # `clrsig conform --negative`: each operation's negative probes (see the header).
+  # Seven business rules, each broken on purpose: the steps assert the CORRECT rule, so exactly the
+  # steps on the broken rules fail (passed: false). The stale If-Match rule is the lost-update
+  # scenario above.
+  - file: clrsig/scenarios/conform-fail-business-rules.yaml
+    env: clrsig/environments/conform-fail.yaml
+    steps:
+      reset:                                              { passed: true }
+      an order above the stock is refused:                { passed: false, note: "RULE: stock. Accepted (201) instead of 422" }
+      the stock stays at zero or more:                    { passed: false, note: "RULE: stock. The stock is -3" }
+      create an order within the stock:                   { passed: true }
+      ship it:                                            { passed: true }
+      a shipped order cannot be cancelled:                { passed: false, note: "RULE: order states. 200 instead of 409" }
+      first customer:                                     { passed: true }
+      a duplicate email is refused:                       { passed: false, note: "RULE: unique values. 201 instead of 409" }
+      withdrawing more than the balance is a 422:         { passed: false, note: "RULE: insufficient funds. 200 with an error body instead of 422" }
+      page 1:                                             { passed: true }
+      page 2 does not repeat the last item of page 1:     { passed: false, note: "RULE: stable pagination. i-3 appears on both pages" }
+      a valid token is accepted:                          { passed: true }
+      an expired token is refused:                        { passed: false, note: "RULE: expiry. 200 instead of 401" }
+
 probes:
   # ---- lenient: each fails exactly one probe kind ----
   - { op: /lenient/missing-field, probes: 2, fail: [{ probe: "missing required field 'name'", check: CS-PROBE-001 }] }
@@ -291,4 +353,8 @@ probes:
   - { op: /requests/body-value, probes: 2, fail: [], reference: null, why: "the server validates the number strictly" }
   - { op: /large, probes: 1, fail: [], reference: null, why: "a missing mb is rejected" }
   - { op: /large/json, probes: 1, fail: [], reference: null, why: "a missing mb is rejected" }
+  - { op: /rules/orders, probes: 2, fail: [], reference: null, why: "the body is validated" }
+  - { op: /rules/customers, probes: 2, fail: [], reference: null, why: "the body is validated" }
+  - { op: /rules/withdrawals, probes: 2, fail: [], reference: null, why: "the body is validated" }
+  - { op: /rules/protected, probes: 1, fail: [], reference: null, why: "missing credentials are rejected; the expired token is not probed (CS-GAP-008)" }
   - { op: /lost-update, probes: 2, fail: [], reference: null, why: "the body is validated; the ignored If-Match is not probed (CS-GAP-009)" }

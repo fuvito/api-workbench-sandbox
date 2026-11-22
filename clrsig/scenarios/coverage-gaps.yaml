@@ -1,0 +1,33 @@
+schemaVersion: "1"
+title: coverage - a scenario set that deliberately leaves gaps
+description: >
+  Run against the strict group of the conform-fail API, with specs/coverage/coverage.yaml, to leave
+  exactly one coverage gap of each kind:
+    GET  /strict/missing-query  only ever answered 200      -> happy path only (CS-COV-002) and its declared 400 never triggered (CS-COV-003)
+    GET  /strict/no-auth        only ever called WITHOUT credentials -> secured, never authenticated (CS-COV-004)
+    POST /strict/missing-field  answered 201 and 400         -> no signal (the control)
+    POST /strict/wrong-type     never called                 -> never exercised (CS-COV-001)
+  Coverage accumulates in the workspace given with -w; use a fresh directory for a repeatable result.
+steps:
+  - label: query given
+    request: { method: GET, url: "{{baseUrl}}/strict/missing-query?q=abc" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+  - label: no credentials
+    request: { method: GET, url: "{{baseUrl}}/strict/no-auth" }
+    assertions:
+      - { type: status, operator: eq, expected: 401 }
+  - label: valid body
+    request:
+      method: POST
+      url: "{{baseUrl}}/strict/missing-field"
+      body: { type: json, content: '{"name":"Widget"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+  - label: missing field
+    request:
+      method: POST
+      url: "{{baseUrl}}/strict/missing-field"
+      body: { type: json, content: '{}' }
+    assertions:
+      - { type: status, operator: eq, expected: 400 }

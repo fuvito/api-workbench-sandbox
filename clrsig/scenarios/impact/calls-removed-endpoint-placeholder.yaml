@@ -1,0 +1,11 @@
+schemaVersion: "1"
+title: impact - the same call, with a placeholder in the path
+description: >
+  Calls GET /users/{{userId}}: the id comes from a variable, so the URL path contains a
+  placeholder. The source notes expected `impact` to miss this (a known gap, CS-GAP-007);
+  the current catalog says a placeholder stands for one path segment and is matched.
+steps:
+  - label: Fetch a user by variable
+    request: { method: GET, url: "{{baseUrl}}/users/{{userId}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }

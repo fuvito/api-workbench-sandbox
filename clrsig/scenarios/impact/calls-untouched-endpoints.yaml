@@ -1,0 +1,15 @@
+schemaVersion: "1"
+title: impact - control that only calls operations the revision does not change
+description: Calls POST /users and GET /users; neither is removed or changed in specs/diff/impact-hit.
+steps:
+  - label: Create a user
+    request:
+      method: POST
+      url: "{{baseUrl}}/users"
+      body: { type: json, content: '{"name":"Ada"}' }
+    assertions:
+      - { type: status, operator: eq, expected: 201 }
+  - label: List users
+    request: { method: GET, url: "{{baseUrl}}/users" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }

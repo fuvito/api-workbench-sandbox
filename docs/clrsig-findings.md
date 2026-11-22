@@ -85,6 +85,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Repro: start the server, then `clrsig conform http://localhost:8080/contract-fail/openapi.yaml --paths /contract-fail/cases/resp-001-undeclared-status` -> `PASS GET /cases/resp-001-undeclared-status 500`.
   - Expected: honor `servers[].url` when matching (strip the server's base path, ignore the host), and always show "not checked" when a step or operation could not be compared.
   - Only shape that works today: a copy of the spec with no `servers` block and the base path baked into every path, run with `-b <scheme://host>` for `conform`. With that copy all eight failures are detected and the controls pass.
+  - Coverage is affected the same way: run with the standard spec (servers present), `clrsig coverage quality` reports 0% covered and "never exercised" for all four operations although the scenario ran every one of them (pinned by `coverage.standard_spec` in `expectations/conform-fail.yaml`).
   - Handling here: the checked-in and served specs stay standard. `scripts/clrsig_spec_copy.py` writes the working copy for verification runs. It is a temporary concession to this bug; delete it when this item closes.
   - Impact on earlier results: everything verified before Phase 3 had its request-side checks but NOT its response-side checks. Re-verified with the copy on 2026-11-21: `ok` `conform` 63/65 (only F-008 and F-009 fail), `--negative` 44/44, and all five `ok` scenarios pass, so the `ok` responses do conform to `ok.yaml`.
   - Closed: —
@@ -165,11 +166,19 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Pinned here by: `large-json-over-the-cap` and `large-binary-over-the-cap` in `expectations/conform-fail.yaml` (local only: Cloud Run does not pass bodies this large).
   - Closed: —
 
+- [ ] **F-020 — `coverage quality` exits 1 when it finds gaps, although the catalog says coverage signals never change an exit code (v0.7.1)**
+  - Type: catalog / behavior mismatch. Found: 2026-11-21, `clrsig` v0.7.1, while building the coverage cases.
+  - Behavior: the catalog (section 2.3) says the four coverage signals "are signals, not failures: they never change an exit code". `clrsig coverage quality` documents and does the opposite: "Exit codes: 1 one or more gaps detected", and the run printed "4 gap(s) found" and exited 1. Only an empty workspace ("No coverage data found") exits 0. A CI step that runs it to read the signals therefore fails the build.
+  - Repro: run `clrsig/scenarios/coverage-gaps.yaml` with `-w <fresh dir>` and `--spec <spec copy>`, then `clrsig coverage quality <spec copy> -w <dir>`; check the exit code.
+  - Expected: one documented behavior. If signals are not failures, exit 0 (perhaps with a `--fail-on-gaps` flag); if gaps fail the run, the catalog should say so.
+  - Pinned here by: `coverage.exit: 1` in `expectations/conform-fail.yaml`.
+  - Closed: —
+
 ---
 
 ## Baseline
 
-Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-019 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
+Fixtures are verified against released `clrsig` **v0.7.1** (installed with Scoop). Open: F-003 to F-020 (all found with v0.7.1). F-010 is the serious one: response checks are skipped for specs with `servers`.
 
 ## Notes
 

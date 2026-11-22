@@ -51,7 +51,7 @@ uv run python scripts/check_expectations.py --only resp-003-missing-required-hea
 
 **Important (F-010 in `docs/clrsig-findings.md`):** `clrsig` v0.7.1 silently skips response validation for any spec that has a `servers` entry, so `clrsig conform specs/contract-fail.yaml` reports everything as PASS. The runner therefore checks a generated copy (`scripts/clrsig_spec_copy.py`: no `servers`, base path in each path, run with `-b`). Do not read a plain `clrsig conform` PASS on these specs as proof of anything.
 
-## `conform-fail` cases (in progress; slices 1 to 4)
+## `conform-fail` cases (slices 1 to 5)
 
 Slice 1 is in: seven `/conform-fail/lenient/*` operations that accept bad requests and seven `/conform-fail/strict/*` twins that reject them, so `clrsig conform --negative` finds exactly four failed probes (CS-PROBE-001 to 004) and passes everything else. The expected outcome of every case is in `expectations/conform-fail.yaml`.
 
@@ -71,6 +71,12 @@ uv run python scripts/check_expectations.py --expectations expectations/conform-
 ```
 
 Entries marked `local_only` (transport behavior, bodies over 32 MB) are not claimed for Cloud Run; `--cloud` skips them.
+
+Slice 5 adds the last Phase 4 cases:
+- **Drift:** `python -m app --drift=1` (or `DRIFT=1`) makes `GET /conform-fail/drift/report` break; with `clrsig conform --baseline` it shows exactly one new violation (CS-RUN-006).
+- **Spec against spec:** 13 pairs in `specs/diff/` and the impact scenarios in `clrsig/scenarios/impact/`, checked without any server: `uv run python scripts/check_expectations.py --expectations expectations/diff.yaml` (table: `docs/diff-cases.md`).
+- **Coverage:** `clrsig/scenarios/coverage-gaps.yaml` leaves one gap of each kind.
+- **Business rules:** seven rules the server breaks (`/conform-fail/rules/*`), visible only to `clrsig/scenarios/conform-fail-business-rules.yaml`.
 
 Same caveat as `contract-fail` (F-010), plus two about probes: `clrsig` ignores `--paths` for probes (F-013) and leaves them out of the JSON and JUnit reports (F-014), so the runner reads the text report.
 

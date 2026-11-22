@@ -470,6 +470,207 @@ def run_probes(spec: dict, copy: Path, base_url: str) -> int:
     return failures
 
 
+# ---- spec against spec: clrsig diff and clrsig impact (no server involved) ----
+
+
+def run_diffs(spec: dict) -> int:
+    """Each pair: the exact set of changes (id and level) and the exit code at every --fail-on level."""
+    failures = 0
+    print(f"\nclrsig diff ({len(spec['diffs'])} pairs; v1 against v2, no server)")
+    for case in spec["diffs"]:
+        base = ROOT / "specs" / "diff" / case["case"]
+        problems = []
+        _, out, _ = clrsig("diff", str(base / "v1.yaml"), str(base / "v2.yaml"), "--format", "json")
+        report = load_json(out, case["case"])
+        got = sorted((c["level"], c["id"]) for c in report.get("changes") or [])
+        want = sorted((c["level"], c["id"]) for c in case["changes"])
+        if got != want:
+            problems.append(f"changes {got}, expected {want}")
+        for level, expected in case["exit"].items():
+            code, _, _ = clrsig("diff", str(base / "v1.yaml"), str(base / "v2.yaml"), "--fail-on", level)
+            if code != expected:
+                problems.append(f"--fail-on {level}: exit {code}, expected {expected}")
+        top = ("ERR" if any(c[0] == "ERR" for c in got) else "WARN" if any(c[0] == "WARN" for c in got)
+               else "INFO" if got else "none")
+        e = case["exit"]
+        print(f"  {'ok  ' if not problems else 'FAIL'}  {case['case']:<30} {top:<5} exit {e['breaking']}/{e['warning']}/{e['info']}  {case.get('check') or 'no change'}")
+        for problem in problems:
+            print(f"        - {problem}")
+        failures += bool(problems)
+    return failures
+
+
+def run_impacts(spec: dict) -> int:
+    failures = 0
+    print(f"\nclrsig impact ({len(spec['impacts'])} cases)")
+    for case in spec["impacts"]:
+        base = ROOT / "specs" / "diff" / case["pair"]
+        scenarios = [str(ROOT / s) for s in case["scenarios"]]
+        code, out, _ = clrsig("impact", str(base / "v1.yaml"), str(base / "v2.yaml"), *scenarios, "--format", "json")
+        problems = []
+        if code != case["exit"]:
+            problems.append(f"exit code {code}, expected {case['exit']}")
+        report = load_json(out, case["name"])
+        hit = sorted(
+            f"{Path(s['path']).name}: {step['label']}"
+            for s in (report.get("scenarios") or []) for step in s.get("steps") or []
+        )
+        if hit != sorted(case.get("hits") or []):
+            problems.append(f"steps hit {hit}, expected {sorted(case.get('hits') or [])}")
+        print(f"  {'ok  ' if not problems else 'FAIL'}  {case['name']:<44} exit {case['exit']}  {case.get('check') or 'no hit'}")
+        for problem in problems:
+            print(f"        - {problem}")
+        failures += bool(problems)
+    return failures
+
+
+# ---- coverage signals ----
+
+
+def strip_prefix(operation: str, prefix: str) -> str:
+    """`GET /conform-fail/strict/x` -> `GET /strict/x` (the spec copy carries the prefix)."""
+    method, _, path = operation.partition(" ")
+    return f"{method} {path.removeprefix(prefix)}"
+
+
+def run_coverage(spec: dict, base_url: str) -> int:
+    """Run the gap-leaving scenario into a fresh workspace and read the four quality signals as JSON."""
+    cov = spec.get("coverage")
+    if not cov:
+        return 0
+    prefix = spec["prefix"]
+    problems = []
+    with tempfile.TemporaryDirectory() as tmp:
+        copy = Path(tmp) / "coverage.yaml"
+        make_copy(str(ROOT / cov["spec"]), prefix, str(copy))
+        workspace = Path(tmp) / "workspace"
+        workspace.mkdir()
+        run_args = ["run", str(ROOT / cov["scenario"]), "--env", str(ROOT / cov["env"]), "--spec", str(copy), "-w", str(workspace)]
+        code, _, _ = clrsig(*run_args)
+        if code != 0:
+            problems.append(f"the scenario run exited {code}, expected 0")
+        code, out, _ = clrsig("coverage", "quality", str(copy), "-w", str(workspace), "--format", "json")
+        if code != cov["exit"]:
+            problems.append(f"coverage quality exit code {code}, expected {cov['exit']} (F-020)")
+        report = load_json(out, "coverage quality")
+        for key, got, want in (
+            ("never_exercised", [strip_prefix(o, prefix) for o in report.get("neverExercised") or []], cov["never_exercised"]),
+            ("happy_path_only", [strip_prefix(o, prefix) for o in report.get("happyPathOnly") or []], cov["happy_path_only"]),
+            ("secured_never_authed", [strip_prefix(o, prefix) for o in report.get("securedNeverAuthed") or []], cov["secured_never_authed"]),
+            ("errors_never_triggered", [f"{strip_prefix(e['operation'], prefix)} -> {e['missing']}" for e in report.get("errorsNeverTriggered") or []],
+             [f"{e['op']} -> {e['missing']}" for e in cov["errors_never_triggered"]]),
+        ):
+            if sorted(got) != sorted(want):
+                problems.append(f"{key}: {sorted(got)}, expected {sorted(want)}")
+        totals = report.get("totals") or {}
+        for key, want in cov["totals"].items():
+            if totals.get(key) != want:
+                problems.append(f"totals.{key} = {totals.get(key)}, expected {want}")
+
+        # The same scenario with the STANDARD spec (servers present): coverage matches nothing (F-010).
+        std = cov.get("standard_spec")
+        if std:
+            ws2 = Path(tmp) / "workspace-standard"
+            ws2.mkdir()
+            clrsig("run", str(ROOT / cov["scenario"]), "--env", str(ROOT / cov["env"]), "--spec", str(ROOT / cov["spec"]), "-w", str(ws2))
+            _, out2, _ = clrsig("coverage", "quality", str(ROOT / cov["spec"]), "-w", str(ws2), "--format", "json")
+            report2 = load_json(out2, "coverage quality (standard spec)")
+            if (report2.get("totals") or {}).get("covered") != std["covered"]:
+                problems.append(f"standard spec: covered {(report2.get('totals') or {}).get('covered')}, expected {std['covered']}")
+    print(f"\ncoverage signals (fresh workspace, {cov['scenario']})")
+    print(f"  {'ok  ' if not problems else 'FAIL'}  CS-COV-001 {len(cov['never_exercised'])}, CS-COV-002 {len(cov['happy_path_only'])}, CS-COV-003 {len(cov['errors_never_triggered'])}, CS-COV-004 {len(cov['secured_never_authed'])}")
+    for problem in problems:
+        print(f"        - {problem}")
+    return bool(problems)
+
+
+# ---- drift and the baseline ratchet (real servers at different drift levels) ----
+
+
+def _free_port() -> int:
+    import socket
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def _start_server(drift: int) -> tuple[subprocess.Popen, str]:
+    port = _free_port()
+    env = {**os.environ, "PORT": str(port), "HOST": "127.0.0.1"}
+    env.pop("DRIFT", None)
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "app", f"--drift={drift}"], cwd=ROOT, env=env,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    url = f"http://127.0.0.1:{port}"
+    for _ in range(100):
+        try:
+            with urllib.request.urlopen(f"{url}/conform-fail/health", timeout=1):
+                return proc, url
+        except OSError:
+            if proc.poll() is not None:
+                break
+            import time
+
+            time.sleep(0.1)
+    proc.kill()
+    raise SystemExit(f"the drift-{drift} server did not start")
+
+
+def run_drift(spec: dict, copy: Path) -> int:
+    """Record baselines at one drift level and run at another: the ratchet (CS-RUN-006)."""
+    drift = spec.get("drift")
+    if not drift:
+        return 0
+    servers: dict[int, tuple[subprocess.Popen, str]] = {}
+    problems_total = 0
+    print(f"\ndrift and the baseline ratchet (a server per drift level, --paths {','.join(drift['paths'])})")
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            baselines: dict[str, Path] = {}
+            for step in drift["steps"]:
+                level = step["drift"]
+                if level not in servers:
+                    servers[level] = _start_server(level)
+                url = servers[level][1]
+                args = [*conform_args(spec, copy, url), "--paths", ",".join(spec["prefix"] + p for p in drift["paths"])]
+                file = baselines.setdefault(step["file"], Path(tmp) / f"{step['file']}.yaml")
+                if step["mode"] == "write":
+                    args += ["--write-baseline", str(file)]
+                elif step["mode"] == "use":
+                    args += ["--baseline", str(file)]
+                elif step["mode"] == "use-missing":
+                    args += ["--baseline", str(Path(tmp) / "does-not-exist.yaml")]
+                code, out, err = clrsig(*args)
+                text = out + "\n" + err
+                problems = []
+                if code != step["exit"]:
+                    problems.append(f"exit code {code}, expected {step['exit']}")
+                if "output" in step and not re.search(step["output"], text):
+                    problems.append(f"output does not match /{step['output']}/")
+                for kind in ("NEW", "FIXED"):
+                    got = sorted(re.findall(rf"^\s*{kind}\s+(\S+ \S+)", text, re.M))
+                    expected = sorted(step.get(kind.lower()) or [])
+                    got_plain = sorted(strip_prefix(g, spec["prefix"]) for g in got)
+                    if got_plain != expected:
+                        problems.append(f"{kind} {got_plain}, expected {expected}")
+                label = step.get("check") or "baseline"
+                print(f"  {'ok  ' if not problems else 'FAIL'}  {step['name']:<44} drift {level}  exit {step['exit']}  {label}")
+                for problem in problems:
+                    print(f"        - {problem}")
+                problems_total += bool(problems)
+    finally:
+        for proc, _ in servers.values():
+            proc.terminate()
+        for proc, _ in servers.values():
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+    return problems_total
+
+
 # ---- housekeeping ----
 
 
@@ -523,6 +724,24 @@ def print_table(spec: dict) -> int:
     return 0
 
 
+def print_diff_table(spec: dict) -> int:
+    print("| Pair (`specs/diff/<case>/v1.yaml`, `v2.yaml`) | Highest level | Check | Exit code at --fail-on breaking / warning / info | Changes reported |")
+    print("|---|---|---|---|---|")
+    for case in spec["diffs"]:
+        levels = [c["level"] for c in case["changes"]]
+        top = "ERR" if "ERR" in levels else "WARN" if "WARN" in levels else "INFO" if levels else "none"
+        ids = sorted({c["id"] for c in case["changes"]})
+        e = case["exit"]
+        print(f"| `{case['case']}` | {top} | {case.get('check') or 'none'} | {e['breaking']} / {e['warning']} / {e['info']} | {', '.join(ids) or 'nothing'} |")
+    print("\n### clrsig impact\n")
+    print("| Case | Pair | Check | Exit code | Steps that call a breaking change |")
+    print("|---|---|---|---|---|")
+    for case in spec["impacts"]:
+        hits = '; '.join(case.get('hits') or []) or 'none'
+        print(f"| `{case['name']}` | `{case['pair']}` | {case.get('check') or 'none'} | {case['exit']} | {hits} |")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--expectations", default="expectations/contract-fail.yaml")
@@ -530,11 +749,22 @@ def main() -> int:
     parser.add_argument("--only", help="comma-separated case names to run (response cases only)")
     parser.add_argument("--table", action="store_true", help="print the response-case table as markdown and exit")
     parser.add_argument("--cloud", action="store_true", help="skip entries marked local_only (transport behavior not verified on Cloud Run)")
+    parser.add_argument(
+        "--section",
+        help="comma-separated parts to run: cases, whole, scenarios, generation, runs, sequences, coverage, drift, probes (default: all)",
+    )
     args = parser.parse_args()
     global CLOUD
     CLOUD = args.cloud
 
     spec = yaml.safe_load((ROOT / args.expectations).read_text(encoding="utf-8"))
+    if spec.get("family") == "diff":  # spec against spec: no server, no spec copy
+        if args.table:
+            return print_diff_table(spec)
+        print(f"{clrsig('--version')[1].strip()}  |  {args.expectations}  |  no server needed")
+        failures = run_diffs(spec) + run_impacts(spec)
+        print(f"\n{'ALL AS EXPECTED' if not failures else str(failures) + ' MISMATCH(ES)'}")
+        return 1 if failures else 0
     if args.table:
         return print_table(spec)
     only = set(args.only.split(",")) if args.only else None
@@ -551,14 +781,29 @@ def main() -> int:
             print(f"FAIL  spec and expectations disagree: only in spec {sorted(in_spec - covered)}, only in expectations {sorted(covered - in_spec)}")
             failures += 1
 
-        failures += run_response_cases(spec, copy, args.base_url, only) if spec.get("cases") else 0
+        chosen = set(args.section.split(",")) if args.section else None
+
+        def wanted(name: str) -> bool:
+            return chosen is None or name in chosen
+
+        if wanted("cases") and spec.get("cases"):
+            failures += run_response_cases(spec, copy, args.base_url, only)
         if not only:
-            failures += run_whole_spec(spec, copy, args.base_url)
-            failures += run_scenarios(spec, copy)
-            failures += run_generation(spec, copy)
-            failures += run_runs(spec, copy, args.base_url)
-            failures += run_sequences(spec, copy, args.base_url)
-            if spec.get("probes"):
+            if wanted("whole"):
+                failures += run_whole_spec(spec, copy, args.base_url)
+            if wanted("scenarios"):
+                failures += run_scenarios(spec, copy)
+            if wanted("generation"):
+                failures += run_generation(spec, copy)
+            if wanted("runs"):
+                failures += run_runs(spec, copy, args.base_url)
+            if wanted("sequences"):
+                failures += run_sequences(spec, copy, args.base_url)
+            if wanted("coverage"):
+                failures += run_coverage(spec, args.base_url)
+            if wanted("drift"):
+                failures += run_drift(spec, copy)
+            if wanted("probes") and spec.get("probes"):
                 failures += run_probes(spec, copy, args.base_url)
 
     print(f"\n{'ALL AS EXPECTED' if not failures else str(failures) + ' MISMATCH(ES)'}")

@@ -1,0 +1,287 @@
+openapi: 3.0.3
+info:
+  title: coverage fixture
+  version: 1.0.0
+  description: 'Four operations of the conform-fail strict group, used with a scenario
+    set that deliberately leaves one coverage gap of each kind (CS-COV-001 to 004).
+    Not served by the server: the operations are the ones under /conform-fail/strict.'
+servers:
+- url: http://localhost:8080/conform-fail
+paths:
+  /strict/missing-query:
+    get:
+      operationId: strictMissingQuery
+      tags:
+      - strict
+      summary: Control - rejects a request without the required query parameter
+      parameters:
+      - $ref: '#/components/parameters/Q'
+      responses:
+        '200':
+          $ref: '#/components/responses/Echo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /strict/no-auth:
+    get:
+      operationId: strictNoAuth
+      tags:
+      - strict
+      summary: Control - rejects a request without credentials
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/Secret'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /strict/missing-field:
+    post:
+      operationId: strictMissingField
+      tags:
+      - strict
+      summary: Control - rejects a body without the required field
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NameBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/Created'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /strict/wrong-type:
+    post:
+      operationId: strictWrongType
+      tags:
+      - strict
+      summary: Control - rejects a field of the wrong type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuantityBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/Created'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Fixed test token: test-token'
+  parameters:
+    Q:
+      name: q
+      in: query
+      required: true
+      description: A search text
+      schema:
+        type: string
+        minLength: 1
+        example: abc
+  responses:
+    Records:
+      description: Records written so far
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RecordsDoc'
+    Created:
+      description: Accepted
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CreatedDoc'
+    Echo:
+      description: The query that was understood
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EchoDoc'
+    Secret:
+      description: Protected data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SecretDoc'
+    BadRequest:
+      description: The request does not fit the spec
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+    NameBody:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Widget
+    QuantityBody:
+      type: object
+      required:
+      - quantity
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          example: 3
+    LevelBody:
+      type: object
+      required:
+      - level
+      - percent
+      properties:
+        level:
+          type: string
+          enum:
+          - low
+          - high
+          example: low
+        percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 50
+    ClosedBody:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Widget
+    CreatedDoc:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          type: integer
+    EchoDoc:
+      type: object
+      required:
+      - q
+      properties:
+        q:
+          type: string
+    SecretDoc:
+      type: object
+      required:
+      - secret
+      properties:
+        secret:
+          type: string
+    IdDoc:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          type: integer
+    OkDoc:
+      type: object
+      required:
+      - ok
+      properties:
+        ok:
+          type: boolean
+    SubscribeBody:
+      type: object
+      required:
+      - callbackUrl
+      properties:
+        callbackUrl:
+          type: string
+          format: uri
+          example: https://example.com/hook
+    EventDoc:
+      type: object
+      required:
+      - event
+      properties:
+        event:
+          type: string
+    AmountBody:
+      type: object
+      required:
+      - amount
+      properties:
+        amount:
+          type: number
+          minimum: 0
+    TimingDoc:
+      type: object
+      required:
+      - ok
+      properties:
+        ok:
+          type: boolean
+        call:
+          type: integer
+        delayMs:
+          type: integer
+    RecordsDoc:
+      type: object
+      required:
+      - total
+      - items
+      properties:
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+    ValueDoc:
+      type: object
+      required:
+      - value
+      - version
+      properties:
+        value:
+          type: string
+        version:
+          type: integer
+    ValueBody:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          type: string
+          minLength: 1
+          example: updated
+    BigDoc:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: string

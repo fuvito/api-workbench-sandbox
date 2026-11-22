@@ -126,4 +126,10 @@ def conform_fail_seed() -> SeedData:
         "writes": {},
         "idempotent": {},
         "lost_update": {"main": {"id": "main", "value": "initial", "version": 1}},
+        # Business-rule cases: stock 5, a balance of 100, one pending order, six items in order.
+        "rules_stock": {"stock": {"id": "stock", "n": 5}},
+        "rules_account": {"main": {"id": "main", "balance": 100}},
+        "rules_orders": {"o-1": {"id": "o-1", "quantity": 1, "status": "pending"}},
+        "rules_customers": {},
+        "rules_items": {f"i-{n}": {"id": f"i-{n}", "order": n} for n in range(1, 7)},
     }

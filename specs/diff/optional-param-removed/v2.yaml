@@ -1,0 +1,75 @@
+openapi: 3.0.3
+info:
+  title: Diff fixture
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/diff-fixture
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      summary: List users
+      description: List the users.
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, inactive, banned] }
+      responses:
+        "200":
+          description: The users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewUser"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      summary: Get a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: The user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+
+components:
+  schemas:
+    User:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    NewUser:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        email: { type: string }

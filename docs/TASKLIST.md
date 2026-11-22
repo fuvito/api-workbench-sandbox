@@ -64,7 +64,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
 - [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
 
-**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-019 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-020 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [x] Add remaining resource families (customers, payments, invoices, discount codes, notifications, reports, settings, secured examples), kept within the 60 to 70 operation target.
@@ -175,12 +175,12 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Mark transport cases that cannot be reproduced reliably on Cloud Run as local-only (`local_only: true` in the expectations; `--cloud` skips them). Nothing is claimed for Cloud Run until it is verified there (Phase 6).
 
 ### Drift, diff, coverage, and business-rule failures
-- [ ] Implement startup `DRIFT`/`--drift` behavior.
-- [ ] Add drift 0 and drift 1 expectations.
-- [ ] Add all spec-diff v1/v2 fixture pairs.
-- [ ] Add impact cases, including placeholder-path known gap.
-- [ ] Add coverage-signal scenarios.
-- [ ] Add business-rule failure scenarios (stock, state transition, duplicate, stale ETag, pagination, expiry).
+- [x] Implement startup `DRIFT`/`--drift` behavior (`python -m app --drift=<n>`, the flag wins over the variable; level 1 breaks `GET /conform-fail/drift/report`).
+- [x] Add drift 0 and drift 1 expectations: the baseline ratchet with a real server per level (3 known/0 new at drift 0; 3 known/1 new, exit 1, CS-RUN-006 at drift 1; 1 fixed in the other direction; a missing baseline is exit 2).
+- [x] Add all spec-diff v1/v2 fixture pairs (13 under `specs/diff/`, one change each; `expectations/diff.yaml`). The notes' `deprecated-operation` is INFO in oasdiff, not WARN; the WARN case is `optional-param-removed`.
+- [x] Add impact cases (`clrsig/scenarios/impact/`): a literal id and a `{{userId}}` placeholder are both matched (CS-IMP-001); the notes expected the placeholder to be missed (CS-GAP-007), but that gap is closed in v0.7.1 and the catalog.
+- [x] Add coverage-signal scenarios (`clrsig/scenarios/coverage-gaps.yaml` with `specs/coverage/coverage.yaml`: one gap each of CS-COV-001 to 004). The command exits 1 on gaps (F-020); the standard spec matches nothing (F-010).
+- [x] Add business-rule failure scenarios (`clrsig/scenarios/conform-fail-business-rules.yaml`): stock, state transition, duplicate email, insufficient funds answered 200, unstable pagination, expired token; the stale ETag rule is the existing `PUT /lost-update` scenario.
 
 **Exit criteria:** Each case has an explicit expected result and is checked by the test harness.
 

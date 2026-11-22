@@ -31,6 +31,15 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `idempotent-create` | `/idempotent` | passes | none | 0 | a single request cannot show the missing idempotency; see the scenario |
 | `idempotent-records` | `/idempotent/records` | passes | none | 0 | the records created so far |
 | `lost-update` | `/lost-update` | passes | none | 0 | GET and PUT each conform; the lost update shows only in a scenario |
+| `drift-report-at-drift-0` | `/drift/report` | passes | none | 0 | the default drift level: total is an integer; at drift 1 it becomes a string (see the drift section) |
+| `rules-stock` | `/rules/stock` | passes | none | 0 | a correct response; the rule is broken elsewhere |
+| `rules-create-order` | `/rules/orders` | passes | none | 0 | quantity 1 is within the stock; the response matches the spec |
+| `rules-ship-order` | `/rules/orders/{orderId}/ship` | passes | none | 0 | 200 or the declared 409, whichever state o-1 is in |
+| `rules-cancel-order` | `/rules/orders/{orderId}/cancel` | passes | none | 0 | 200 (also for a shipped order, the broken rule) or the declared 409 |
+| `rules-create-customer` | `/rules/customers` | passes | none | 0 | the first customer; the duplicate is only visible in a scenario |
+| `rules-items` | `/rules/items` | passes | none | 0 | a valid page; the repeat only shows across two pages |
+| `rules-protected-token-not-known` | `/rules/protected` | passes | none | 0 | ClearSignal's test-token is unknown here: the declared 401 |
+| `rules-withdraw-insufficient-funds` | `/rules/withdrawals` | fails | CS-RESP-005 | 1 | property "id" is missing |
 
 ### Sequences (reset first, then call by call)
 
