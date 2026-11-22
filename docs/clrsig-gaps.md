@@ -12,7 +12,7 @@ Each has a fixture pinned as "passes, because of CS-GAP-0xx". When clrsig closes
 | CS-GAP-002 | warn about extra properties on open schemas | `resp-010b-extra-property-open` | a strict mode reports it |
 | CS-GAP-003 | report a response header the spec never mentions | `gap-undeclared-header` | the case fails |
 | CS-GAP-004 | compare non-JSON bodies (XML and other types; CS-NC-009) | `resp-012-xml-valid`, `/features/report.csv` | a decoder exists |
-| CS-GAP-005 | a different response-time limit per operation (one global limit exists: `--max-response-time`) | `gap-slow-response`, the `latency-*` cases | a per-operation override exists |
+| CS-GAP-005 | a response-time limit per operation: since v0.8.8 `--max-response-time-for /prefix=ms` sets one per path prefix (the longest prefix wins, 0 = off); there is still no way to set one for a single method of a path | `latency-path-limit-*` cases (the prefix override), `gap-slow-response` (no limit given: passes) | a per-method limit exists |
 | CS-GAP-006 | build XML request bodies (JSON, form, multipart are built) | `POST /features/xml-note` (the request goes out without a body: `the request body does not fit the spec: value is required but missing`) | the body is generated |
 | CS-GAP-008 | probe wrong, expired or under-privileged credentials (only "no credentials" is probed) | `/lenient/wrong-auth`, `/rules/protected`, `/features/credentials/*` (expired, unknown, read-only, writer tokens), scenario `ok-credentials-and-session.yaml` | probes for them are added |
 | CS-GAP-009 | more negative probes (wrong header or path types, boundaries, enums, unknown fields) | `/lenient/enum-and-boundary`, `/lenient/unknown-fields` | the probes exist |

@@ -1,6 +1,6 @@
 # conform-fail: expected outcomes (response cases, sequences and commands; probes are in the expectations file)
 
-Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.6 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
+Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.8 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
 
 | Case | Path (under `/conform-fail`) | Expected | Check | Exit code | ClearSignal reports (or why it passes) |
 |---|---|---|---|---|---|
@@ -18,6 +18,10 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `latency-within-timeout` | `/latency/{ms}` | passes | none | 0 | 200 ms answered correctly, and within the default timeout (no response-time limit given) |
 | `latency-within-limit` | `/latency/{ms}` | passes | CS-RESP-014 | 0 | 200 ms against a 1000 ms limit (with --max-response-time 1000) |
 | `latency-over-limit` | `/latency/{ms}` | fails | CS-RESP-014 | 1 | slower than the 50 ms limit (with --max-response-time 50) |
+| `latency-path-limit-loosens` | `/latency/{ms}` | passes | CS-RESP-014 | 0 | 200 ms: the global 50 ms limit would fail it, the /latency=1000 limit passes it (with --max-response-time 50 --max-response-time-for /latency=1000) |
+| `latency-path-limit-tightens` | `/latency/{ms}` | fails | CS-RESP-014 | 1 | slower than the 50 ms limit (with --max-response-time 1000 --max-response-time-for /latency=50) |
+| `latency-path-limit-off` | `/latency/{ms}` | passes | CS-RESP-014 | 0 | 0 turns the limit off under /latency, so the 50 ms global limit does not apply (with --max-response-time 50 --max-response-time-for /latency=0) |
+| `latency-path-limit-other-prefix` | `/latency/{ms}` | fails | CS-RESP-014 | 1 | slower than the 50 ms limit (with --max-response-time 50 --max-response-time-for /reports=5000) |
 | `unavailable` | `/unavailable` | fails | CS-RESP-001 | 1 | answered 503, but the spec declares only 200 |
 | `redirect-loop` | `/redirect-loop` | fails | CS-RUN-003 | 1 | stopped after 10 redirects |
 | `hang` | `/timeout/hang` | fails | CS-RUN-003 | 1 | context deadline exceeded (with --request-timeout 1500) (local only) |

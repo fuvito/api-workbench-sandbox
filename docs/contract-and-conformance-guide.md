@@ -1,6 +1,6 @@
 # Contract and conformance testing: the problems, how clrsig finds them, and how to explain them
 
-Written 2026-11-22 for developers, in plain language. Every example is a real fixture in this repository, and every `clrsig` result was produced with **clrsig v0.8.6**.
+Written 2026-11-22 for developers, in plain language. Every example is a real fixture in this repository, and every `clrsig` result was produced with **clrsig v0.8.8**.
 
 **How this guide is organized**
 
@@ -350,7 +350,7 @@ Every tool has blind spots. It is better to know them than to trust a green run.
 - Formats other than `date-time` (`email`, `uuid`: `"mail": "nope"` passes) (`CS-GAP-001`).
 - Extra fields on open schemas (`CS-GAP-002`) and response headers the spec never mentions (`CS-GAP-003`).
 - XML, CSV and other non-JSON response bodies (`CS-GAP-004`, `CS-NC-009`).
-- A different time limit per operation (`CS-GAP-005`).
+- A time limit for one method of a path (`CS-GAP-005`; since v0.8.8 a limit per path prefix exists).
 - XML request bodies: the request goes out with no body (`CS-GAP-006`).
 - Callbacks and webhooks (`CS-GAP-010`).
 - Probes for wrong, expired or under-privileged credentials (`CS-GAP-008`) and for enum, boundary and unknown-field mistakes (`CS-GAP-009`).
@@ -383,7 +383,7 @@ A green result is only as good as the tool. While building these fixtures we fou
 
 ## Part 2: How clrsig finds and helps solve them
 
-Same numbers as Part 1. For each problem: **Check** (the ID in the report), **How it finds it** (the idea), **What you see** (real output), **What to do**, and **Limits** (where clrsig cannot help). Results are for clrsig v0.8.6 against the fixtures of this repository.
+Same numbers as Part 1. For each problem: **Check** (the ID in the report), **How it finds it** (the idea), **What you see** (real output), **What to do**, and **Limits** (where clrsig cannot help). Results are for clrsig v0.8.8 against the fixtures of this repository.
 
 ### The commands, once
 
@@ -398,9 +398,9 @@ Same numbers as Part 1. For each problem: **Check** (the ID in the report), **Ho
 | `clrsig generate SPEC --dry-run` | Shows the requests it would build from the spec, without sending anything. | `2` if the spec is broken |
 | `clrsig validate SCENARIO` | Checks scenario files for mistakes without running them. | `1` if a file has a mistake |
 
-Useful flags: `--paths /x,/y` and `--tags a,b` (choose operations), `--env FILE` (values for placeholders), `--var name=value` (override one), `--explain` (plain-language reason under each failure), `--fail-fast`, `--read-only` (send only GET and HEAD), `--format json|junit|html|markdown` (reports for CI), `--max-response-time MS`, `--request-timeout MS`, `--baseline FILE` and `--write-baseline FILE`, `--seed N` (repeat random values).
+Useful flags: `--paths /x,/y` and `--tags a,b` (choose operations), `--env FILE` (values for placeholders), `--var name=value` (override one), `--explain` (plain-language reason under each failure), `--fail-fast`, `--read-only` (send only GET and HEAD), `--format json|junit|html|markdown` (reports for CI), `--max-response-time MS`, `--max-response-time-for /prefix=MS` (a different limit under a path prefix, from v0.8.8; `0` turns the limit off there), `--request-timeout MS`, `--baseline FILE` and `--write-baseline FILE`, `--seed N` (repeat random values).
 
-The same checks are also available outside the terminal: `conform` is a tool of the clrsig MCP server (an AI agent can call it; it takes `spec`, `baseUrl`, `envFile` and, from v0.8.7, `maxResponseTime`), the GitHub Action has inputs for the main flags (including `max-response-time`), and the desktop app has a Check Conformance page.
+The same checks are also available outside the terminal: `conform` is a tool of the clrsig MCP server (an AI agent can call it; it takes `spec`, `baseUrl`, `envFile` and, from v0.8.7, `maxResponseTime`, and from v0.8.8 `maxResponseTimeFor`), the GitHub Action has inputs for the main flags (including `max-response-time` and, from v0.8.8, `max-response-time-for`), and the desktop app has a Check Conformance page.
 
 **How to read a result.** A line `FAIL GET /path 200` is one operation. The lines below it start with `✗` and say what is wrong, in words. With `--format json`, each finding has a `kind` and a `checkId` (for example `CS-RESP-005`) that a script can read. The last line is a summary (`FAILED 24 operations · 0 passed · ...`) and the exit code is what CI looks at.
 
@@ -458,7 +458,7 @@ The same checks are also available outside the terminal: `conform` is a tool of 
 **P13. Valid JSON that looks unusual** and **P14. Compressed, chunked, header-heavy answers**
 - **Check:** none: they **pass**. **How clrsig helps:** the fixtures `hostile-deep-nesting`, `wide-object`, `unicode`, `integer-as-float`, `integer-exponent`, `big-integer`, `negative-zero`, `gzip`, `chunked-stream`, `duplicate-headers` and `big-header` are pinned as "must pass". If a future clrsig release starts failing them, the expectations fail and you see it.
 - **What to do:** if you build your own checker or wrapper, run these fixtures through it. They are the typical places where homemade validators break.
-- **Limits:** none known in v0.8.6 for this group.
+- **Limits:** none known in v0.8.8 for this group.
 
 **P15. Bodies that are not JSON**
 - **Check:** `CS-NC-009` and `CS-NC-003` ("not checked"), `CS-GAP-004`. **How it behaves:** for XML, CSV, images and binary, clrsig checks status, headers and `Content-Type` and does **not** compare the body; it reports nothing about the body.
@@ -469,7 +469,7 @@ The same checks are also available outside the terminal: `conform` is a tool of 
 
 **P16. Malformed JSON that parsers treat differently**
 - **Check:** `CS-RESP-008` for the strict failures, `CS-RESP-006` for duplicate keys, `CS-RESP-015` for a number beyond a 64-bit float.
-- **What you see (v0.8.6):** a BOM: `invalid character 'ï'`; invalid UTF-8: `byte 0xff at offset 20 is not UTF-8`; trailing text: `text after the JSON value`; `NaN`: `invalid character 'N'`; a raw line break: `invalid character '\n' in string literal`; duplicate keys: the **last** key wins (`id` is the string `two`, so `value must be an integer`); `1e400`: its own finding `number-out-of-range` that says it is a clrsig limit; a lone surrogate: accepted (valid JSON text).
+- **What you see (v0.8.8):** a BOM: `invalid character 'ï'`; invalid UTF-8: `byte 0xff at offset 20 is not UTF-8`; trailing text: `text after the JSON value`; `NaN`: `invalid character 'N'`; a raw line break: `invalid character '\n' in string literal`; duplicate keys: the **last** key wins (`id` is the string `two`, so `value must be an integer`); `1e400`: its own finding `number-out-of-range` that says it is a clrsig limit; a lone surrogate: accepted (valid JSON text).
 - **What to do:** serve strict JSON. Use your language's real serializer, never string concatenation.
 - **Limits:** for a BOM and for duplicate keys the standards leave the behavior open. clrsig is strict; the fixtures record that choice, so it is not a surprise.
 
@@ -530,10 +530,10 @@ The same checks are also available outside the terminal: `conform` is a tool of 
 
 **P37 to P42: slow, hanging, flaky, rate limit, outage, degrading**
 - **Check:** `CS-RESP-014` (slower than your limit: the response is kept and still compared with the spec), `CS-RUN-003` (no answer at all: timeout), `CS-RESP-001` (`500`, `429`, `503` that the spec does not declare).
-- **How it finds them:** `--max-response-time 500` fails any operation slower than 500 ms and says how long it took; `--request-timeout 2000` gives up on a request after 2 s. In a scenario, `{ type: duration, operator: lt, expected: 500 }` asserts the time of one step.
+- **How it finds them:** `--max-response-time 500` fails any operation slower than 500 ms and says how long it took; `--request-timeout 2000` gives up on a request after 2 s. `--max-response-time-for /reports=2000` (v0.8.8) gives the operations under `/reports` their own limit: the longest matching prefix wins, `0` turns the limit off there (real cases: `latency-path-limit-*`). In a scenario, `{ type: duration, operator: lt, expected: 500 }` asserts the time of one step.
 - **What you see:** `The response took 4810 ms, over the limit of 100 ms` (finding `slow-response`); `context deadline exceeded`; for flaky and rate-limited calls, `answered 500, but the spec declares only 200` on call 3, and `answered 429...` from call 4.
 - **What to do:** set a time budget that matches your SLA. For flaky behavior, run the same operation several times (the fixtures call it in sequence and check each call).
-- **Limits:** one global time limit, not one per operation (`CS-GAP-005`). Timing results depend on the machine: run time-based checks in a container, not on a laptop that is busy.
+- **Limits:** a limit is per path prefix, not per method of one path (`CS-GAP-005`). Timing results depend on the machine: run time-based checks in a container, not on a laptop that is busy.
 
 ### Group H: State and business rules
 
@@ -594,7 +594,7 @@ The same checks are also available outside the terminal: `conform` is a tool of 
 
 **P59 and P60: false passes, false failures, corrupted data**
 - **How we protect against it:** this repository is the answer: a fixture for every case **with the correct expected result written down**. `scripts/check_expectations.py` runs clrsig on all of them and compares. If a clrsig release changes any answer, the comparison fails, and you decide: is the new answer right (change the expectation) or wrong (report it)?
-- **What happened in practice:** Thirty-five wrong answers or limits were found with these fixtures (F-001 to F-035 in `docs/clrsig-findings.md`). All were fixed quickly by the clrsig team (v0.7.1 to v0.8.6). The seven false passes and data problems from the last round (P59 and most of P60) are fixed in v0.8.5. The last three were found while checking v0.8.5 and fixed in v0.8.6: an NDJSON response read as one JSON document (F-033); a valid XML `example` string making the spec unreadable (F-034); the "no credentials" probe keeping a cookie key (F-035).
+- **What happened in practice:** Thirty-five wrong answers or limits were found with these fixtures (F-001 to F-035 in `docs/clrsig-findings.md`). All were fixed quickly by the clrsig team (v0.7.1 to v0.8.8). The seven false passes and data problems from the last round (P59 and most of P60) are fixed in v0.8.5. The last three were found while checking v0.8.5 and fixed in v0.8.6: an NDJSON response read as one JSON document (F-033); a valid XML `example` string making the spec unreadable (F-034); the "no credentials" probe keeping a cookie key (F-035).
 - **What you do:** pin your tool version in CI (`CLRSIG_VERSION`), keep a fixture set with known answers, and read the release notes before upgrading. Never trust a single green run from a tool you have not tested.
 
 ### One page: which command for which question
@@ -644,8 +644,8 @@ This part is for you, the person making the videos with Google NotebookLM. It sa
 2. **One problem, three beats:** what goes wrong, why it hurts, how clrsig shows it. Always show the real line of clrsig output.
 3. **Use the real fixtures.** Say the endpoint name (for example `/contract-fail/cases/resp-005-missing-required-field`). Viewers can repeat it.
 4. **Explain each word once.** First use of *contract*, *conformance*, *negative probe*, *scenario*, *baseline*, *drift* gets a one-sentence meaning (glossary in 3.5).
-5. **Be honest about limits.** Every episode ends with "what clrsig does *not* see here". Never say "clrsig catches everything". Say "in clrsig v0.8.6".
-6. **Name the version and the date.** "Recorded with clrsig v0.8.6, November 2026." Results can change with new releases (see 3.8).
+5. **Be honest about limits.** Every episode ends with "what clrsig does *not* see here". Never say "clrsig catches everything". Say "in clrsig v0.8.8".
+6. **Name the version and the date.** "Recorded with clrsig v0.8.8, November 2026." Results can change with new releases (see 3.8).
 7. **Do not read tables aloud.** Show them, then say the one thing that matters.
 8. **End with three recap questions** and the next episode's one-line teaser.
 
@@ -690,7 +690,7 @@ Each card gives the **goal**, the **problems** (numbers from Parts 1 and 2), the
 - **Key sentences:** "A correct answer that comes too late is a failure." "`--max-response-time` keeps the response and compares it; a timeout gives you nothing to compare." "Flaky means: you need several calls to see it."
 - **Demo (run it in the container, not on a busy laptop; to save time start the server with `LATENCY_SCALE=0.2`):** `latency-over-limit` (`--max-response-time 50`), `slow` (`--request-timeout 1500`), `truncated-body`, `connection-reset`, `redirect-loop`, then the sequences `flaky-every-third-call`, `rate-limited-after-three-calls`, `unavailable-then-ok`, `degrading-latency`.
 - **Analogy:** a waiter: right dish, but 45 minutes late; or a waiter who forgets every third table.
-- **Limits:** one global time limit, not per operation (`CS-GAP-005`). Timing needs a quiet machine.
+- **Limits:** a limit is per path prefix, not per method of one path (`CS-GAP-005`). Timing needs a quiet machine.
 - **Recap:** What is the difference between `slow-response` and `no response`? Why does a flaky bug need a sequence? How can a retry after a timeout cause duplicates?
 
 #### Episode 5. When the spec and the server disagree (7 min)
@@ -840,7 +840,7 @@ Add the glossary (3.5) to every source so the words are explained in each episod
 ### 3.8 Recording the demos and checking the facts
 
 **Set up once**
-1. Install clrsig v0.8.6 (`scoop install clrsig`, `brew install clrsig`, or the Docker image `ghcr.io/fuvito/api-workbench:v0.8.6`) and check `clrsig --version`.
+1. Install clrsig v0.8.8 (`scoop install clrsig`, `brew install clrsig`, or the Docker image `ghcr.io/fuvito/api-workbench:v0.8.8`) and check `clrsig --version`.
 2. Build and start the practice server: `docker build -t api-workbench-sandbox .` then `docker run --rm -p 8080:8080 api-workbench-sandbox`. Do **not** set `ADMIN_TOKEN` for the demos (the scenarios reset the server without a token).
 3. Use a large terminal font, a dark theme with high contrast, and show **one command and its output per screen**.
 4. Reset the server between demos: `curl -X POST http://localhost:8080/conform-fail/__admin/reset` (and `/ok/__admin/reset`).
@@ -858,4 +858,4 @@ Add the glossary (3.5) to every source so the words are explained in each episod
 ### 3.9 After publishing
 
 - Keep the guide and the expectations in step: when a new clrsig release changes an answer, `check_expectations.py` fails; update the expectation, the guide, and re-record only the affected episode (the episode cards say which problems each one covers).
-- Pin the version in the video description: "Recorded with clrsig v0.8.6".
+- Pin the version in the video description: "Recorded with clrsig v0.8.8".

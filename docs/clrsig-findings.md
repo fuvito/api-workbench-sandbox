@@ -323,7 +323,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
 
 ## Baseline
 
-Fixtures and expectations are verified against released `clrsig` **v0.8.6** (installed with Scoop; CI pins the same release). F-003 to F-021 were found with v0.7.1; v0.8.2 fixed all of them except F-016, v0.8.3 fixed F-016 and F-022, and v0.8.4 fixed F-023, F-024 and F-025. The adversarial group (`docs/kts/adversarial-group.md`) found F-026 to F-032, all fixed in v0.8.5. F-033, F-034 and F-035 (found while verifying v0.8.5) are fixed in v0.8.6. Nothing is open.
+Fixtures and expectations are verified against released `clrsig` **v0.8.8** (installed with Scoop; CI pins the same release). F-003 to F-021 were found with v0.7.1; v0.8.2 fixed all of them except F-016, v0.8.3 fixed F-016 and F-022, and v0.8.4 fixed F-023, F-024 and F-025. The adversarial group (`docs/kts/adversarial-group.md`) found F-026 to F-032, all fixed in v0.8.5. F-033, F-034 and F-035 (found while verifying v0.8.5) are fixed in v0.8.6. Nothing is open. v0.8.7 (an MCP argument) and v0.8.8 (per-path response-time limits, an Action fix) added no finding; every expectation held unchanged.
 
 ## Notes
 

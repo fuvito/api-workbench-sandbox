@@ -9,6 +9,7 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 | `conform --explain` | adds `[CS-RESP-001] ...` and a reason under the failure | `conform-explain` |
 | `conform --fail-fast` | stops at the first violation (8 operations, 1 failed) | `conform-fail-fast` |
 | `conform --max-response-time` | `slow-response`, CS-RESP-014 | `expectations/conform-fail.yaml` (`latency-over-limit`, `degrading-latency`, ...) |
+| `conform --max-response-time-for` | a limit per path prefix (v0.8.8): it loosens, tightens or turns off (`0`) the global limit under `/latency`; another prefix changes nothing | `latency-path-limit-*` in `conform-fail.yaml` |
 | `conform --negative`, `--paths`, `--format json/junit` | probes follow the filter and reach the reports (CS-PROBE-005) | `probe-005-*` in `conform-fail.yaml` |
 | `conform --baseline`, `--write-baseline` | the drift ratchet (CS-RUN-006) | the `drift` section of `conform-fail.yaml` |
 | `run --seed` | the same seed gives the same random value (33 for seed 7, 12 for seed 8), however the scenario path is written | `run-seed-7`, `run-seed-7-relative-path`, `run-seed-8` |
