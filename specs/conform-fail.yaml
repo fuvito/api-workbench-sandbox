@@ -29,6 +29,8 @@ tags:
     description: Behavior that depends on the drift level set at startup
   - name: requests
     description: Correct operations whose outcome depends on the environment file ClearSignal is given
+  - name: hostile
+    description: Odd and malformed response bodies and HTTP shapes, one thing each
 paths:
   /health:
     get:
@@ -1038,6 +1040,274 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /hostile/deep-nesting:
+    get:
+      operationId: hostileDeepNesting
+      tags: [hostile]
+      summary: "JSON nested 200 levels deep (valid)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/wide-object:
+    get:
+      operationId: hostileWideObject
+      tags: [hostile]
+      summary: "A JSON object with 20000 keys (valid)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/unicode:
+    get:
+      operationId: hostileUnicode
+      tags: [hostile]
+      summary: "Accents, Hebrew, an emoji, an escaped surrogate pair and an escaped NUL (valid)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/integer-as-float:
+    get:
+      operationId: hostileIntegerAsFloat
+      tags: [hostile]
+      summary: "id is 1.0: an integer in JSON Schema (valid)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/integer-exponent:
+    get:
+      operationId: hostileIntegerExponent
+      tags: [hostile]
+      summary: "id is 1e2: an integer in JSON Schema (valid)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/big-integer:
+    get:
+      operationId: hostileBigInteger
+      tags: [hostile]
+      summary: "id is 9223372036854775808, one above int64 (valid for an unbounded integer)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/negative-zero:
+    get:
+      operationId: hostileNegativeZero
+      tags: [hostile]
+      summary: "id is -0 (valid)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/bom:
+    get:
+      operationId: hostileBom
+      tags: [hostile]
+      summary: "A UTF-8 byte order mark before the JSON (RFC 8259: a parser MAY ignore it)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/invalid-utf8:
+    get:
+      operationId: hostileInvalidUtf8
+      tags: [hostile]
+      summary: "A string containing the bytes ff fe (not valid UTF-8, so not valid JSON)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/raw-newline-in-string:
+    get:
+      operationId: hostileRawNewlineInString
+      tags: [hostile]
+      summary: "A raw line feed inside a string (not valid JSON)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/nan-literal:
+    get:
+      operationId: hostileNanLiteral
+      tags: [hostile]
+      summary: "id is NaN (not valid JSON)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/trailing-garbage:
+    get:
+      operationId: hostileTrailingGarbage
+      tags: [hostile]
+      summary: "A valid object followed by the text garbage (not valid JSON)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/duplicate-keys:
+    get:
+      operationId: hostileDuplicateKeys
+      tags: [hostile]
+      summary: "id appears twice, as 1 and as the string two (RFC 8259: behavior is unpredictable)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/float-overflow:
+    get:
+      operationId: hostileFloatOverflow
+      tags: [hostile]
+      summary: "ratio is 1e400, a number no float64 holds (valid JSON)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/lone-surrogate:
+    get:
+      operationId: hostileLoneSurrogate
+      tags: [hostile]
+      summary: "A string with an unpaired surrogate escape (valid JSON text, not valid Unicode)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/gzip:
+    get:
+      operationId: hostileGzip
+      tags: [hostile]
+      summary: "A valid gzip body with Content-Encoding gzip"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/gzip-lie:
+    get:
+      operationId: hostileGzipLie
+      tags: [hostile]
+      summary: "Content-Encoding gzip with a plain body (not gzip)"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/duplicate-headers:
+    get:
+      operationId: hostileDuplicateHeaders
+      tags: [hostile]
+      summary: "The same header twice and two Set-Cookie headers"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          headers:
+            X-Dup:
+              required: true
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/big-header:
+    get:
+      operationId: hostileBigHeader
+      tags: [hostile]
+      summary: "A 60000-byte response header"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          headers:
+            X-Big:
+              required: true
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
+  /hostile/chunked-stream:
+    get:
+      operationId: hostileChunkedStream
+      tags: [hostile]
+      summary: "No Content-Length: the body arrives in three chunks"
+      responses:
+        "200":
+          description: A body the case builds byte by byte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostileDoc"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1103,6 +1373,14 @@ components:
             $ref: "#/components/schemas/Error"
 
   schemas:
+    HostileDoc:
+      type: object
+      required: [id]
+      properties:
+        id: { type: integer }
+        text: { type: string }
+        ratio: { type: number }
+        nest: {}
     Error:
       type: object
       required: [code, message]

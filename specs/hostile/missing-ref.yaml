@@ -1,0 +1,13 @@
+openapi: 3.0.3
+info: {title: missing-ref, version: "1"}
+servers: [{url: http://localhost:8080/x}]
+paths:
+  /m:
+    get:
+      operationId: getM
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Nope" }

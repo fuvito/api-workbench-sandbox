@@ -55,6 +55,7 @@ uv run python scripts/check_expectations.py --expectations expectations/ok-featu
 uv run python scripts/check_expectations.py --expectations expectations/contract-fail.yaml
 uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml   # about 2 minutes
 uv run python scripts/check_expectations.py --expectations expectations/diff.yaml           # no server
+uv run python scripts/fuzz_specs.py --count 60                                             # random specs, no server
 ```
 
 Each prints one line per case and ends with `ALL AS EXPECTED` (exit 0) or `<n> MISMATCH(ES)` (exit 1): a case that unexpectedly passes, fails with another check, or changes exit code is a mismatch. `--section`, `--only` and `--cloud` narrow a run. The plain commands in "Run ClearSignal" below do not verify response behavior (F-010); these runners do.
@@ -74,7 +75,7 @@ A plain run works too: `clrsig conform specs/contract-fail.yaml -b http://localh
 
 ## `conform-fail` cases
 
-56 operations (`specs/conform-fail.yaml`) where the *behavior* is wrong rather than a response. The expected ClearSignal outcome of everything is in `expectations/conform-fail.yaml` (tables: `docs/conform-fail-cases.md`).
+76 operations (`specs/conform-fail.yaml`) where the *behavior* is wrong rather than a response. The expected ClearSignal outcome of everything is in `expectations/conform-fail.yaml` (tables: `docs/conform-fail-cases.md`).
 
 | Group | What it shows |
 |---|---|
@@ -84,8 +85,9 @@ A plain run works too: `clrsig conform specs/contract-fail.yaml -b http://localh
 | `/slow`, `/flaky`, `/rate-limited`, `/latency/*`, `/unavailable*`, `/redirect-loop`, `/large*`, `/timeout/*`, `/idempotent`, `/lost-update` | timing and instability; counters live in the family store and reset restores them |
 | `/drift/report` with `--drift=1` | the baseline ratchet (CS-RUN-006) |
 | `/rules/*` | seven business rules broken on purpose, visible only to scenarios |
+| `/hostile/*` | the adversarial group: 20 odd or malformed response bodies and HTTP shapes (deep or wide JSON, duplicate keys, a BOM, invalid UTF-8, NaN, trailing text, numbers beyond float64, gzip, duplicate headers, a 60 KB header, chunked) |
 
-Without a server: 13 spec-diff pairs in `specs/diff/` and the impact scenarios in `clrsig/scenarios/impact/` (`expectations/diff.yaml`, `docs/diff-cases.md`). Coverage signals: `clrsig/scenarios/coverage-gaps.yaml` with `specs/coverage/coverage.yaml`.
+Without a server: 14 awkward documents in `specs/hostile/` (circular `$ref`, discriminator, 60-branch `oneOf`, unsatisfiable `allOf`, JSON and 3.2 documents, three invalid ones) and a generated 500-operation spec for scale, both pinned in `expectations/conform-fail.yaml`; `scripts/fuzz_specs.py` runs clrsig on random valid specs (`make_specs.py`, deterministic per seed); 13 spec-diff pairs in `specs/diff/` and the impact scenarios in `clrsig/scenarios/impact/` (`expectations/diff.yaml`, `docs/diff-cases.md`). Coverage signals: `clrsig/scenarios/coverage-gaps.yaml` with `specs/coverage/coverage.yaml`.
 
 ```
 uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml   # about 2 minutes
@@ -163,7 +165,7 @@ No handler makes an outbound request from caller input: there is no HTTP client 
 
 ## Known gaps and Cloud Run
 
-Known gaps: no open ClearSignal finding (`docs/clrsig-findings.md`), the `local_only` transport and large-body cases (not verified on Cloud Run), unconfirmed fake credentials, and the report polling delay (poll-count progression, not wall-clock). Cloud Run is not deployed yet; preparation, verified settings and an unverified runbook are in `docs/cloud-run-prep.md`. On Cloud Run, scale-to-zero, a restart or an instance replacement erases all state, and simultaneous users share the same stores and can interfere with one another.
+Known gaps: the open ClearSignal findings F-026 to F-032 (`docs/clrsig-findings.md`), the `local_only` transport and large-body cases (not verified on Cloud Run), unconfirmed fake credentials, and the report polling delay (poll-count progression, not wall-clock). Cloud Run is not deployed yet; preparation, verified settings and an unverified runbook are in `docs/cloud-run-prep.md`. On Cloud Run, scale-to-zero, a restart or an instance replacement erases all state, and simultaneous users share the same stores and can interfere with one another.
 
 ## KT notes
 

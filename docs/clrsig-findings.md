@@ -221,11 +221,73 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Pinned here by: `expectations/ok-features.yaml` (18 operations, 18 generated requests; the header names F-025).
   - Closed: 2026-11-22, verified with released `clrsig` v0.8.4: the TRACE operation is generated, run (19 of 19) and `--read-only` lists it as skipped. Pinned by `expectations/ok-features.yaml`.
 
+
+- [ ] **F-026 — A response body that is not valid UTF-8 passes (v0.8.4)**
+  - Type: limitation (a malformed response is accepted). Found: 2026-11-22, `clrsig` v0.8.4, with `GET /conform-fail/hostile/invalid-utf8`.
+  - Behavior: the body `{"id":1,"text":"bad ÿþ byte"}` contains bytes that are not UTF-8. JSON text must be UTF-8 (RFC 8259 section 8.1) and a strict parser rejects it (Python: `invalid start byte`). `clrsig conform` reports the operation as PASS: Go's JSON decoder silently replaces the bad bytes with U+FFFD.
+  - Repro: `clrsig conform specs/conform-fail.yaml -b http://localhost:8080/conform-fail --env clrsig/environments/conform-fail.yaml --paths /hostile/invalid-utf8`.
+  - Expected: a failure (`invalid-body`, CS-RESP-008), like the other bodies that are not valid JSON.
+  - Pinned here by: `expectations/conform-fail.yaml`, case `hostile-invalid-utf8` (expects the wrong PASS, `reference: F-026`).
+  - Closed: —
+
+- [ ] **F-027 — Text after the JSON value in a response body is ignored (v0.8.4)**
+  - Type: limitation (a malformed response is accepted). Found: 2026-11-22, `clrsig` v0.8.4, with `GET /conform-fail/hostile/trailing-garbage`.
+  - Behavior: the body `{"id":1} garbage` is one valid object followed by text. A strict parser rejects it (Python: `Extra data`). `clrsig conform` reports PASS: the decoder reads the first value and does not check that the body ends there.
+  - Repro: as F-026 with `--paths /hostile/trailing-garbage`.
+  - Note: a scenario's `jsonpath` assertion on the same body does reject it (`invalid character 'g' after top-level value`), so `conform` and `run` disagree about the same response.
+  - Expected: a failure (`invalid-body`, CS-RESP-008).
+  - Pinned here by: `expectations/conform-fail.yaml`, case `hostile-trailing-garbage` (expects the wrong PASS, `reference: F-027`).
+  - Closed: —
+
+- [ ] **F-028 — A valid JSON number beyond float64 is a failure with no check ID (v0.8.4)**
+  - Type: limitation (false failure, generic report). Found: 2026-11-22, `clrsig` v0.8.4, with `GET /conform-fail/hostile/float-overflow`.
+  - Behavior: `{"id":1,"ratio":1e400}` is valid JSON and `ratio` is declared `type: number`; the number is mathematically fine and a strict parser accepts it. `clrsig conform` fails it with kind `other`, no `checkId`, and the message `Error at "/ratio": strconv.ParseFloat: parsing "1e400": value out of range`, which names the Go function, not the response problem. (The same class as F-017 and F-022: a real finding with a generic report.)
+  - Repro: as F-026 with `--paths /hostile/float-overflow`.
+  - Note: a scenario's `jsonpath` assertion on the same body fails too (`cannot unmarshal number 1e400 into Go value of type float64`).
+  - Expected: either pass (a number the schema allows) or a finding with its own kind, a check ID and a message that says the number is outside what Clear Signal can represent.
+  - Pinned here by: `expectations/conform-fail.yaml`, case `hostile-float-overflow` (`check: null`, `reference: F-028`).
+  - Closed: —
+
+
+- [ ] **F-029 — The negative-probe summary says PASSED when every probe errored (v0.8.4)**
+  - Type: limitation (misleading headline). Found: 2026-11-22, `clrsig` v0.8.4, with `specs/hostile/only-post.yaml` and no server.
+  - Behavior: when the server is unreachable, each probe is `ERR` (`executing request: ... connection refused`), none passed, and the run exits **1**; but the last line reads `PASSED  2 probes  ·  0 passed  ·  0 failed  ·  0 skipped  ·  2 errors`. The word PASSED sits next to 0 passed and 2 errors, and the JSON report marks each probe `passed: false`. The operation summary above it says FAILED for the same cause.
+  - Repro: `clrsig conform specs/hostile/only-post.yaml -b http://localhost:1 --negative --env clrsig/environments/ok.yaml --request-timeout 300` (exit 1).
+  - Expected: the headline says FAILED (or ERROR) when any probe errored, as the exit code does.
+  - Pinned here by: `expectations/conform-fail.yaml`, run `probe-summary-says-passed-when-all-errored` (`reference: F-029`).
+  - Closed: —
+
+
+- [ ] **F-030 — A scenario sees only the first value of a repeated response header (v0.8.4)**
+  - Type: limitation. Found: 2026-11-22, `clrsig` v0.8.4, with `GET /conform-fail/hostile/duplicate-headers` and `clrsig/scenarios/conform-fail-edge-assertions.yaml`.
+  - Behavior: the server sends `X-Dup: one`, `X-Dup: two`, and two `Set-Cookie` headers (`a=1`, `b=2`). A header assertion reads only the first of each: `X-Dup contains two` fails with `got "one"`, and `Set-Cookie contains b=2` fails with `got "a=1; Path=/"`. HTTP treats repeated headers as one comma-joined list (RFC 9110 section 5.3), and `Set-Cookie` is the usual case where several are sent.
+  - Repro: `clrsig run clrsig/scenarios/conform-fail-edge-assertions.yaml --env clrsig/environments/conform-fail.yaml --spec specs/conform-fail.yaml` (steps `duplicate header, joined` and `set-cookie header`).
+  - Expected: the assertion sees every value (joined with `, ` or any of them), so a second cookie can be checked.
+  - Pinned here by: `expectations/conform-fail.yaml` (scenario `conform-fail-edge-assertions.yaml`, those two steps `passed: false`).
+  - Closed: —
+
+- [ ] **F-031 — An integer above 2^53 is rounded and printed in exponent form by `jsonpath` assertions and extractions (v0.8.4)**
+  - Type: bug (data corruption). Found: 2026-11-22, `clrsig` v0.8.4.
+  - Behavior: JSON numbers are read as float64. `{"id":9007199254740993}` (2^53 + 1) is read back as `9.007199254740992e+15`, `{"snow":1234567890123456789}` as `1.2345678901234568e+18`, and `9223372036854775808` as `9.223372036854776e+18`. So `jsonpath $.id eq 9007199254740993` can never pass (`got "9.007199254740992e+15"`), and an **extraction** of such an id stores the rounded exponent text: `read the id` extracts `bigId = "9.223372036854776e+18"`, and the next request would send that text, not the id. Ids of this size (int64, snowflake ids) are common; the spec's `type: integer` allows them, and `conform` accepts the same body (`hostile-big-integer` passes).
+  - Repro: `clrsig run clrsig/scenarios/conform-fail-edge-assertions.yaml --env clrsig/environments/conform-fail.yaml --spec specs/conform-fail.yaml` (steps `integer one above int64` and `read an id above 2^53 into a variable`).
+  - Expected: an integer keeps its digits (decode with the number as text, or as int64 when it fits), in assertions and in extractions.
+  - Pinned here by: `expectations/conform-fail.yaml` (the assertion step `passed: false`; the extraction step pins `extracted: {bigId: "9.223372036854776e+18"}`).
+  - Closed: —
+
+
+- [ ] **F-032 — A failed extraction does not fail the run: exit 0 and "PASSED" next to "1 failed" (v0.8.4)**
+  - Type: bug (false pass; a CI job that trusts the exit code stays green). Found: 2026-11-22, `clrsig` v0.8.4.
+  - Behavior: a step whose extraction finds nothing (`extraction "nope": jsonpath "$.not.there": unknown key not`, or `header "X-Not-There" not found in response`) is printed `FAIL`, the summary reads `0 passed, 1 failed`, and the JUnit report has `failures="1" errors="1"`. But the run **exits 0**, the headline says `PASSED`, and the JSON report has `passed: true` for the step and for the scenario. Not affected by `failPolicy` (`continue`, `stop` and the default give the same). The next step that uses the variable is then "not sent: no value for {{nope}}", but only if one exists.
+  - Repro: `clrsig run clrsig/scenarios/conform-fail-failed-extraction.yaml --env clrsig/environments/conform-fail.yaml --spec specs/conform-fail.yaml; echo $?` prints `PASSED  0 passed, 1 failed` and `0`.
+  - Expected: a failed extraction fails the step and the run (exit 1, headline FAILED, `passed: false`), like a failed assertion; the three report formats agree.
+  - Pinned here by: `expectations/conform-fail.yaml`, run `failed-extraction-exits-zero` and the two extraction steps of `conform-fail-edge-assertions.yaml` (`passed: true`, with the error text).
+  - Closed: —
+
 ---
 
 ## Baseline
 
-Fixtures and expectations are verified against released `clrsig` **v0.8.4** (installed with Scoop; CI pins the same release). F-003 to F-021 were found with v0.7.1; v0.8.2 fixed all of them except F-016, v0.8.3 fixed F-016 and F-022, and v0.8.4 fixed F-023, F-024 and F-025. No finding is open.
+Fixtures and expectations are verified against released `clrsig` **v0.8.4** (installed with Scoop; CI pins the same release). F-003 to F-021 were found with v0.7.1; v0.8.2 fixed all of them except F-016, v0.8.3 fixed F-016 and F-022, and v0.8.4 fixed F-023, F-024 and F-025. The adversarial group (see `docs/kts/adversarial-group.md`) found F-026 to F-032, all open.
 
 ## Notes
 

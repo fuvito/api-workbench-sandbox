@@ -1,0 +1,14 @@
+openapi: 3.0.3
+info: {title: duplicate-operation-id, version: "1"}
+servers: [{url: http://localhost:8080/x}]
+paths:
+  /one:
+    get:
+      operationId: same
+      responses:
+        "200": { description: ok }
+  /two:
+    get:
+      operationId: same
+      responses:
+        "200": { description: ok }

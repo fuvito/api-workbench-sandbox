@@ -1,0 +1,9 @@
+openapi: 3.2.0
+info: {title: three-two, version: "1"}
+servers: [{url: http://localhost:8080/x}]
+paths:
+  /h:
+    get:
+      operationId: h
+      responses:
+        "200": { description: ok }

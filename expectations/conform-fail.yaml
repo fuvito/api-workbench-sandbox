@@ -84,6 +84,31 @@ cases:
   - { case: rules-protected-token-not-known, path: /rules/protected, expect: pass, reference: null, why: "ClearSignal's test-token is unknown here: the declared 401" }
   - { case: rules-withdraw-insufficient-funds, path: /rules/withdrawals, expect: fail, check: CS-RESP-005, message: 'property "id" is missing', note: "500 is above the balance: the declared 422 is answered 200 with an error body; the notes: CS-RESP-001 if 200 is declared with another shape, else a scenario assertion" }
 
+  # ---- slice 6: the adversarial group, bodies and HTTP shapes a real server can produce ----
+  # Valid and valid for the schema, only unusual: ClearSignal must accept all of them.
+  - { case: hostile-deep-nesting, path: /hostile/deep-nesting, expect: pass, reference: null, why: "JSON nested 200 levels deep" }
+  - { case: hostile-wide-object, path: /hostile/wide-object, expect: pass, reference: null, why: "an object with 20000 keys" }
+  - { case: hostile-unicode, path: /hostile/unicode, expect: pass, reference: null, why: "accents, Hebrew, an emoji, an escaped surrogate pair and an escaped NUL" }
+  - { case: hostile-integer-as-float, path: /hostile/integer-as-float, expect: pass, reference: null, why: "id is 1.0: an integer in JSON Schema" }
+  - { case: hostile-integer-exponent, path: /hostile/integer-exponent, expect: pass, reference: null, why: "id is 1e2: an integer in JSON Schema" }
+  - { case: hostile-big-integer, path: /hostile/big-integer, expect: pass, reference: null, why: "id is one above int64: still an integer for an unbounded schema" }
+  - { case: hostile-negative-zero, path: /hostile/negative-zero, expect: pass, reference: null, why: "id is -0" }
+  - { case: hostile-gzip, path: /hostile/gzip, expect: pass, reference: null, why: "a valid gzip body with Content-Encoding gzip is decoded" }
+  - { case: hostile-duplicate-headers, path: /hostile/duplicate-headers, expect: pass, reference: null, why: "the same header twice and two Set-Cookie headers" }
+  - { case: hostile-big-header, path: /hostile/big-header, expect: pass, reference: null, why: "a 60000-byte response header" }
+  - { case: hostile-chunked-stream, path: /hostile/chunked-stream, expect: pass, reference: null, why: "no Content-Length: three chunks" }
+  - { case: hostile-lone-surrogate, path: /hostile/lone-surrogate, expect: pass, reference: null, why: "an unpaired surrogate escape is valid JSON text; ClearSignal does not check that it is valid Unicode (undefined by the standard)" }
+  # Malformed bodies that are accepted: the wrong outcome, pinned until fixed.
+  - { case: hostile-invalid-utf8, path: /hostile/invalid-utf8, expect: pass, reference: F-026, why: "bytes ff fe are not UTF-8, so the body is not valid JSON; ClearSignal passes it (it should fail, CS-RESP-008)" }
+  - { case: hostile-trailing-garbage, path: /hostile/trailing-garbage, expect: pass, reference: F-027, why: "text after the JSON value is ignored (it should fail, CS-RESP-008)" }
+  # Malformed bodies that are rejected, and outcomes the standard leaves undefined.
+  - { case: hostile-raw-newline-in-string, path: /hostile/raw-newline-in-string, expect: fail, check: CS-RESP-008, message: 'not valid JSON \(invalid character .\\n. in string literal' }
+  - { case: hostile-nan-literal, path: /hostile/nan-literal, expect: fail, check: CS-RESP-008, message: 'not valid JSON \(invalid character ''N''' }
+  - { case: hostile-bom, path: /hostile/bom, expect: fail, check: CS-RESP-008, message: 'not valid JSON \(invalid character', note: "RFC 8259 lets a parser ignore a BOM; ClearSignal rejects it (strict, defensible)" }
+  - { case: hostile-duplicate-keys, path: /hostile/duplicate-keys, expect: fail, check: CS-RESP-006, message: 'value must be an integer', note: "the last duplicate wins (id is the string two); the standard leaves this undefined" }
+  - { case: hostile-gzip-lie, path: /hostile/gzip-lie, expect: fail, check: CS-RUN-003, message: 'reading response body: unexpected EOF', note: "Content-Encoding gzip on a plain body: no readable response" }
+  - { case: hostile-float-overflow, path: /hostile/float-overflow, expect: fail, check: null, reported: null, reference: F-028, kind: other, message: 'ParseFloat: parsing "1e400": value out of range', note: "a valid JSON number beyond float64 is a failure with no check ID" }
+
 # State-dependent behavior: reset, then call the operation several times and compare call by call.
 # Every counter lives in the store, so the same reset always gives the same sequence.
 sequences:
@@ -118,6 +143,12 @@ whole_spec:
     - /timeout/connection-reset
     - /timeout/after-write
     - /rules/withdrawals
+    - /hostile/raw-newline-in-string
+    - /hostile/nan-literal
+    - /hostile/bom
+    - /hostile/duplicate-keys
+    - /hostile/gzip-lie
+    - /hostile/float-overflow
 
 # ---- requests that do not fit, and runs that cannot happen (slice 3) ----
 # Whole commands: the wrong environment files are next to the right one in clrsig/environments/.
@@ -297,6 +328,126 @@ runs:
     exit: 0
     output: "missing required field (&#39;|')name"
 
+  # ---- the adversarial group, part two: documents (specs/hostile/). No server is needed: `generate
+  # --dry-run` reads and builds, and `conform --negative` against a closed port builds every request and
+  # probe (the connection errors are expected). Valid but awkward specs must load; invalid ones must exit 2
+  # with a message, never crash or hang. ----
+  - name: hostile-spec-circular-ref
+    reference: null
+    note: "a schema that contains itself (parent, children): both operations are generated"
+    args: [generate, "{root}/specs/hostile/circular-ref.yaml", --dry-run]
+    exit: 0
+    output: '2 request\(s\) generated'
+  - name: hostile-spec-recursive-allof
+    reference: null
+    note: "allOf of a base and a schema that refers back to itself"
+    args: [generate, "{root}/specs/hostile/recursive-allof.yaml", --dry-run]
+    exit: 0
+    output: '1 request\(s\) generated'
+  - name: hostile-spec-discriminator-probes-both-branches
+    reference: CS-PROBE-003
+    note: "oneOf with a discriminator and a mapping: probes for both branches (4 each)"
+    args: [conform, "{root}/specs/hostile/discriminator.yaml", -b, "http://localhost:1", --request-timeout, "300", --negative]
+    exit: 1
+    output: "(?s)missing required field .kind. of branch 1.*missing required field .bark. of branch 2.*wrong type for field .bark. of branch 2"
+  - name: hostile-spec-many-branches
+    reference: null
+    note: "oneOf with 60 branches: 120 probes, quickly"
+    args: [conform, "{root}/specs/hostile/many-branches.yaml", -b, "http://localhost:1", --request-timeout, "300", --negative]
+    exit: 1
+    output: "(?s)missing required field .f59. of branch 60"
+  - name: hostile-spec-unsatisfiable-schema
+    reference: null
+    note: "allOf of a string and an integer can never be satisfied: a request is still generated, nothing hangs"
+    args: [generate, "{root}/specs/hostile/unsatisfiable.yaml", --dry-run]
+    exit: 0
+    output: '1 request\(s\) generated'
+  - name: hostile-spec-deep-schema
+    reference: null
+    note: "a request body schema nested 120 levels"
+    args: [generate, "{root}/specs/hostile/deep-schema.yaml", --dry-run]
+    exit: 0
+    output: '1 request\(s\) generated'
+  - name: hostile-spec-path-templates
+    reference: null
+    note: "two parameters and a dot, a trailing slash, a non-ASCII path"
+    args: [generate, "{root}/specs/hostile/path-templates.yaml", --dry-run]
+    exit: 0
+    output: '3 request\(s\) generated'
+  - name: hostile-spec-no-paths
+    reference: null
+    args: [generate, "{root}/specs/hostile/no-paths.yaml", --dry-run]
+    exit: 0
+    output: '0 request\(s\) generated'
+  - name: hostile-spec-json-file
+    reference: null
+    note: "the spec is a JSON document"
+    args: [generate, "{root}/specs/hostile/json-spec.json", --dry-run]
+    exit: 0
+    output: '1 request\(s\) generated'
+  - name: hostile-spec-openapi-3-2
+    reference: null
+    note: "openapi 3.2.0 is newer than the catalog; it loads like 3.1"
+    args: [generate, "{root}/specs/hostile/openapi-3.2.yaml", --dry-run]
+    exit: 0
+    output: '1 request\(s\) generated'
+  - name: hostile-spec-missing-ref
+    reference: CS-RUN-004
+    note: "a $ref to a schema that does not exist: a clean error, exit 2"
+    args: [generate, "{root}/specs/hostile/missing-ref.yaml", --dry-run]
+    exit: 2
+    output: 'failed to resolve "components".*#/components/schemas/Nope'
+  - name: hostile-spec-duplicate-operation-id
+    reference: CS-RUN-004
+    args: [generate, "{root}/specs/hostile/duplicate-operation-id.yaml", --dry-run]
+    exit: 2
+    output: 'have the same operation id "same"'
+  - name: hostile-spec-undeclared-path-parameter
+    reference: CS-RUN-004
+    args: [generate, "{root}/specs/hostile/undeclared-path-param.yaml", --dry-run]
+    exit: 2
+    output: 'must define exactly all path parameters \(missing: \[id\]\)'
+  - name: hostile-spec-identical-diff
+    reference: null
+    note: "diff of a recursive spec with itself: no changes, no loop"
+    args: [diff, "{root}/specs/hostile/circular-ref.yaml", "{root}/specs/hostile/circular-ref.yaml"]
+    exit: 0
+    output: 'No changes'
+  - name: failed-extraction-exits-zero
+    reference: F-032
+    note: "the only problem is an extraction that finds nothing: the step prints FAIL and the summary says 1 failed, yet the run exits 0 and says PASSED"
+    args: [run, "{root}/clrsig/scenarios/conform-fail-failed-extraction.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml", --spec, "{spec}"]
+    exit: 0
+    output: '(?s)FAIL\s+extract nothing.*PASSED\s+0 passed, 1 failed'
+  - name: probe-summary-says-passed-when-all-errored
+    reference: F-029
+    note: "no server: every probe errors and the run exits 1, yet the headline says PASSED"
+    args: [conform, "{root}/specs/hostile/only-post.yaml", -b, "http://localhost:1", --negative, --env, "{root}/clrsig/environments/ok.yaml", --request-timeout, "300"]
+    exit: 1
+    output: 'PASSED\s+2 probes\s+·\s+0 passed\s+·\s+0 failed\s+·\s+0 skipped\s+·\s+2 errors'
+
+  # ---- scale: a generated document with 500 operations (scripts/make_specs.py). It must load, generate,
+  # build every request and probe, and compare with itself, each well inside the time budget. ----
+  - name: scale-500-generate
+    reference: null
+    args: [generate, "{bigspec}", --dry-run]
+    exit: 0
+    output: '500 request\(s\) generated'
+    max_seconds: 10
+  - name: scale-500-diff-with-itself
+    reference: null
+    args: [diff, "{bigspec}", "{bigspec}"]
+    exit: 0
+    output: 'No changes'
+    max_seconds: 10
+  - name: scale-500-conform-negative
+    reference: null
+    note: "against a closed port, with no values for the path parameters: nothing is sent and the run still finishes"
+    args: [conform, "{bigspec}", -b, "http://localhost:1", --request-timeout, "100", --negative]
+    exit: 1
+    output: 'FAILED\s+500 operations\s+·\s+0 passed\s+·\s+500 failed'
+    max_seconds: 30
+
 # Coverage signals (catalog 2.3): a scenario that deliberately leaves one gap of each kind, run into
 # a fresh workspace, then `clrsig coverage quality --format json`. The spec is the four-operation
 # subset in specs/coverage/coverage.yaml. The signals are not failures: the command exits 0.
@@ -327,7 +478,7 @@ drift:
 
 # What ClearSignal builds from the spec (clrsig generate): every operation but the callback.
 generation:
-  operations: 56              # one per operation under paths; the callback is not among them (CS-GAP-010)
+  operations: 76              # one per operation under paths; the callback is not among them (CS-GAP-010)
   with_body: [subscribe, lenientMissingField, formBody, multipartBody]   # JSON, form and multipart bodies are generated
   not_generated: [onEventCallback]
 
@@ -355,6 +506,30 @@ scenarios:
       "first writer's value survives": { passed: false, note: "BUG: the stale writer overwrote the first writer's value" }
       timed-out write:                { passed: false, error: 'context deadline exceeded', note: "the request timed out ..." }
       the write took effect anyway:   { passed: true, note: "... yet the record exists: a retry would duplicate it" }
+
+  # The hostile bodies read by a scenario: each step asserts what a reader would expect, so
+  # `passed: false` marks where clrsig disagrees (the note says why).
+  - file: clrsig/scenarios/conform-fail-edge-assertions.yaml
+    env: clrsig/environments/conform-fail.yaml
+    steps:
+      duplicate header, first value: { passed: true }
+      duplicate header, joined: { passed: false, note: "only the first value of a repeated header is seen (F-030)" }
+      set-cookie header: { passed: false, note: "the second Set-Cookie is not reachable (F-030)" }
+      gzip body is decoded: { passed: true }
+      integer written as 1.0: { passed: true }
+      integer written as 1e2: { passed: true }
+      integer one above int64: { passed: false, note: "read as float64, printed 9.223372036854776e+18 (F-031)" }
+      number beyond float64: { passed: false, note: "1e400 cannot be read (F-028)" }
+      duplicate keys: { passed: false, note: "the last key wins: id is the string two" }
+      deep nesting: { passed: true }
+      wide object: { passed: true }
+      body with a byte order mark: { passed: false, note: "a BOM is rejected, as by conform" }
+      text after the JSON value: { passed: false, note: "rejected here, but conform passes the same body (F-027)" }
+      a string compared with gt: { passed: false, note: "cannot compare the string as a number: a clear message" }
+      extraction that finds nothing: { passed: true, error: 'extraction "absent": jsonpath "\$\.nothing\.here": unknown key nothing', note: "the step shows an error but is reported passed: true (F-032)" }
+      use of the value that was not extracted: { passed: false, error: 'not sent: no value for \{\{absent\}\}' }
+      read an id above 2^53 into a variable: { passed: true, extracted: { bigId: "9.223372036854776e+18" }, note: "the extracted id is rounded and in exponent form (F-031)" }
+      extraction from a header that is not there: { passed: true, error: 'header "X-Not-There" not found in response', note: "as above (F-032)" }
 
 # `clrsig conform --negative`: each operation's negative probes (see the header).
   # Seven business rules, each broken on purpose: the steps assert the CORRECT rule, so exactly the

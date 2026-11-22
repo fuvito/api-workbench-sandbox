@@ -21,6 +21,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 
@@ -158,7 +159,10 @@ def run_response_cases(spec: dict, spec_file: Path, base_url: str, only: set[str
             print(f"  skip  {case['case']:<36} (local only)")
             continue
         problems = check_case(case, spec, spec_file, base_url)
-        label = case.get("check") or ("pass" + (f" ({case['reference']})" if case.get("reference") else ""))
+        if case["expect"] == "fail":
+            label = case["check"] or f"no check ID ({case.get('reference')})"
+        else:
+            label = "pass" + (f" ({case['reference']})" if case.get("reference") else "")
         print(f"  {'ok  ' if not problems else 'FAIL'}  {case['case']:<36} {label}")
         for problem in problems:
             print(f"        - {problem}")
@@ -230,6 +234,8 @@ def check_scenario(entry: dict, spec_file: Path) -> list[tuple[str, list[str], s
         # exactly where the server is wrong.
         if "passed" in want and step["passed"] != want["passed"]:
             problems.append(f"step passed={step['passed']}, expected {want['passed']}")
+        if "extracted" in want and (step.get("extracted") or {}) != want["extracted"]:
+            problems.append(f"extracted {step.get('extracted')}, expected {want['extracted']}")
         if "error" in want and not re.search(want["error"], step.get("error") or ""):
             problems.append(f"step error does not match /{want['error']}/: {(step.get('error') or '')[:120]}")
         shown = f"A={got_a} B={got_b}" if "spec_check" in want else f"passed={step['passed']}"
@@ -252,18 +258,39 @@ def run_scenarios(spec: dict, spec_file: Path) -> int:
 # ---- whole commands: wrong environments, scenarios that cannot run, unreadable specs, ... ----
 
 
+_BIG_SPEC: Path | None = None
+
+
+def big_spec_file() -> Path:
+    """The 500-operation document of the scale cases, built once per run (scripts/make_specs.py)."""
+    global _BIG_SPEC
+    if _BIG_SPEC is None:
+        sys.path.insert(0, str(Path(__file__).parent))
+        from make_specs import big_spec, dump
+
+        _BIG_SPEC = Path(tempfile.mkdtemp(prefix="clrsig-big-")) / "big-500.json"
+        _BIG_SPEC.write_text(dump(big_spec(500)), encoding="utf-8")
+    return _BIG_SPEC
+
+
 def check_run(entry: dict, spec_file: Path, base_url: str, prefix: str = "") -> list[str]:
     """Run one ClearSignal command and compare exit code, finding and output text.
 
     `args` may use {spec} (the family's spec), {base} (the server's base URL), {fbase} (the base URL
-    with the family prefix) and {root} (the repo).
+    with the family prefix), {root} (the repo) and {bigspec} (a generated 500-operation document).
+    `max_seconds` fails the entry when the command takes longer.
     `unset` lists process variables removed from the command's environment. `finding` applies to
     the one operation that ran (kind, and a regex over its messages); `output` is a regex over
     everything the command printed and `not_output` one that must NOT match it.
     """
-    args = [a.format(spec=str(spec_file), base=base_url, fbase=base_url + prefix, root=str(ROOT)) for a in entry["args"]]
+    bigspec = str(big_spec_file()) if any("{bigspec}" in a for a in entry["args"]) else ""
+    args = [a.format(spec=str(spec_file), base=base_url, fbase=base_url + prefix, root=str(ROOT), bigspec=bigspec) for a in entry["args"]]
+    started = time.monotonic()
     code, out, err = clrsig(*args, unset=tuple(entry.get("unset") or ()))
+    elapsed = time.monotonic() - started
     problems = []
+    if "max_seconds" in entry and elapsed > entry["max_seconds"]:
+        problems.append(f"took {elapsed:.1f} s, more than {entry['max_seconds']} s")
     if code != entry["exit"]:
         problems.append(f"exit code {code}, expected {entry['exit']}")
     text = out + "\n" + err
@@ -682,7 +709,7 @@ def print_table(spec: dict) -> int:
     for case in spec["cases"]:
         path = case.get("path") or f"/cases/{case['case']}"
         if case["expect"] == "fail":
-            expected, check, exit_code = "fails", case["check"], 1
+            expected, check, exit_code = "fails", case["check"] or f"none ({case.get('reference')})", 1
             note = case["message"].strip("^").replace("|", "/")
         else:
             expected, exit_code = "passes", 0

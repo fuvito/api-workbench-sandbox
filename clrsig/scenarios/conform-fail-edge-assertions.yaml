@@ -1,0 +1,124 @@
+schemaVersion: "1"
+title: conform-fail - assertions and extractions on unusual responses
+description: >
+  The same hostile bodies as GET /conform-fail/hostile/*, read by a scenario instead of conform:
+  JSON paths on bodies that are not (quite) JSON, numbers beyond float64 and int64, duplicate keys,
+  duplicate response headers, a gzip body, and extractions that find nothing. Each step is one thing
+  and `failPolicy: continue`, so the report shows how each is judged. The steps assert what a reader
+  would expect; the expectations file records which of them clrsig agrees with.
+
+steps:
+  - label: duplicate header, first value
+    request: { method: GET, url: "{{baseUrl}}/hostile/duplicate-headers" }
+    assertions:
+      - { type: header, path: X-Dup, operator: eq, expected: "one" }
+    failPolicy: continue
+
+  - label: duplicate header, joined
+    request: { method: GET, url: "{{baseUrl}}/hostile/duplicate-headers" }
+    assertions:
+      - { type: header, path: X-Dup, operator: contains, expected: "two" }
+    failPolicy: continue
+
+  - label: set-cookie header
+    request: { method: GET, url: "{{baseUrl}}/hostile/duplicate-headers" }
+    assertions:
+      - { type: header, path: Set-Cookie, operator: contains, expected: "b=2" }
+    failPolicy: continue
+
+  - label: gzip body is decoded
+    request: { method: GET, url: "{{baseUrl}}/hostile/gzip" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+      - { type: jsonpath, path: "$.id", operator: eq, expected: "1" }
+    failPolicy: continue
+
+  - label: integer written as 1.0
+    request: { method: GET, url: "{{baseUrl}}/hostile/integer-as-float" }
+    assertions:
+      - { type: jsonpath, path: "$.id", operator: eq, expected: "1" }
+    failPolicy: continue
+
+  - label: integer written as 1e2
+    request: { method: GET, url: "{{baseUrl}}/hostile/integer-exponent" }
+    assertions:
+      - { type: jsonpath, path: "$.id", operator: eq, expected: "100" }
+    failPolicy: continue
+
+  - label: integer one above int64
+    request: { method: GET, url: "{{baseUrl}}/hostile/big-integer" }
+    assertions:
+      - { type: jsonpath, path: "$.id", operator: eq, expected: "9223372036854775808" }
+    failPolicy: continue
+
+  - label: number beyond float64
+    request: { method: GET, url: "{{baseUrl}}/hostile/float-overflow" }
+    assertions:
+      - { type: jsonpath, path: "$.id", operator: eq, expected: "1" }
+    failPolicy: continue
+
+  - label: duplicate keys
+    request: { method: GET, url: "{{baseUrl}}/hostile/duplicate-keys" }
+    assertions:
+      - { type: jsonpath, path: "$.id", operator: eq, expected: "1" }
+    failPolicy: continue
+
+  - label: deep nesting
+    request: { method: GET, url: "{{baseUrl}}/hostile/deep-nesting" }
+    assertions:
+      - { type: jsonpath, path: "$.id", operator: eq, expected: "1" }
+    failPolicy: continue
+
+  - label: wide object
+    request: { method: GET, url: "{{baseUrl}}/hostile/wide-object" }
+    assertions:
+      - { type: jsonpath, path: "$.k19999", operator: eq, expected: "19999" }
+    failPolicy: continue
+
+  - label: body with a byte order mark
+    request: { method: GET, url: "{{baseUrl}}/hostile/bom" }
+    assertions:
+      - { type: jsonpath, path: "$.id", operator: eq, expected: "1" }
+    failPolicy: continue
+
+  - label: text after the JSON value
+    request: { method: GET, url: "{{baseUrl}}/hostile/trailing-garbage" }
+    assertions:
+      - { type: jsonpath, path: "$.id", operator: eq, expected: "1" }
+    failPolicy: continue
+
+  - label: a string compared with gt
+    request: { method: GET, url: "{{baseUrl}}/hostile/unicode" }
+    assertions:
+      - { type: jsonpath, path: "$.text", operator: gt, expected: "5" }
+    failPolicy: continue
+
+  - label: extraction that finds nothing
+    request: { method: GET, url: "{{baseUrl}}/hostile/chunked-stream" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    extractions:
+      - { name: absent, source: jsonpath, path: "$.nothing.here" }
+    failPolicy: continue
+
+  - label: use of the value that was not extracted
+    request: { method: GET, url: "{{baseUrl}}/health?x={{absent}}" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    failPolicy: continue
+
+  - label: read an id above 2^53 into a variable
+    request: { method: GET, url: "{{baseUrl}}/hostile/big-integer" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    extractions:
+      - { name: bigId, source: jsonpath, path: "$.id" }
+    failPolicy: continue
+
+  - label: extraction from a header that is not there
+    request: { method: GET, url: "{{baseUrl}}/hostile/chunked-stream" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    extractions:
+      - { name: absentHeader, source: header, path: X-Not-There }
+    failPolicy: continue

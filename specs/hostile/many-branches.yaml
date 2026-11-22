@@ -1,0 +1,75 @@
+openapi: 3.0.3
+info: {title: many-branches, version: "1"}
+servers: [{url: http://localhost:8080/x}]
+paths:
+  /m:
+    post:
+      operationId: postMany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - { type: object, required: [f0], properties: { f0: { type: integer } } }
+                - { type: object, required: [f1], properties: { f1: { type: integer } } }
+                - { type: object, required: [f2], properties: { f2: { type: integer } } }
+                - { type: object, required: [f3], properties: { f3: { type: integer } } }
+                - { type: object, required: [f4], properties: { f4: { type: integer } } }
+                - { type: object, required: [f5], properties: { f5: { type: integer } } }
+                - { type: object, required: [f6], properties: { f6: { type: integer } } }
+                - { type: object, required: [f7], properties: { f7: { type: integer } } }
+                - { type: object, required: [f8], properties: { f8: { type: integer } } }
+                - { type: object, required: [f9], properties: { f9: { type: integer } } }
+                - { type: object, required: [f10], properties: { f10: { type: integer } } }
+                - { type: object, required: [f11], properties: { f11: { type: integer } } }
+                - { type: object, required: [f12], properties: { f12: { type: integer } } }
+                - { type: object, required: [f13], properties: { f13: { type: integer } } }
+                - { type: object, required: [f14], properties: { f14: { type: integer } } }
+                - { type: object, required: [f15], properties: { f15: { type: integer } } }
+                - { type: object, required: [f16], properties: { f16: { type: integer } } }
+                - { type: object, required: [f17], properties: { f17: { type: integer } } }
+                - { type: object, required: [f18], properties: { f18: { type: integer } } }
+                - { type: object, required: [f19], properties: { f19: { type: integer } } }
+                - { type: object, required: [f20], properties: { f20: { type: integer } } }
+                - { type: object, required: [f21], properties: { f21: { type: integer } } }
+                - { type: object, required: [f22], properties: { f22: { type: integer } } }
+                - { type: object, required: [f23], properties: { f23: { type: integer } } }
+                - { type: object, required: [f24], properties: { f24: { type: integer } } }
+                - { type: object, required: [f25], properties: { f25: { type: integer } } }
+                - { type: object, required: [f26], properties: { f26: { type: integer } } }
+                - { type: object, required: [f27], properties: { f27: { type: integer } } }
+                - { type: object, required: [f28], properties: { f28: { type: integer } } }
+                - { type: object, required: [f29], properties: { f29: { type: integer } } }
+                - { type: object, required: [f30], properties: { f30: { type: integer } } }
+                - { type: object, required: [f31], properties: { f31: { type: integer } } }
+                - { type: object, required: [f32], properties: { f32: { type: integer } } }
+                - { type: object, required: [f33], properties: { f33: { type: integer } } }
+                - { type: object, required: [f34], properties: { f34: { type: integer } } }
+                - { type: object, required: [f35], properties: { f35: { type: integer } } }
+                - { type: object, required: [f36], properties: { f36: { type: integer } } }
+                - { type: object, required: [f37], properties: { f37: { type: integer } } }
+                - { type: object, required: [f38], properties: { f38: { type: integer } } }
+                - { type: object, required: [f39], properties: { f39: { type: integer } } }
+                - { type: object, required: [f40], properties: { f40: { type: integer } } }
+                - { type: object, required: [f41], properties: { f41: { type: integer } } }
+                - { type: object, required: [f42], properties: { f42: { type: integer } } }
+                - { type: object, required: [f43], properties: { f43: { type: integer } } }
+                - { type: object, required: [f44], properties: { f44: { type: integer } } }
+                - { type: object, required: [f45], properties: { f45: { type: integer } } }
+                - { type: object, required: [f46], properties: { f46: { type: integer } } }
+                - { type: object, required: [f47], properties: { f47: { type: integer } } }
+                - { type: object, required: [f48], properties: { f48: { type: integer } } }
+                - { type: object, required: [f49], properties: { f49: { type: integer } } }
+                - { type: object, required: [f50], properties: { f50: { type: integer } } }
+                - { type: object, required: [f51], properties: { f51: { type: integer } } }
+                - { type: object, required: [f52], properties: { f52: { type: integer } } }
+                - { type: object, required: [f53], properties: { f53: { type: integer } } }
+                - { type: object, required: [f54], properties: { f54: { type: integer } } }
+                - { type: object, required: [f55], properties: { f55: { type: integer } } }
+                - { type: object, required: [f56], properties: { f56: { type: integer } } }
+                - { type: object, required: [f57], properties: { f57: { type: integer } } }
+                - { type: object, required: [f58], properties: { f58: { type: integer } } }
+                - { type: object, required: [f59], properties: { f59: { type: integer } } }
+      responses:
+        "200": { description: ok }

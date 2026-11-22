@@ -1,0 +1,14 @@
+openapi: 3.0.3
+info: {title: only-post, version: "1"}
+servers: [{url: http://localhost:8080/x}]
+paths:
+  /p:
+    post:
+      operationId: p
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [n], properties: {n: {type: integer}}}
+      responses:
+        "200": {description: ok}

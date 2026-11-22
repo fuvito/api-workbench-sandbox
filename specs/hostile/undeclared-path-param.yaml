@@ -1,0 +1,9 @@
+openapi: 3.0.3
+info: {title: undeclared-path-param, version: "1"}
+servers: [{url: http://localhost:8080/x}]
+paths:
+  /u/{id}:
+    get:
+      operationId: getU
+      responses:
+        "200": { description: ok }

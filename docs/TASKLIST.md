@@ -64,7 +64,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
 - [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
 
-**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-021 closed with v0.8.2 except F-016; F-016 and F-022 closed with v0.8.3; none open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-021 closed with v0.8.2 except F-016; F-016 and F-022 closed with v0.8.3; F-023 to F-025 closed with v0.8.4; F-026 to F-032 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [x] Add remaining resource families (customers, payments, invoices, discount codes, notifications, reports, settings, secured examples), kept within the 60 to 70 operation target.
@@ -244,6 +244,17 @@ Why: the catalog was fully mentioned except six IDs, and neither the OpenAPI fea
 - [x] Record what the pass found: F-023 (`run` sends an undefined placeholder), F-024 (`--seed` depends on the path spelling), F-025 (a TRACE operation is dropped).
 - [ ] Decide the oauth2 / openIdConnect URLs under `PUBLIC_BASE_URL` (Phase 6); see the KT note.
 - [x] Move to clrsig v0.8.4: F-023, F-024 and F-025 verified closed; CI pinned to `v0.8.4`; `ok-features` is 19 of 19 (TRACE), seeds pinned by value, `run-001b` pins the not-sent step.
+
+## Adversarial group (added scope, decided 2026-11-22)
+
+Why: the fixtures so far test what was thought of in advance; the findings came from poking at what was not. See `docs/kts/adversarial-group.md`. PRD section 5.4 says what it is: part of `conform-fail`, not a fourth family.
+- [x] Amend the PRD (5.4): an adversarial group under `/conform-fail/hostile/*`, with the rule for undefined behavior (record a question, pin what is observed).
+- [x] Serve 20 hostile bodies and HTTP shapes (`app/conform_fail/hostile.py`, `specs/conform-fail.yaml`: 56 to 76 operations) with tests (`tests/test_conform_fail_hostile.py`) and expectations (`hostile-*` cases).
+- [x] Hostile documents without a server (`specs/hostile/`, 14 files) and a generated 500-operation spec for scale (`scripts/make_specs.py`, `{bigspec}` and `max_seconds` in the runner).
+- [x] Random valid specs (`scripts/fuzz_specs.py`, deterministic per seed; a CI step runs 60; 900 seeds were run when it was written).
+- [x] Scenario robustness: assertions and extractions on the hostile bodies (`clrsig/scenarios/conform-fail-edge-assertions.yaml`).
+- [x] Record what it found: F-026 to F-032 (open). The runner gained `extracted` for scenario steps.
+- [ ] Re-run the pinned outcomes when any of F-026 to F-032 is fixed; each flips an expectation.
 
 ## Phase 7 — Release readiness
 

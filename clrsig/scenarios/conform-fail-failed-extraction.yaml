@@ -1,0 +1,14 @@
+schemaVersion: "1"
+title: conform-fail - an extraction that finds nothing
+description: >
+  DELIBERATELY BROKEN. The only problem is that the extraction `nope` finds nothing in the response.
+  Every assertion passes. clrsig prints FAIL for the step and counts "1 failed", yet the run exits 0
+  and the headline says PASSED (F-032).
+steps:
+  - label: extract nothing
+    request: { method: GET, url: "{{baseUrl}}/health" }
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    extractions:
+      - { name: nope, source: jsonpath, path: "$.not.there" }
+    failPolicy: stop

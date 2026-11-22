@@ -1,0 +1,22 @@
+openapi: 3.0.3
+info: {title: path-templates, version: "1"}
+servers: [{url: http://localhost:8080/x}]
+paths:
+  /a/{x}/{y}/z.json:
+    get:
+      operationId: twoParams
+      parameters:
+        - { name: x, in: path, required: true, schema: { type: string } }
+        - { name: y, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: ok }
+  /trailing/:
+    get:
+      operationId: trailingSlash
+      responses:
+        "200": { description: ok }
+  /unicode/café:
+    get:
+      operationId: unicodePath
+      responses:
+        "200": { description: ok }

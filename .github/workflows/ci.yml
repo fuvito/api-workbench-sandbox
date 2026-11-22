@@ -106,6 +106,8 @@ jobs:
         run: uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml
       - name: spec diffs and impact (no server)
         run: uv run python scripts/check_expectations.py --expectations expectations/diff.yaml
+      - name: random specs (no server)
+        run: uv run python scripts/fuzz_specs.py --start 1 --count 60
 
       - name: Server log on failure
         if: failure()

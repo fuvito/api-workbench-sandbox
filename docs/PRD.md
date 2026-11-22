@@ -85,6 +85,7 @@ Implement the cases in source document section 5:
 - Baseline drift modes.
 - Coverage signals.
 - Business-rule failures observable through scenario assertions.
+- Adversarial group (added 2026-11-22, `/conform-fail/hostile/*`): well-formed and malformed response bodies and HTTP shapes a real server can produce (deep or wide JSON, duplicate keys, numbers beyond float or int64, a BOM, invalid UTF-8, NaN, trailing garbage, gzip, duplicate headers, a very large header, chunked bodies). It is part of `conform-fail`, not a fourth family: same prefix, store, reset and spec. Where the intended ClearSignal behavior is not defined (a duplicate key, a BOM), the observed behavior is recorded in `docs/clrsig-findings.md` as a question and pinned, never assumed.
 
 Spec-to-spec `clrsig diff` fixtures are YAML pairs and do not require server routes.
 

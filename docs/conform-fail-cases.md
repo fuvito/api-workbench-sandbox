@@ -43,6 +43,26 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `rules-items` | `/rules/items` | passes | none | 0 | a valid page; the repeat only shows across two pages |
 | `rules-protected-token-not-known` | `/rules/protected` | passes | none | 0 | ClearSignal's test-token is unknown here: the declared 401 |
 | `rules-withdraw-insufficient-funds` | `/rules/withdrawals` | fails | CS-RESP-005 | 1 | property "id" is missing |
+| `hostile-deep-nesting` | `/hostile/deep-nesting` | passes | none | 0 | JSON nested 200 levels deep |
+| `hostile-wide-object` | `/hostile/wide-object` | passes | none | 0 | an object with 20000 keys |
+| `hostile-unicode` | `/hostile/unicode` | passes | none | 0 | accents, Hebrew, an emoji, an escaped surrogate pair and an escaped NUL |
+| `hostile-integer-as-float` | `/hostile/integer-as-float` | passes | none | 0 | id is 1.0: an integer in JSON Schema |
+| `hostile-integer-exponent` | `/hostile/integer-exponent` | passes | none | 0 | id is 1e2: an integer in JSON Schema |
+| `hostile-big-integer` | `/hostile/big-integer` | passes | none | 0 | id is one above int64: still an integer for an unbounded schema |
+| `hostile-negative-zero` | `/hostile/negative-zero` | passes | none | 0 | id is -0 |
+| `hostile-gzip` | `/hostile/gzip` | passes | none | 0 | a valid gzip body with Content-Encoding gzip is decoded |
+| `hostile-duplicate-headers` | `/hostile/duplicate-headers` | passes | none | 0 | the same header twice and two Set-Cookie headers |
+| `hostile-big-header` | `/hostile/big-header` | passes | none | 0 | a 60000-byte response header |
+| `hostile-chunked-stream` | `/hostile/chunked-stream` | passes | none | 0 | no Content-Length: three chunks |
+| `hostile-lone-surrogate` | `/hostile/lone-surrogate` | passes | none | 0 | an unpaired surrogate escape is valid JSON text; ClearSignal does not check that it is valid Unicode (undefined by the standard) |
+| `hostile-invalid-utf8` | `/hostile/invalid-utf8` | passes | F-026 | 0 | bytes ff fe are not UTF-8, so the body is not valid JSON; ClearSignal passes it (it should fail, CS-RESP-008) |
+| `hostile-trailing-garbage` | `/hostile/trailing-garbage` | passes | F-027 | 0 | text after the JSON value is ignored (it should fail, CS-RESP-008) |
+| `hostile-raw-newline-in-string` | `/hostile/raw-newline-in-string` | fails | CS-RESP-008 | 1 | not valid JSON \(invalid character .\\n. in string literal |
+| `hostile-nan-literal` | `/hostile/nan-literal` | fails | CS-RESP-008 | 1 | not valid JSON \(invalid character 'N' |
+| `hostile-bom` | `/hostile/bom` | fails | CS-RESP-008 | 1 | not valid JSON \(invalid character |
+| `hostile-duplicate-keys` | `/hostile/duplicate-keys` | fails | CS-RESP-006 | 1 | value must be an integer |
+| `hostile-gzip-lie` | `/hostile/gzip-lie` | fails | CS-RUN-003 | 1 | reading response body: unexpected EOF |
+| `hostile-float-overflow` | `/hostile/float-overflow` | fails | none (F-028) | 1 | ParseFloat: parsing "1e400": value out of range |
 
 ### Sequences (reset first, then call by call)
 
@@ -84,3 +104,22 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `probe-005-paths-limit-the-probes` | none | 0 | PASSED\s+2 probes |
 | `probe-005-json-report-has-the-probes` | none | 0 | "kind": "drop_required_field" |
 | `probe-005-junit-report-has-the-probes` | none | 0 | missing required field (&#39;/')name |
+| `hostile-spec-circular-ref` | none | 0 | 2 request\(s\) generated (a schema that contains itself (parent, children): both operations are generated) |
+| `hostile-spec-recursive-allof` | none | 0 | 1 request\(s\) generated (allOf of a base and a schema that refers back to itself) |
+| `hostile-spec-discriminator-probes-both-branches` | none | 1 | (?s)missing required field .kind. of branch 1.*missing required field .bark. of branch 2.*wrong type for field .bark. of branch 2 (oneOf with a discriminator and a mapping: probes for both branches (4 each)) |
+| `hostile-spec-many-branches` | none | 1 | (?s)missing required field .f59. of branch 60 (oneOf with 60 branches: 120 probes, quickly) |
+| `hostile-spec-unsatisfiable-schema` | none | 0 | 1 request\(s\) generated (allOf of a string and an integer can never be satisfied: a request is still generated, nothing hangs) |
+| `hostile-spec-deep-schema` | none | 0 | 1 request\(s\) generated (a request body schema nested 120 levels) |
+| `hostile-spec-path-templates` | none | 0 | 3 request\(s\) generated (two parameters and a dot, a trailing slash, a non-ASCII path) |
+| `hostile-spec-no-paths` | none | 0 | 0 request\(s\) generated |
+| `hostile-spec-json-file` | none | 0 | 1 request\(s\) generated (the spec is a JSON document) |
+| `hostile-spec-openapi-3-2` | none | 0 | 1 request\(s\) generated (openapi 3.2.0 is newer than the catalog; it loads like 3.1) |
+| `hostile-spec-missing-ref` | none | 2 | failed to resolve "components".*#/components/schemas/Nope (a $ref to a schema that does not exist: a clean error, exit 2) |
+| `hostile-spec-duplicate-operation-id` | none | 2 | have the same operation id "same" |
+| `hostile-spec-undeclared-path-parameter` | none | 2 | must define exactly all path parameters \(missing: \[id\]\) |
+| `hostile-spec-identical-diff` | none | 0 | No changes (diff of a recursive spec with itself: no changes, no loop) |
+| `failed-extraction-exits-zero` | none | 0 | (?s)FAIL\s+extract nothing.*PASSED\s+0 passed, 1 failed (the only problem is an extraction that finds nothing: the step prints FAIL and the summary says 1 failed, yet the run exits 0 and says PASSED) |
+| `probe-summary-says-passed-when-all-errored` | none | 1 | PASSED\s+2 probes\s+·\s+0 passed\s+·\s+0 failed\s+·\s+0 skipped\s+·\s+2 errors (no server: every probe errors and the run exits 1, yet the headline says PASSED) |
+| `scale-500-generate` | none | 0 | 500 request\(s\) generated |
+| `scale-500-diff-with-itself` | none | 0 | No changes |
+| `scale-500-conform-negative` | none | 1 | FAILED\s+500 operations\s+·\s+0 passed\s+·\s+500 failed (against a closed port, with no values for the path parameters: nothing is sent and the run still finishes) |

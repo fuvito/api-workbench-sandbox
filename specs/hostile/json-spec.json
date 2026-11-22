@@ -1,0 +1,24 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "json-spec",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080/x"
+    }
+  ],
+  "paths": {
+    "/h": {
+      "get": {
+        "operationId": "h",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    }
+  }
+}

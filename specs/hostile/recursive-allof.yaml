@@ -1,0 +1,27 @@
+openapi: 3.0.3
+info: {title: recursive-allof, version: "1"}
+servers: [{url: http://localhost:8080/x}]
+paths:
+  /category:
+    post:
+      operationId: postCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Category" }
+      responses:
+        "200": { description: ok }
+components:
+  schemas:
+    Base:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+    Category:
+      allOf:
+        - { $ref: "#/components/schemas/Base" }
+        - type: object
+          properties:
+            sub: { $ref: "#/components/schemas/Category" }
