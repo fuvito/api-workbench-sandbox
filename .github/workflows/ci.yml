@@ -1,0 +1,101 @@
+name: CI
+
+# Two questions, asked separately:
+#   fixtures   did a change to this repo break a fixture?         (every push / pull request)
+#   clrsig     did a ClearSignal change break an expectation?     (nightly, against api-workbench@main)
+# Both run the same expectation files; they differ only in which clrsig they use.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * *"   # nightly: clrsig built from api-workbench@main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CLRSIG_VERSION: v0.7.1          # the released clrsig the expectations are written for
+  UV_VERSION: "0.11.31"
+
+jobs:
+  tests:
+    name: pytest
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv sync --frozen
+      - run: uv run pytest -q
+
+  expectations:
+    name: expectations (clrsig ${{ matrix.clrsig }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # nightly: clrsig built from main; every other trigger: the released one
+        clrsig: ${{ fromJSON(github.event_name == 'schedule' && '["main"]' || '["released"]') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install released clrsig
+        if: matrix.clrsig == 'released'
+        run: |
+          gh release download "$CLRSIG_VERSION" -R fuvito/api-workbench -p clrsig-linux-amd64 -O clrsig
+          sudo install -m 0755 clrsig /usr/local/bin/clrsig
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions/setup-go@v5
+        if: matrix.clrsig == 'main'
+        with:
+          go-version: "1.26"
+
+      - name: Build clrsig from api-workbench@main
+        if: matrix.clrsig == 'main'
+        run: |
+          git clone --depth 1 https://github.com/fuvito/api-workbench.git "$RUNNER_TEMP/api-workbench"
+          (cd "$RUNNER_TEMP/api-workbench" && go build -o /usr/local/bin/clrsig ./apps/cli && git log -1 --format='api-workbench@%h %s')
+
+      - run: clrsig --version
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv sync --frozen
+
+      # The container, not the runner's process, so timing expectations see the same server the
+      # image ships (CLAUDE.md: timing is verified against the container).
+      - name: Build and start the server
+        run: |
+          docker build -t api-workbench-sandbox .
+          docker run -d --name awbs -p 8080:8080 api-workbench-sandbox
+
+      - name: Wait for readiness
+        run: |
+          for family in ok contract-fail conform-fail; do
+            for i in $(seq 1 60); do
+              curl -fsS "http://localhost:8080/$family/health" >/dev/null && break
+              [ "$i" = 60 ] && { docker logs awbs; echo "$family never became ready"; exit 1; }
+              sleep 1
+            done
+          done
+
+      - name: ok
+        run: uv run python scripts/check_expectations.py --expectations expectations/ok.yaml
+      - name: contract-fail
+        run: uv run python scripts/check_expectations.py --expectations expectations/contract-fail.yaml
+      - name: conform-fail
+        run: uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml
+      - name: spec diffs and impact (no server)
+        run: uv run python scripts/check_expectations.py --expectations expectations/diff.yaml
+
+      - name: Server log on failure
+        if: failure()
+        run: docker logs awbs | tail -50

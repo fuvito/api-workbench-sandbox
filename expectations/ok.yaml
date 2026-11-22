@@ -1,0 +1,182 @@
+# Expected ClearSignal outcome for the `ok` API: it must conform exactly.
+#
+#   whole_spec   one plain `conform` run over every operation. Only the two operations in `failing`
+#                may fail, and both are ClearSignal bugs, not fixture bugs:
+#                  GET /preferences  F-008  a required cookie parameter is never sent
+#                  GET /lookup       F-009  an explode=false array query parameter is sent as "[1 2 3]"
+#                When those are fixed the entries must be removed (the run then expects exit 0).
+#   scenarios    every step of the five ok scenarios must pass.
+#   probes       `conform --negative` runs 44 probes and every one passes: the server rejects what it should.
+#
+# Run: uv run python scripts/check_expectations.py --expectations expectations/ok.yaml   (server on :8080)
+#
+# These expectations hold for clrsig v0.7.1 run through the spec copy that works around F-010
+# (docs/clrsig-findings.md). Do not edit a spec or handler to change an expectation.
+
+format: 1
+family: ok
+spec: specs/ok.yaml
+prefix: /ok
+env: clrsig/environments/ok.yaml
+
+whole_spec:
+  reset: true
+  covers_all: true
+  failing:
+    - /preferences
+    - /lookup
+
+generation:
+  operations: 65
+
+scenarios:
+  - file: clrsig/scenarios/ok-crud.yaml
+    env: clrsig/environments/ok.yaml
+    steps:
+      Reset ok store: { passed: true }
+      List seeded products: { passed: true }
+      Create product: { passed: true }
+      Get product: { passed: true }
+      Replace product: { passed: true }
+      Reject product with wrong type: { passed: true }
+      Create order for the new product: { passed: true }
+      Reject order for unknown product: { passed: true }
+      Reject order quantity above stock: { passed: true }
+      Update order quantity (product has stock 3): { passed: true }
+      Delete order: { passed: true }
+      Deleted order is gone: { passed: true }
+      Create project: { passed: true }
+      Create task in project: { passed: true }
+      Complete task: { passed: true }
+      List tasks of project: { passed: true }
+      Task is not visible under another project: { passed: true }
+      Delete task: { passed: true }
+      Delete project: { passed: true }
+      Delete product: { passed: true }
+      Deleted product is gone: { passed: true }
+  - file: clrsig/scenarios/ok-business-rules.yaml
+    env: clrsig/environments/ok.yaml
+    steps:
+      Reset ok store: { passed: true }
+      Order above stock is refused: { passed: true }
+      Create order (3 x 24.50 + 10% tax): { passed: true }
+      Edit without If-Match is 428: { passed: true }
+      Edit with a stale If-Match is 412: { passed: true }
+      Edit with the current ETag: { passed: true }
+      The old ETag no longer works (lost update prevented): { passed: true }
+      Pay takes stock: { passed: true }
+      Stock went from 5 to 3: { passed: true }
+      Paying twice is 409: { passed: true }
+      A paid order is no longer editable (409, precondition passes): { passed: true }
+      Cancel a paid order gives stock back: { passed: true }
+      Stock is back to 5: { passed: true }
+      A cancelled order cannot ship: { passed: true }
+      Create and pay another order: { passed: true }
+      Invoice before payment is 409: { passed: true }
+      Pay it: { passed: true }
+      Invoice gets the next sequential number: { passed: true }
+      One invoice per order: { passed: true }
+      Duplicate email is a problem+json 409: { passed: true }
+      Soft-delete a customer: { passed: true }
+      A deleted customer is gone: { passed: true }
+      includeDeleted still shows it: { passed: true }
+      The email is free again: { passed: true }
+      Project with open tasks cannot be deleted: { passed: true }
+      cascade=true deletes it with its tasks: { passed: true }
+      Its tasks are gone: { passed: true }
+      First payment with a key: { passed: true }
+      Same key and body replays the first payment: { passed: true }
+      Same key with another body is 422: { passed: true }
+      Valid code redeems: { passed: true }
+      Expired code is 410: { passed: true }
+      Start a report: { passed: true }
+      Poll 1 - running: { passed: true }
+      Poll 2 - running: { passed: true }
+      Poll 3 - done: { passed: true }
+      Rate limit call 1: { passed: true }
+      Rate limit call 2: { passed: true }
+      Rate limit call 3: { passed: true }
+      Rate limit call 4: { passed: true }
+      Rate limit call 5: { passed: true }
+      Call 6 is throttled: { passed: true }
+      Another client is not throttled: { passed: true }
+  - file: clrsig/scenarios/ok-parameters-and-paging.yaml
+    env: clrsig/environments/ok.yaml
+    steps:
+      Reset ok store: { passed: true }
+      Page 1: { passed: true }
+      Page 2 with the cursor from page 1: { passed: true }
+      Page 3 is the last (two items): { passed: true }
+      A malformed cursor is 400: { passed: true }
+      Unread filter applies before paging: { passed: true }
+      since is an RFC 3339 instant: { passed: true }
+      Marking read is idempotent: { passed: true }
+      Bulk create is atomic - one bad item rejects all: { passed: true }
+      Bulk create: { passed: true }
+      Products total is 5 (nothing from the rejected bulk was created): { passed: true }
+      Bulk delete, partly missing, is 207: { passed: true }
+      Bulk delete, all existing, is 200: { passed: true }
+      X-Request-Id is echoed: { passed: true }
+      X-Request-Id is generated when absent: { passed: true }
+      A malformed X-Request-Id is 400: { passed: true }
+      theme cookie: { passed: true }
+      Missing theme cookie is 400: { passed: true }
+      lookup parses every parameter type: { passed: true }
+      The array as ClearSignal v0.7.1 writes it is rejected (F-009): { passed: true }
+      No token is 401: { passed: true }
+      A valid token without the admin scope is 403: { passed: true }
+      The admin token is 200: { passed: true }
+      Cache-Control on a public read: { passed: true }
+  - file: clrsig/scenarios/ok-schemas-and-security.yaml
+    env: clrsig/environments/ok.yaml
+    steps:
+      Reset ok store: { passed: true }
+      Bearer - valid token: { passed: true }
+      Bearer - missing token: { passed: true }
+      Bearer - wrong token: { passed: true }
+      Basic - valid credentials: { passed: true }
+      Basic - wrong password: { passed: true }
+      API key in header - valid: { passed: true }
+      API key in header - missing: { passed: true }
+      API key in query - valid: { passed: true }
+      API key in query - wrong: { passed: true }
+      Create card payment: { passed: true }
+      Create bank payment with a UUID reference: { passed: true }
+      Get the card payment: { passed: true }
+      Reject unknown payment method: { passed: true }
+      Reject card payment carrying bank fields: { passed: true }
+      Reject reference that is neither UUID nor positive integer: { passed: true }
+      Create customer with nullable birthDate: { passed: true }
+      Invalid email is a problem+json 400: { passed: true }
+      Unknown customer is a problem+json 404: { passed: true }
+      Replace settings map: { passed: true }
+      Version is text/plain: { passed: true }
+  - file: clrsig/scenarios/ok-latency.yaml
+    env: clrsig/environments/ok.yaml
+    steps:
+      Reset ok store: { passed: true }
+      Fast control - no delay: { passed: true }
+      Slow but correct - 400 ms: { passed: true }
+      List with an optional delay: { passed: true }
+      Delay above the cap is rejected: { passed: true }
+      Negative delay is rejected: { passed: true }
+
+probes:
+  - { op: '/audit-events', probes: 1, fail: [] }
+  - { op: '/customers', probes: 4, fail: [] }
+  - { op: '/feature-flags', probes: 1, fail: [] }
+  - { op: '/lookup', probes: 1, fail: [] }
+  - { op: '/me', probes: 1, fail: [] }
+  - { op: '/orders', probes: 4, fail: [] }
+  - { op: '/orders/{orderId}', probes: 4, fail: [] }
+  - { op: '/partner-status', probes: 1, fail: [] }
+  - { op: '/products', probes: 6, fail: [] }
+  - { op: '/products/bulk', probes: 2, fail: [] }
+  - { op: '/products/bulk-delete', probes: 2, fail: [] }
+  - { op: '/products/{productId}', probes: 6, fail: [] }
+  - { op: '/projects', probes: 2, fail: [] }
+  - { op: '/projects/{projectId}', probes: 2, fail: [] }
+  - { op: '/projects/{projectId}/tasks', probes: 2, fail: [] }
+  - { op: '/projects/{projectId}/tasks/{taskId}', probes: 2, fail: [] }
+  - { op: '/reports', probes: 2, fail: [] }
+  - { op: '/stats', probes: 1, fail: [] }

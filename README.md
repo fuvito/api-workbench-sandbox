@@ -40,6 +40,21 @@ Expected with `clrsig` v0.7.1: all scenarios and `conform --negative`'s probes p
 
 Verified with released `clrsig` v0.7.1 (earlier versions have known issues; see `docs/clrsig-findings.md`).
 
+## Run all the checks
+
+```
+uv run pytest                                   # unit and integration tests, no ClearSignal needed
+uv run python -m app                            # the server, then in another terminal:
+uv run python scripts/check_expectations.py --expectations expectations/ok.yaml
+uv run python scripts/check_expectations.py --expectations expectations/contract-fail.yaml
+uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml   # about 2 minutes
+uv run python scripts/check_expectations.py --expectations expectations/diff.yaml           # no server
+```
+
+Each prints one line per case and ends with `ALL AS EXPECTED` (exit 0) or `<n> MISMATCH(ES)` (exit 1): a case that unexpectedly passes, fails with another check, or changes exit code is a mismatch. `--section`, `--only` and `--cloud` narrow a run. The plain commands in "Run ClearSignal" below do not verify response behavior (F-010); these runners do.
+
+CI (`.github/workflows/ci.yml`): pytest, then the Docker image is built and started, `/health` of each family is polled, and the four expectation files run against the container (timing needs it). Pushes and pull requests use the released `clrsig` pinned in `CLRSIG_VERSION`; a nightly run builds `clrsig` from `api-workbench@main` to catch ClearSignal regressions. When a `clrsig` release changes behavior, the expectations that encode a known bug (F-003 to F-020) must flip with it; update them in the same change that bumps `CLRSIG_VERSION`.
+
 ## `contract-fail` cases
 
 35 operations under `GET /contract-fail/cases/<check-id>-<slug>`, each declaring the correct behavior in `specs/contract-fail.yaml` while the server breaks exactly one thing. The expected ClearSignal outcome of every case is in `expectations/contract-fail.yaml` (table: `docs/contract-fail-cases.md`).

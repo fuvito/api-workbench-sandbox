@@ -186,10 +186,10 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 
 ## Phase 5 — Expectations and CI
 
-- [ ] Define `expected.yaml` format: command, expected exit code, expected check IDs.
-- [ ] Support `local-only` cases and cloud-specific expectation overrides.
-- [ ] Write a script/runner that executes all fixture commands.
-- [ ] Compare actual exit codes and check IDs with expected values.
+- [x] Define the expectations format (`expectations/<family>.yaml`, one file per family; described in each file's header): command, expected exit code, expected check IDs. `expectations/ok.yaml` added for the `ok` API (F-008/F-009 pinned).
+- [x] Support `local-only` cases and cloud-specific expectation overrides.
+- [x] Write a script/runner that executes all fixture commands.
+- [x] Compare actual exit codes and check IDs with expected values.
 - [ ] Fail CI when a case no longer produces its expected outcome.
 - [ ] Install pinned Python dependencies in CI.
 - [ ] Run pytest unit and integration tests.
@@ -198,7 +198,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [ ] Run `ok`, `contract-fail`, and `conform-fail` checks, plus diff and scenario checks.
 - [ ] Add CI leg against released `clrsig`.
 - [ ] Add nightly leg against `api-workbench@main` where practical.
-- [ ] Document local test commands in README.
+- [x] Document local test commands in README.
 
 **Exit criteria:** CI detects both accidental fixture changes and ClearSignal regressions.
 

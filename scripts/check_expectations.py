@@ -463,7 +463,8 @@ def run_probes(spec: dict, copy: Path, base_url: str) -> int:
     if unexpected:
         print(f"  FAIL  probes ran for operations not in the expectations: {unexpected}")
         failures += 1
-    want_code = 1 if expected_failing_total else 0
+    # The --negative run also repeats the plain conform pass, so operations that fail there fail it too.
+    want_code = 1 if expected_failing_total or (spec.get("whole_spec") or {}).get("failing") else 0
     if code != want_code:
         print(f"  FAIL  --negative exit code {code}, expected {want_code}")
         failures += 1
@@ -681,6 +682,8 @@ def covered_paths(spec: dict) -> set[str]:
     paths |= {run["covers"] for run in spec.get("runs") or [] if run.get("covers")}
     paths |= {step["covers"] for sc in spec.get("scenarios") or [] for step in sc["steps"].values() if step.get("covers")}
     paths |= set(spec.get("ignore") or [])
+    if (spec.get("whole_spec") or {}).get("covers_all"):  # a whole-spec run judges every operation
+        paths |= set(yaml.safe_load((ROOT / spec["spec"]).read_text(encoding="utf-8"))["paths"])
     return paths
 
 
