@@ -5,7 +5,7 @@ description: >
   timeout. Run with a global timeout shorter than the delay (for example --timeout 100) and the
   slow steps fail with "context deadline exceeded" (the catalog's CS-RUN-003, "No response";
   the CLI prints the error text, not the ID); nothing else about the server changes.
-  Response time itself is not asserted: ClearSignal does not measure it today (CS-GAP-005).
+  The 400 ms step also asserts its response time with the duration assertion (clrsig v0.8.2).
 
 steps:
   - label: Reset ok store
@@ -26,6 +26,7 @@ steps:
     assertions:
       - { type: status, operator: eq, expected: 200 }
       - { type: jsonpath, path: "$.requestedMs", operator: eq, expected: "400" }
+      - { type: duration, operator: lt, expected: 2000 }
     failPolicy: continue
 
   - label: List with an optional delay

@@ -134,14 +134,14 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Not worked around: the spec keeps `required: true` (the correct declaration). `expectations/conform-fail.yaml` records the failure as today's behavior.
   - Closed: 2026-11-22, verified with released `clrsig` v0.8.2: `POST /form` and `POST /multipart` get generated bodies and pass; `generate` writes `formBody` and `multipartBody` with a body.
 
-- [ ] **F-016 — A bad dynamic function aborts a whole scenario with exit 2, and shares its finding kind with a missing value (v0.7.1)**
+- [x] **F-016 — A bad dynamic function aborts a whole scenario with exit 2, and shares its finding kind with a missing value (v0.7.1)**
   - Type: limitation / catalog mismatch. Found: 2026-11-21, `clrsig` v0.7.1, while building `conform-fail`.
   - Behavior: `{{$noSuchFunction}}` in an environment value used through `conform` fails that one operation ("not sent: ... unknown function", exit 1), as the catalog's CS-RUN-002 says. The same function in a scenario step makes `clrsig run` print `Error: [step 1] bad function: {{$noSuchFunction}}: unknown function ...` and exit **2** before any step runs: a good step in the same scenario is never executed, and no JSON report is produced. The catalog describes only the failure form. Separately, CS-RUN-001 (no value) and CS-RUN-002 (function failed) both have the finding kind `missing-value`, distinguished only by the `blocked` text.
   - Repro: `clrsig run clrsig/scenarios/conform-fail-bad-function.yaml --env clrsig/environments/conform-fail.yaml --spec <spec copy>` (exit 2); and `conform` with `clrsig/environments/conform-fail-bad-function.yaml` (exit 1).
   - Expected: one documented behavior; ideally the step fails (exit 1) and the other steps still run, with a distinct finding kind for a failed function.
   - Pinned here instead by: `expectations/conform-fail.yaml` runs `run-002-bad-dynamic-function-in-environment` (exit 1) and `run-002b-bad-dynamic-function-in-scenario` (exit 2).
   - Status with v0.8.2: partly fixed. A failed dynamic function in `conform` has its own kind (`dynamic-value-failed`, CS-RUN-002). A bad function in a scenario step still aborts the whole run with exit 2 before any step.
-  - Closed: —
+  - Closed: 2026-11-22, verified with released `clrsig` v0.8.3: a bad function in a scenario step fails only that step (not sent, `unknown function $noSuchFunction`), the other steps run and `clrsig run` exits 1. A mistake in the scenario's own `variables:` still stops it with exit 2, by design.
 
 - [x] **F-017 — A wrong-typed body value from the environment is reported as a JSON syntax error (v0.7.1)**
   - Type: limitation (message quality). Found: 2026-11-21, `clrsig` v0.7.1.
@@ -157,7 +157,7 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Request: (1) a scenario assertion such as `{ type: duration, operator: lt, expected: 500 }`; (2) a `conform` flag such as `--max-response-time <ms>` (and a per-operation override), reporting a distinct finding that keeps the response so it is still compared with the spec; (3) record the duration in baselines and coverage so a run that "gets slower" can be seen over time.
   - Why it matters here: `latency-within-timeout`, `degrading-latency` and `seeded-jitter-repeats` can only be pinned through timeouts today; with this feature they could assert the actual durations.
   - Pinned meanwhile by: `expectations/conform-fail.yaml` (`latency-within-timeout` references CS-GAP-005; the degrading and jitter sequences use `--request-timeout`).
-  - Closed: 2026-11-22, verified with released `clrsig` v0.8.2: `conform --max-response-time <ms>` fails a slow response (`slow-response`, CS-RESP-014) and the scenario assertion `{ type: duration, operator: lt, expected: <ms> }` works. Not used yet: the timing expectations still pin slowness through request timeouts.
+  - Closed: 2026-11-22, verified with released `clrsig` v0.8.2: `conform --max-response-time <ms>` fails a slow response (`slow-response`, CS-RESP-014) and the scenario assertion `{ type: duration, operator: lt, expected: <ms> }` works. Used since: the degrading and jitter sequences, three limit cases and the `ok-latency` scenario assert response time; request timeouts remain only for responses that never arrive.
 
 - [x] **F-019 — A response over 50 MB is silently truncated, and valid JSON then fails as "unexpected EOF" (v0.7.1)**
   - Type: bug (false failure, and a silent cap). Found: 2026-11-21, `clrsig` v0.7.1.
@@ -185,19 +185,19 @@ How to close an item: install the fixed release, rerun the "Repro" command, conf
   - Handling here: the 3.1 spec stays valid 3.1 and keeps `examples`; it is not bent to avoid the bug.
   - Closed: 2026-11-22, verified with released `clrsig` v0.8.2: `ok-3.1` passes 15 of 15 operations and 16 of 16 probes; the first entry of a schema's `examples` is used.
 
-- [ ] **F-022 — The `writeOnly` finding has no `checkId` and the generic kind `other` (v0.8.2)**
+- [x] **F-022 — The `writeOnly` finding has no `checkId` and the generic kind `other` (v0.8.2)**
   - Type: limitation. Found: 2026-11-22, `clrsig` v0.8.2, while moving the expectations to `checkId`.
   - Behavior: every response finding of `contract-fail` carries a `checkId` except `resp-011-writeonly-leak` (a `writeOnly` property in a response, catalog CS-RESP-011): the finding is `{kind: other, where: password, summary: writeOnly property "password" in response}` with no `checkId`, and its `why` is the generic "The response does not match what the spec declares". The catalog lists CS-RESP-011 as caught.
   - Repro: `clrsig conform specs/contract-fail.yaml -b http://localhost:8080/contract-fail --paths /cases/resp-011-writeonly-leak --format json`; the finding has no `checkId`.
   - Expected: `checkId: CS-RESP-011` and its own kind, like the other response checks.
   - Pinned here by: `reported: null` on `resp-011-writeonly-leak` in `expectations/contract-fail.yaml`.
-  - Closed: —
+  - Closed: 2026-11-22, verified with released `clrsig` v0.8.3: the finding is kind `write-only-property` with `checkId` `CS-RESP-011`; the expectation now pins both.
 
 ---
 
 ## Baseline
 
-Fixtures and expectations are verified against released `clrsig` **v0.8.2** (installed with Scoop; CI pins the same release). F-003 to F-021 were found with v0.7.1; v0.8.2 fixed all of them except F-016 (a bad function in a scenario step still aborts the run). Open: F-016 (partly) and F-022.
+Fixtures and expectations are verified against released `clrsig` **v0.8.3** (installed with Scoop; CI pins the same release). F-003 to F-021 were found with v0.7.1; v0.8.2 fixed all of them except F-016, and v0.8.3 fixed F-016 and F-022. No finding is open.
 
 ## Notes
 

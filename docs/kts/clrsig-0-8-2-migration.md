@@ -27,5 +27,5 @@ Every finding was rerun against v0.8.2 with its own repro (2026-11-22), then all
 ## To remember
 
 - `seeded-jitter-repeats` (a timing sequence) failed once in one full run and passed in the next; timing cases can still be flaky under load. Watch it in CI before changing anything.
-- F-018 is closed (`--max-response-time`, the `duration` assertion) but the timing cases still use request timeouts. Moving them is optional (task list).
+- F-018 is closed and used: `degrading-latency` and `seeded-jitter-repeats` assert `slow-response` (CS-RESP-014) through `--max-response-time` with the same margins; new cases `latency-within-limit`, `latency-over-limit`, `slow-headers-over-limit`; `ok-latency` has a `duration` assertion. Cases where no response arrives (`slow`, `hang`, ...) still use request timeouts (CS-RUN-003).
 - v0.8.2 expectations will not hold for v0.7.1 or older.

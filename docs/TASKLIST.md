@@ -64,7 +64,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Verify scenario passes after reset (scenario starts with reset; passes on v0.7.1).
 - [x] Verify repeat execution is deterministic (two consecutive runs: 20/20 steps, 29/29 assertions).
 
-**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-021 closed with v0.8.2 except F-016; F-022 open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
+**ClearSignal findings:** tracked in `docs/clrsig-findings.md` (F-001, F-002 closed with v0.7.1; F-003 to F-021 closed with v0.8.2 except F-016; F-016 and F-022 closed with v0.8.3; none open). This repo does not work around ClearSignal issues. `conform` needs path-parameter values in `clrsig/environments/ok.yaml` (expected behavior).
 
 ### Expand breadth and schema coverage
 - [x] Add remaining resource families (customers, payments, invoices, discount codes, notifications, reports, settings, secured examples), kept within the 60 to 70 operation target.
@@ -152,7 +152,7 @@ Legend: `- [ ]` Not started · `- [x]` Complete
 - [x] Add wrong parameter environment value (`conform-fail-bad-values.yaml`, `itemId=abc` on `GET /requests/param-type/{itemId}`; CS-REQ-001).
 - [x] Add wrong body environment value (`amount=cheap` on `POST /requests/body-value`; CS-REQ-002, the message names the field and the declared type since v0.8.2, F-017).
 - [x] Add missing placeholder case (`conform-fail-missing-value.yaml`: the request is not sent; CS-RUN-001).
-- [x] Add bad dynamic function cases: through an environment value (exit 1) and in a scenario (the whole run aborts with exit 2, F-016, still open); CS-RUN-002.
+- [x] Add bad dynamic function cases: through an environment value (exit 1) and in a scenario (only that step fails and the run exits 1 since v0.8.3, F-016 closed); CS-RUN-002.
 - [x] Add server-down/wrong-base-URL case (`-b http://localhost:1`; CS-RUN-003).
 - [x] Add unreadable/invalid spec cases: invalid YAML, valid YAML that is not OpenAPI, a missing file, a URL that returns 404; all CS-RUN-004, exit code 2.
 - [x] Add unset process-variable warning case (`conform-fail-unset-var.yaml`; CS-RUN-005, a warning, exit code unchanged).
@@ -266,5 +266,6 @@ A feature is done only when:
 - [x] Verify every open finding against v0.8.2: F-003 to F-021 closed except F-016 (partly fixed); new F-022 (`writeOnly` finding without `checkId`).
 - [x] Move the expectations runner to the standard specs (no spec copy) and to `checkId`; delete `scripts/clrsig_spec_copy.py`.
 - [x] Flip the expectations the fixes changed (`ok` 65 of 65, form and multipart pass, new probes, CS-RESP-013, coverage exit 0, `lost-update` missing `If-Match` probe fails).
-- [x] Pin CI to `v0.8.2` (`CLRSIG_VERSION`).
-- [ ] Optional: use `--max-response-time` and the `duration` assertion for the timing cases (F-018 closed).
+- [x] Pin CI to `v0.8.2` (`CLRSIG_VERSION`); moved to `v0.8.3` below.
+- [x] Use `--max-response-time` and the `duration` assertion for the timing cases (F-018 closed): degrading and jitter sequences, three new limit cases, a `duration` step in `ok-latency`.
+- [x] Move to clrsig v0.8.3: F-016 and F-022 verified closed, `run-002b` now exits 1 with the good step running, `resp-011` pins `CS-RESP-011` / `write-only-property`, CI pinned to `v0.8.3`.

@@ -1,6 +1,6 @@
 # contract-fail: expected outcomes
 
-Generated from `expectations/contract-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/contract-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.2 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
+Generated from `expectations/contract-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/contract-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.3 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
 
 | Case | Path (under `/contract-fail`) | Expected | Check | Exit code | ClearSignal reports (or why it passes) |
 |---|---|---|---|---|---|

@@ -4,7 +4,7 @@
 #   expect: fail   the case must fail exactly one response check (exit code 1).
 #     check        the catalog ID from apps/desktop/wails/help/what-we-check.md; it must equal the
 #                  `checkId` of the finding in clrsig's JSON report
-#     reported     optional: the checkId clrsig really reports when it differs (null = none, F-022)
+#     reported     optional: the checkId clrsig really reports when it differs (null = none)
 #     kind         optional: the finding kind, pinned where the checkId alone is not enough
 #     message      regex that must match the validator's own message, to pin the exact problem
 #   expect: pass   the case must NOT fail. `reference` is the catalog row it pins (a control,
@@ -60,7 +60,7 @@ cases:
 
   # ---- CS-RESP-010 / 011 ----
   - { case: resp-010-extra-property-closed, expect: fail, check: CS-RESP-010, message: 'property "extra" is unsupported' }
-  - { case: resp-011-writeonly-leak, expect: fail, check: CS-RESP-011, reported: null, kind: other, where: password, message: 'writeOnly property "password" in response' }
+  - { case: resp-011-writeonly-leak, expect: fail, check: CS-RESP-011, kind: write-only-property, message: 'writeOnly property "password" in response' }
 
   # ---- XML: no decoder, so not checked (CS-NC-009; the notes expected CS-RESP-012) ----
   - { case: resp-012-xml-valid, expect: pass, reference: CS-NC-009, why: "application/xml has no decoder: the body is not compared and nothing is reported" }

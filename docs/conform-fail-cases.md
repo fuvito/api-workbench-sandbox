@@ -1,6 +1,6 @@
 # conform-fail: expected outcomes (response cases, sequences and commands; probes are in the expectations file)
 
-Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.2 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
+Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml --table`; do not edit by hand. Outcomes are for `clrsig` v0.8.3 against the standard specs. A case that "passes" is a control, a known gap, or a "not checked" outcome pinned on purpose. Timing outcomes were verified against the Docker container.
 
 | Case | Path (under `/conform-fail`) | Expected | Check | Exit code | ClearSignal reports (or why it passes) |
 |---|---|---|---|---|---|
@@ -15,12 +15,15 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `requests-param-type-ok` | `/requests/param-type/{itemId}` | passes | none | 0 | itemId=7 from the right environment: a valid request, a correct response |
 | `requests-body-value-ok` | `/requests/body-value` | passes | none | 0 | amount=19.99 from the right environment |
 | `slow` | `/slow` | fails | CS-RUN-003 | 1 | context deadline exceeded (with --request-timeout 1500) |
-| `latency-within-timeout` | `/latency/{ms}` | passes | CS-GAP-005 | 0 | 200 ms answered correctly; response time is not measured |
+| `latency-within-timeout` | `/latency/{ms}` | passes | none | 0 | 200 ms answered correctly, and within the default timeout (no response-time limit given) |
+| `latency-within-limit` | `/latency/{ms}` | passes | CS-RESP-014 | 0 | 200 ms against a 1000 ms limit (with --max-response-time 1000) |
+| `latency-over-limit` | `/latency/{ms}` | fails | CS-RESP-014 | 1 | slower than the 50 ms limit (with --max-response-time 50) |
 | `unavailable` | `/unavailable` | fails | CS-RESP-001 | 1 | answered 503, but the spec declares only 200 |
 | `redirect-loop` | `/redirect-loop` | fails | CS-RUN-003 | 1 | stopped after 10 redirects |
 | `hang` | `/timeout/hang` | fails | CS-RUN-003 | 1 | context deadline exceeded (with --request-timeout 1500) (local only) |
 | `slow-headers-outlasts-timeout` | `/timeout/slow-headers` | fails | CS-RUN-003 | 1 | executing request.*context deadline exceeded (with --request-timeout 1500) (local only) |
-| `slow-headers-within-timeout` | `/timeout/slow-headers` | passes | CS-GAP-005 | 0 | 4 s against the default 10 s timeout (local only) |
+| `slow-headers-within-timeout` | `/timeout/slow-headers` | passes | none | 0 | 4 s against the default 10 s timeout, no response-time limit (local only) |
+| `slow-headers-over-limit` | `/timeout/slow-headers` | fails | CS-RESP-014 | 1 | slower than the 2000 ms limit (with --max-response-time 2000) (local only) |
 | `slow-body` | `/timeout/slow-body` | fails | CS-RUN-003 | 1 | reading response body: context deadline exceeded (with --request-timeout 3000) (local only) |
 | `truncated-body` | `/timeout/truncated-body` | fails | CS-RUN-003 | 1 | reading response body: unexpected EOF (local only) |
 | `connection-reset` | `/timeout/connection-reset` | fails | CS-RUN-003 | 1 | EOF (local only) |
@@ -48,8 +51,8 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `flaky-every-third-call` | `/flaky` | P P F P P F | CS-RESP-001 |  |
 | `rate-limited-after-three-calls` | `/rate-limited` | P P P F F F | CS-RESP-001 |  |
 | `unavailable-then-ok` | `/unavailable-then-ok` | F F P P | CS-RESP-001 |  |
-| `degrading-latency` | `/latency/degrading` | P P P F F | CS-RUN-003 | with --request-timeout 850 |
-| `seeded-jitter-repeats` | `/latency/jitter` | P F P P P P | CS-RUN-003 | with --request-timeout 700; repeated 2 times after a reset, identical |
+| `degrading-latency` | `/latency/degrading` | P P P F F | CS-RESP-014 | with --max-response-time 850 |
+| `seeded-jitter-repeats` | `/latency/jitter` | P F P P P P | CS-RESP-014 | with --max-response-time 700; repeated 2 times after a reset, identical |
 
 ### Commands (wrong environments, scenarios that cannot run, unreadable specs)
 
@@ -59,7 +62,7 @@ Generated from `expectations/conform-fail.yaml` by `uv run python scripts/check_
 | `req-002-wrong-body-value` | CS-REQ-002 | 1 | request body field "amount" takes its value from \{\{amount\}\}, which is "cheap" |
 | `run-001-missing-placeholder` | CS-RUN-001 | 1 | not sent: no value for \{\{itemId\}\} |
 | `run-002-bad-dynamic-function-in-environment` | CS-RUN-002 | 1 | unknown function \$noSuchFunction |
-| `run-002b-bad-dynamic-function-in-scenario` | CS-RUN-002 | 2 | unknown function \$noSuchFunction (in a scenario the whole run still aborts with exit 2 before any step (F-016)) |
+| `run-002b-bad-dynamic-function-in-scenario` | CS-RUN-002 | 1 | (?s)unknown function \$noSuchFunction.*PASS\s+good step (since v0.8.3 only that step fails (not sent) and the good step still runs; exit 1 (F-016)) |
 | `run-003-server-down-wrong-base-url` | CS-RUN-003 | 1 | executing request |
 | `run-004a-unreadable-yaml` | CS-RUN-004 | 2 | parsing spec: loading spec: failed to unmarshal data |
 | `run-004b-not-an-openapi-document` | CS-RUN-004 | 2 | invalid OpenAPI spec: value of openapi must be a non-empty string |

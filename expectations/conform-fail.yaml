@@ -49,16 +49,20 @@ cases:
   - { case: requests-body-value-ok, path: /requests/body-value, expect: pass, reference: null, why: "amount=19.99 from the right environment" }
 
   # ---- slice 4: timing and instability ----
-  # ClearSignal does not measure response time (CS-GAP-005, improvement request F-018), so timing
-  # shows only through timeouts: a case "outlasts" a timeout when `args` sets a short one.
+  # Slowness is asserted with `--max-response-time` (CS-RESP-014, clrsig v0.8.2): the response
+  # arrives and is still compared, and the finding is `slow-response`. A case "outlasts" a timeout
+  # when `args` sets a short `--request-timeout` instead: no response at all (CS-RUN-003).
   # `local_only` marks transport behavior not verified on Cloud Run (run with --cloud to skip).
   - { case: slow, path: /slow, args: ['--request-timeout', 1500], expect: fail, check: CS-RUN-003, message: 'context deadline exceeded', note: "15 s against a 1.5 s timeout" }
-  - { case: latency-within-timeout, path: '/latency/{ms}', expect: pass, reference: CS-GAP-005, why: "200 ms answered correctly; response time is not measured" }
+  - { case: latency-within-timeout, path: '/latency/{ms}', expect: pass, reference: null, why: "200 ms answered correctly, and within the default timeout (no response-time limit given)" }
+  - { case: latency-within-limit, path: '/latency/{ms}', args: ['--max-response-time', 1000], expect: pass, reference: CS-RESP-014, why: "200 ms against a 1000 ms limit" }
+  - { case: latency-over-limit, path: '/latency/{ms}', args: ['--max-response-time', 50], expect: fail, check: CS-RESP-014, message: 'slower than the 50 ms limit', note: "200 ms against a 50 ms limit (150 ms margin); the response is still compared with the spec" }
   - { case: unavailable, path: /unavailable, expect: fail, check: CS-RESP-001, message: 'answered 503, but the spec declares only 200' }
   - { case: redirect-loop, path: /redirect-loop, expect: fail, check: CS-RUN-003, message: 'stopped after 10 redirects' }
   - { case: hang, path: /timeout/hang, args: ['--request-timeout', 1500], local_only: true, expect: fail, check: CS-RUN-003, message: 'context deadline exceeded' }
   - { case: slow-headers-outlasts-timeout, path: /timeout/slow-headers, args: ['--request-timeout', 1500], local_only: true, expect: fail, check: CS-RUN-003, message: 'executing request.*context deadline exceeded' }
-  - { case: slow-headers-within-timeout, path: /timeout/slow-headers, local_only: true, expect: pass, reference: CS-GAP-005, why: "4 s against the default 10 s timeout" }
+  - { case: slow-headers-within-timeout, path: /timeout/slow-headers, local_only: true, expect: pass, reference: null, why: "4 s against the default 10 s timeout, no response-time limit" }
+  - { case: slow-headers-over-limit, path: /timeout/slow-headers, args: ['--max-response-time', 2000], local_only: true, expect: fail, check: CS-RESP-014, message: 'slower than the 2000 ms limit', note: "4 s against a 2 s limit: the response arrives and conforms, but is too slow" }
   - { case: slow-body, path: /timeout/slow-body, args: ['--request-timeout', 3000], local_only: true, expect: fail, check: CS-RUN-003, message: 'reading response body: context deadline exceeded', note: "headers arrive at once; the timeout hits while reading the body" }
   - { case: truncated-body, path: /timeout/truncated-body, local_only: true, expect: fail, check: CS-RUN-003, message: 'reading response body: unexpected EOF', note: "the notes said CS-RUN-003 or CS-RESP-008: it is CS-RUN-003 (no response)" }
   - { case: connection-reset, path: /timeout/connection-reset, local_only: true, expect: fail, check: CS-RUN-003, message: 'EOF' }
@@ -86,11 +90,11 @@ sequences:
   - { name: flaky-every-third-call, path: /flaky, outcomes: [pass, pass, fail, pass, pass, fail], check: CS-RESP-001, fail: { kind: undeclared-status, message: 'answered 500, but the spec declares only 200' } }
   - { name: rate-limited-after-three-calls, path: /rate-limited, outcomes: [pass, pass, pass, fail, fail, fail], check: CS-RESP-001, fail: { kind: undeclared-status, message: 'answered 429, but the spec declares only 200' } }
   - { name: unavailable-then-ok, path: /unavailable-then-ok, outcomes: [fail, fail, pass, pass], check: CS-RESP-001, fail: { kind: undeclared-status, message: 'answered 503, but the spec declares only 200' } }
-  # Delays 100, 400, 700, 1000, 1300 ms against an 850 ms timeout (150 ms margins).
-  - { name: degrading-latency, path: /latency/degrading, args: ['--request-timeout', 850], outcomes: [pass, pass, pass, fail, fail], check: CS-RUN-003, fail: { kind: no-response, message: 'context deadline exceeded' } }
-  # Seeded delays 160, 906, 477, 477, 507, 264 ms against a 700 ms timeout (at least 190 ms margins),
+  # Delays 100, 400, 700, 1000, 1300 ms against an 850 ms limit (150 ms margins).
+  - { name: degrading-latency, path: /latency/degrading, args: ['--max-response-time', 850], outcomes: [pass, pass, pass, fail, fail], check: CS-RESP-014, fail: { kind: slow-response, message: 'slower than the 850 ms limit' } }
+  # Seeded delays 160, 906, 477, 477, 507, 264 ms against a 700 ms limit (at least 190 ms margins),
   # and the same sequence again after another reset: jitter that repeats.
-  - { name: seeded-jitter-repeats, path: /latency/jitter, args: ['--request-timeout', 700], repeat: 2, outcomes: [pass, fail, pass, pass, pass, pass], check: CS-RUN-003, fail: { kind: no-response, message: 'context deadline exceeded' } }
+  - { name: seeded-jitter-repeats, path: /latency/jitter, args: ['--max-response-time', 700], repeat: 2, outcomes: [pass, fail, pass, pass, pass, pass], check: CS-RESP-014, fail: { kind: slow-response, message: 'slower than the 700 ms limit' } }
 
 # The whole spec in one run, after a reset and with a 3 s request timeout, so the slow cases time out
 # and the counters are all at their first call. Only the paths listed here may fail.
@@ -144,10 +148,10 @@ runs:
     finding: { kind: dynamic-value-failed, check: CS-RUN-002, message: 'unknown function \$noSuchFunction' }
   - name: run-002b-bad-dynamic-function-in-scenario
     check: CS-RUN-002
-    note: "in a scenario the whole run still aborts with exit 2 before any step (F-016)"
+    note: "since v0.8.3 only that step fails (not sent) and the good step still runs; exit 1 (F-016)"
     args: [run, "{root}/clrsig/scenarios/conform-fail-bad-function.yaml", --env, "{root}/clrsig/environments/conform-fail.yaml", --spec, "{spec}"]
-    exit: 2
-    output: 'unknown function \$noSuchFunction'
+    exit: 1
+    output: '(?s)unknown function \$noSuchFunction.*PASS\s+good step'
 
   # CS-RUN-003: no response.
   - name: run-003-server-down-wrong-base-url

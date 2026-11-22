@@ -38,9 +38,9 @@ clrsig run clrsig/scenarios/ok-latency.yaml --env clrsig/environments/ok.yaml --
 clrsig run clrsig/scenarios/ok-parameters-and-paging.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 ```
 
-Expected with `clrsig` v0.8.2: all scenarios pass, `conform` reports 65 of 65 operations and `conform --negative` runs 62 probes that all pass. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
+Expected with `clrsig` v0.8.3: all scenarios pass, `conform` reports 65 of 65 operations and `conform --negative` runs 62 probes that all pass. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
 
-Verified with released `clrsig` v0.8.2 (earlier versions have known issues; see `docs/clrsig-findings.md`). With a spec that has `servers`, `-b` is the family's base (`http://localhost:8080/ok`) and `--paths` takes the spec's own paths.
+Verified with released `clrsig` v0.8.3 (earlier versions have known issues; see `docs/clrsig-findings.md`). With a spec that has `servers`, `-b` is the family's base (`http://localhost:8080/ok`) and `--paths` takes the spec's own paths.
 
 ## Run all the checks
 
@@ -91,7 +91,7 @@ uv run python scripts/check_expectations.py --expectations expectations/conform-
 ```
 
 Read before trusting a result:
-- **Timing expectations must run against the Docker container.** On a Windows host the server's delays overshoot intermittently, so the same expectations can fail there. Timing is pinned through request timeouts (`clrsig` v0.8.2 can also limit response time, `--max-response-time`, but the expectations do not use it yet).
+- **Timing expectations must run against the Docker container.** On a Windows host the server's delays overshoot intermittently, so the same expectations can fail there. Slowness is pinned with `--max-response-time` (a slow response is still compared with the spec, CS-RESP-014); a request timeout is used where the response never arrives (CS-RUN-003).
 - Entries marked `local_only` (transport behavior, bodies over 32 MB) are not claimed for Cloud Run; `--cloud` skips them.
 - Every wrong environment is marked DELIBERATELY WRONG. Run the drift cases with real servers: the runner starts them itself.
 
@@ -151,7 +151,7 @@ No handler makes an outbound request from caller input: there is no HTTP client 
 
 ## Troubleshooting
 
-- **A response check passes in a plain `clrsig conform` run with an older `clrsig`:** v0.7.1 and earlier skip response validation for specs with `servers` (F-010). Use v0.8.2 or later.
+- **A response check passes in a plain `clrsig conform` run with an older `clrsig`:** v0.7.1 and earlier skip response validation for specs with `servers` (F-010). Use v0.8.3 or later.
 - **Timing cases fail on Windows:** the host overshoots delays; run against the Docker container.
 - **Reset answers `401`:** `ADMIN_TOKEN` is set; send the bearer token, and export `ADMIN_TOKEN` for the runner.
 - **State looks wrong:** it is shared by every caller and lost on restart; reset the family first.
@@ -160,7 +160,7 @@ No handler makes an outbound request from caller input: there is no HTTP client 
 
 ## Known gaps and Cloud Run
 
-Known gaps: the open ClearSignal findings (F-016 and F-022, `docs/clrsig-findings.md`), the `local_only` transport and large-body cases (not verified on Cloud Run), unconfirmed fake credentials, and the report polling delay (poll-count progression, not wall-clock). Cloud Run is not deployed yet; preparation, verified settings and an unverified runbook are in `docs/cloud-run-prep.md`. On Cloud Run, scale-to-zero, a restart or an instance replacement erases all state, and simultaneous users share the same stores and can interfere with one another.
+Known gaps: no open ClearSignal finding (`docs/clrsig-findings.md`), the `local_only` transport and large-body cases (not verified on Cloud Run), unconfirmed fake credentials, and the report polling delay (poll-count progression, not wall-clock). Cloud Run is not deployed yet; preparation, verified settings and an unverified runbook are in `docs/cloud-run-prep.md`. On Cloud Run, scale-to-zero, a restart or an instance replacement erases all state, and simultaneous users share the same stores and can interfere with one another.
 
 ## KT notes
 
