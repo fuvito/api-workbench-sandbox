@@ -5,6 +5,7 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 | Command or flag | What is pinned | Entry |
 |---|---|---|
 | `conform --read-only` | only GET and HEAD are sent: 33 of 65 run, 32 are skipped | `conform-read-only` |
+| `conform --tags` / `--paths` that match nothing | v0.8.9: `NOTHING CHECKED` and exit 2 (it was PASSED, exit 0); all operations skipped by `--read-only` is `NOTHING CHECKED` with exit 0 | `conform-tags-matches-nothing`, `conform-paths-matches-nothing`, `conform-read-only-checks-nothing` |
 | `conform --tags` | `--tags products` runs 12 operations, skips 53 | `conform-tags` |
 | `conform --explain` | adds `[CS-RESP-001] ...` and a reason under the failure | `conform-explain` |
 | `conform --fail-fast` | stops at the first violation (8 operations, 1 failed) | `conform-fail-fast` |

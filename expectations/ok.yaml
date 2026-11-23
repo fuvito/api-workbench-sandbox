@@ -192,6 +192,24 @@ runs:
     args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --tags, products]
     exit: 0
     output: 'PASSED\s+65 operations\s+·\s+12 passed\s+·\s+0 failed\s+·\s+53 skipped'
+  - name: conform-tags-matches-nothing
+    reference: null
+    note: "v0.8.9: a filter that selects nothing is an error: NOTHING CHECKED, exit 2 (it was PASSED, exit 0)"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --tags, nosuchtag]
+    exit: 2
+    output: 'NOTHING CHECKED[\s\S]*no operation matches --tags nosuchtag'
+  - name: conform-paths-matches-nothing
+    reference: null
+    note: "v0.8.9: the same for --paths (a mistyped prefix); the exit code is 2"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --paths, /nosuch]
+    exit: 2
+    output: 'NOTHING CHECKED[\s\S]*no operation matches --paths /nosuch'
+  - name: conform-read-only-checks-nothing
+    reference: null
+    note: "v0.8.9: every operation skipped by --read-only (only a POST in the spec): the headline says NOTHING CHECKED, the exit code stays 0"
+    args: [conform, "{root}/specs/hostile/only-post.yaml", -b, "{fbase}", --read-only]
+    exit: 0
+    output: 'NOTHING CHECKED\s+1 operations'
   - name: conform-explain
     reference: CS-RESP-001
     note: "--explain adds the catalog ID and a plain-language reason under each failure"
