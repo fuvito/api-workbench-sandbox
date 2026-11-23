@@ -438,6 +438,28 @@ runs:
     exit: 1
     output: '(?s)FAILED\s+2 probes\s+·\s+0 passed\s+·\s+0 failed\s+·\s+0 skipped\s+·\s+2 errors.*could not be judged'
 
+  # ---- v0.8.9: what a reader of the report is told (findings from writing the Academy) ----
+  - name: filter-that-matches-nothing-is-an-error
+    reference: CS-RUN-010
+    note: "a --paths that selects no operation proves nothing: NOTHING CHECKED and exit 2, never PASSED (F1, v0.8.9)"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail.yaml", --paths, "/nothing-here"]
+    exit: 2
+    output: '(?s)NOTHING CHECKED.*no operation matches --paths /nothing-here'
+    not_output: 'PASSED'
+  - name: undeclared-404-points-at-the-route
+    reference: CS-RESP-001
+    note: "the fix for an undeclared 404 says to check the route on the server, not to add 404 to the spec (F2, v0.8.9)"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail.yaml", --paths, "/ghost", --explain]
+    exit: 1
+    output: 'route exists on the server'
+  - name: dropped-body-gets-its-own-error-and-fix
+    reference: CS-RUN-003
+    note: "a body shorter than its Content-Length is not 'is the server running?': the error stays under the operation and the fix names the response framing (F3, v0.8.9)"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail.yaml", --paths, "/timeout/truncated-body", --explain]
+    exit: 1
+    output: '(?s)error:.*Content-Length or Content-Encoding'
+    not_output: 'is the server running'
+
   # ---- scale: a generated document with 500 operations (scripts/make_specs.py). It must load, generate,
   # build every request and probe, and compare with itself, each well inside the time budget. ----
   - name: scale-500-generate
