@@ -2,8 +2,8 @@ schemaVersion: "1"
 title: conform-fail - an extraction that finds nothing
 description: >
   DELIBERATELY BROKEN. The only problem is that the extraction `nope` finds nothing in the response.
-  Every assertion passes. clrsig prints FAIL for the step and counts "1 failed", yet the run exits 0
-  and the headline says PASSED (F-032).
+  Every assertion passes. Since 0.8.5 (F-032) a failed extraction fails the step: clrsig prints FAIL
+  for the step, the headline says FAILED and the run exits 1.
 steps:
   - label: extract nothing
     request: { method: GET, url: "{{baseUrl}}/health" }
