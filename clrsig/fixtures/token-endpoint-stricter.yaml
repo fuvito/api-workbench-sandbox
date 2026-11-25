@@ -1,0 +1,29 @@
+# Deliberately stricter than the server: it requires a field the token endpoint does not send, so the
+# response breaks its schema while carrying the token. Used to check that reports do not quote the
+# response (clrsig 0.13.2). Not served by the sandbox and not a family spec.
+openapi: "3.0.3"
+info: { title: "token endpoint, stricter than the server", version: "1" }
+paths:
+  /features/oauth2/token:
+    post:
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type]
+              properties:
+                grant_type: { type: string, enum: [client_credentials] }
+      responses:
+        "200":
+          description: The token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, refresh_token]
+                properties:
+                  access_token: { type: string }
+                  refresh_token: { type: string }

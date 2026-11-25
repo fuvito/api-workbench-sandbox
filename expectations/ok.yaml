@@ -501,3 +501,17 @@ runs:
     args: [bundle, run, "{root}/clrsig/bundles/ok-smoke.yaml"]
     exit: 0
     output: 'Bundle PASSED\s+1/1 scenarios passed\s+\(2 steps, 2/2 assertions passed\)'
+
+  # ---- --paths with a path parameter (F-036, fixed in clrsig 0.13.1) ----
+  - name: paths-with-a-parameter-written-spec
+    reference: null
+    note: "v0.13.1: written as the spec writes it, the filter selects the same operations and negative probes (before, only one of the two; F-036)"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --negative, --paths, "/products/{{productId}}"]
+    exit: 0
+    output: 'PASSED\s+65 operations\s+·\s+6 passed\s+·\s+0 failed\s+·\s+59 skipped[\s\S]*PASSED\s+6 probes\s+·\s+6 passed'
+  - name: paths-with-a-parameter-written-generated
+    reference: null
+    note: "v0.13.1: written with doubled braces, the filter selects the same operations and negative probes (before, only one of the two; F-036)"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --negative, --paths, "/products/{{{{productId}}}}"]
+    exit: 0
+    output: 'PASSED\s+65 operations\s+·\s+6 passed\s+·\s+0 failed\s+·\s+59 skipped[\s\S]*PASSED\s+6 probes\s+·\s+6 passed'

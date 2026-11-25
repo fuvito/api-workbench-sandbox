@@ -318,3 +318,14 @@ A feature is done only when:
 - [x] Rerun every expectation file with the released v0.13.0 on the maintainer's machine (2026-11-25).
 - [x] CI (container) with v0.13.0 (commit `087c064`, run 45696085705).
 - [x] Run the "Action smoke test" workflow once with v0.13.0 (run 45696872577, passed: `good=0 bad=1`).
+
+## ClearSignal v0.13.2
+
+- [x] Pin CI and the Action smoke test to `v0.13.2` (takes in v0.13.1).
+- [x] Close F-036 and pin both spellings of a path parameter in `--paths`.
+- [x] Pin that `conform` and `run` reports do not quote the token a failing response holds (CS-RUN-011).
+- [x] Record F-037 (`"expected": "<nil>"` for `schema` assertions).
+- [x] Rerun every expectation file with the released v0.13.2 on the maintainer's machine (2026-11-25).
+- [ ] CI (container) with v0.13.2.
+- [ ] Run the "Action smoke test" workflow once with v0.13.2.
+

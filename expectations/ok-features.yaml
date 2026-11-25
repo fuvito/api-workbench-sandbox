@@ -102,3 +102,49 @@ runs:
     args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok-features.yaml", --read-only]
     exit: 0
     output: 'SKIP\s+TRACE\s+/features/trace'
+
+  # ---- reports do not quote what only the response holds (clrsig 0.13.2) ----
+  # The token endpoint answers with "test-token". No --env: older releases masked a value only when
+  # the environment held it too.
+  - name: report-does-not-quote-the-token-text
+    reference: CS-RUN-011
+    note: "v0.13.2: up to v0.13.1 a response that broke its schema was quoted in full, token included; the report still names the missing field"
+    args: [conform, "{root}/clrsig/fixtures/token-endpoint-stricter.yaml", -b, "{fbase}", --format, text]
+    exit: 1
+    output: 'refresh_token'
+    not_output: 'test-token'
+  - name: report-does-not-quote-the-token-json
+    reference: CS-RUN-011
+    note: "v0.13.2: up to v0.13.1 a response that broke its schema was quoted in full, token included; the report still names the missing field"
+    args: [conform, "{root}/clrsig/fixtures/token-endpoint-stricter.yaml", -b, "{fbase}", --format, json]
+    exit: 1
+    output: 'refresh_token'
+    not_output: 'test-token'
+  - name: report-does-not-quote-the-token-junit
+    reference: CS-RUN-011
+    note: "v0.13.2: up to v0.13.1 a response that broke its schema was quoted in full, token included; the report still names the missing field"
+    args: [conform, "{root}/clrsig/fixtures/token-endpoint-stricter.yaml", -b, "{fbase}", --format, junit]
+    exit: 1
+    output: 'refresh_token'
+    not_output: 'test-token'
+  - name: report-does-not-quote-the-token-html
+    reference: CS-RUN-011
+    note: "v0.13.2: up to v0.13.1 a response that broke its schema was quoted in full, token included; the report still names the missing field"
+    args: [conform, "{root}/clrsig/fixtures/token-endpoint-stricter.yaml", -b, "{fbase}", --format, html]
+    exit: 1
+    output: 'refresh_token'
+    not_output: 'test-token'
+  - name: report-does-not-quote-the-token-markdown
+    reference: CS-RUN-011
+    note: "v0.13.2: up to v0.13.1 a response that broke its schema was quoted in full, token included; the report still names the missing field"
+    args: [conform, "{root}/clrsig/fixtures/token-endpoint-stricter.yaml", -b, "{fbase}", --format, markdown]
+    exit: 1
+    output: 'refresh\\?_token'   # Markdown writes the underscore escaped
+    not_output: 'test-token'
+  - name: run-report-does-not-quote-the-token
+    reference: CS-RUN-011
+    note: "v0.13.2: up to v0.13.1 a schema assertion kept the whole body as its actual value, also when it passed"
+    args: [run, "{root}/clrsig/fixtures/token-report.yaml", --var, "baseUrl={fbase}", --format, json]
+    exit: 1
+    output: 'refresh_token'
+    not_output: 'test-token'

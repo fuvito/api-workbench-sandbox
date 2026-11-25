@@ -8,7 +8,7 @@ on:
     inputs:
       version:
         description: "clrsig tag for both the Action and the binary"
-        default: v0.13.0
+        default: v0.13.2
 
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
 
       - name: conform against a correct server (must pass)
         id: good
-        uses: fuvito/api-workbench@v0.13.0
+        uses: fuvito/api-workbench@v0.13.2
         with:
           command: conform
           spec: specs/ok.yaml
@@ -39,7 +39,7 @@ jobs:
       - name: conform against a broken case (must fail with exit 1)
         id: bad
         continue-on-error: true
-        uses: fuvito/api-workbench@v0.13.0
+        uses: fuvito/api-workbench@v0.13.2
         with:
           command: conform
           spec: specs/contract-fail.yaml

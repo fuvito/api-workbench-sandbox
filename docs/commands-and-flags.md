@@ -17,6 +17,8 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 | `init --spec` | v0.13.0: names the values the spec needs and says they would be listed as comments | `init-lists-the-values-the-spec-needs` |
 | `conform --list` | v0.13.0: sends nothing (it runs against a closed port) and names the missing values; a flag that needs requests, such as `--negative`, is exit 2 | `conform-list-sends-nothing`, `conform-list-refuses-negative` |
 | an empty value in `conform` | v0.13.0: empty in a path value, bearer token, API key or basic user name is "not sent"; an empty basic password is sent (CS-GAP-013) | `conform-an-empty-*` |
+| `conform --paths` with a path parameter | v0.13.1: `{id}` and `{{id}}` select the same operations and negative probes (F-036) | `paths-with-a-parameter-written-*` |
+| what reports quote (`conform` in five formats, `run --format json`) | v0.13.2: a response that breaks its schema is not quoted, so the token in it is not in the report; the missing field is still named (CS-RUN-011) | `*report-does-not-quote-the-token*` in `ok-features.yaml` |
 | `conform --setup` | v0.9.1: a login scenario's extraction fills `{{token}}`; without it the operation is not sent; a failed setup is exit 2 and nothing is checked | `conform-without-the-setup-is-not-sent`, `conform-setup-supplies-the-token`, `conform-failed-setup-*` |
 | `conform --changed-against` | v0.10.0: nothing changed against `HEAD` is `NOTHING CHECKED`, exit 0; an unknown git ref is exit 2 | `conform-changed-against-*` |
 | `conform --write-baseline` with a filter | v0.10.0: refused, exit 2 | `write-baseline-is-refused-for-a-limited-run` |

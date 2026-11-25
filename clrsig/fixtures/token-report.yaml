@@ -1,0 +1,19 @@
+schemaVersion: "1"
+title: token endpoint - what a run report may quote
+description: >
+  One schema assertion that passes, one that fails and one on the token itself. Used to check that
+  the JSON report quotes neither the response nor the token (clrsig 0.13.2). Run without an
+  environment file, so nothing is masked only because the environment holds the same value.
+
+steps:
+  - label: Get an access token
+    request:
+      method: POST
+      url: "{{baseUrl}}/features/oauth2/token"
+      body:
+        type: form
+        content: "grant_type=client_credentials"
+    assertions:
+      - { type: schema, schema: '{"type":"object","required":["access_token"]}' }
+      - { type: jsonpath, path: "$.access_token", operator: ne, expected: "" }
+      - { type: schema, schema: '{"type":"object","required":["refresh_token"]}' }

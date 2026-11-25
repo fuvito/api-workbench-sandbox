@@ -20,6 +20,7 @@ Each has a fixture pinned as "passes, because of CS-GAP-0xx". When clrsig closes
 | CS-GAP-011 | report more than the first problem per response | `contract-fail` case `resp-multi-problem` | all problems are listed |
 | CS-GAP-012 | tell why a negative probe was refused: any `4xx` passes it, so a `401`, `404` or `429` can pass a missing-field probe although the body was never validated (in the catalog since clrsig 0.11.1) | — (no fixture pins it yet) | an unexpected `4xx` is reported differently |
 | CS-GAP-013 | treat an empty value as missing outside paths and credentials (since clrsig 0.13.0 those are "not sent"): an empty basic password is still sent, and here the server's declared `401` then shows as a pass | `ok` run `conform-an-empty-basic-password-is-sent` | the operation is not reported as a pass |
+| CS-GAP-017 | recognise every secret in what it quotes (since 0.13.2): a secret in a field with an ordinary name, too plain to look like a token, is quoted when it is the value that broke the spec | — (no fixture pins it yet) | a report no longer quotes the offending value |
 
 ## 2. Capabilities clrsig does not have (not in the catalog)
 
