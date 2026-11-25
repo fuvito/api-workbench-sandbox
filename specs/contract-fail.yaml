@@ -321,6 +321,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/WidgetNameDoc"
 
+  /cases/resp-007g-format-email-uuid:
+    get:
+      operationId: resp007gFormatEmailUuid
+      tags: [cases]
+      summary: Invalid email and uuid
+      description: The schema declares format email and format uuid. The server sends nope and not-a-uuid. ClearSignal has checked these formats since 0.9.0 (before it, the case passed and pinned CS-GAP-001).
+      responses:
+        "200":
+          description: The declared response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactDoc"
+
   /cases/resp-007e-bad-datetime:
     get:
       operationId: resp007eBadDatetime
@@ -464,19 +478,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/Widget"
 
-  /cases/gap-format-email-uuid:
+  /cases/gap-format-uri:
     get:
-      operationId: gapFormatEmailUuid
+      operationId: gapFormatUri
       tags: [controls]
-      summary: Known gap - email and uuid formats
-      description: format email and uuid are not validated by ClearSignal (CS-GAP-001). The server sends invalid values. Passes today.
+      summary: Known gap - uri format
+      description: Formats outside the ones ClearSignal checks (email, uuid, ipv4, ipv6, date, date-time) are accepted without a check (CS-GAP-001), uri among them. The server sends text that is not a uri. Passes today.
       responses:
         "200":
           description: The declared response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ContactDoc"
+                $ref: "#/components/schemas/LinkDoc"
 
   /cases/gap-undeclared-header:
     get:
@@ -693,6 +707,11 @@ components:
         id: { type: integer }
         name: { type: string }
         password: { type: string, writeOnly: true }
+    LinkDoc:
+      type: object
+      required: [link]
+      properties:
+        link: { type: string, format: uri }
     ContactDoc:
       type: object
       required: [mail, ref]

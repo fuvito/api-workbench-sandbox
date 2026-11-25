@@ -40,9 +40,9 @@ clrsig run clrsig/scenarios/ok-latency.yaml --env clrsig/environments/ok.yaml --
 clrsig run clrsig/scenarios/ok-parameters-and-paging.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 ```
 
-Expected with `clrsig` v0.8.9: all scenarios pass, `conform` reports 65 of 65 operations and `conform --negative` runs 62 probes that all pass. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
+Expected with `clrsig` v0.11.0: all scenarios pass, `conform` reports 65 of 65 operations and `conform --negative` runs 62 probes that all pass. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
 
-Verified with released `clrsig` v0.8.9 (earlier versions have known issues; see `docs/clrsig-findings.md`). With a spec that has `servers`, `-b` is the family's base (`http://localhost:8080/ok`) and `--paths` takes the spec's own paths.
+Verified with released `clrsig` v0.11.0 (earlier versions have known issues; see `docs/clrsig-findings.md`). With a spec that has `servers`, `-b` is the family's base (`http://localhost:8080/ok`) and `--paths` takes the spec's own paths.
 
 ## Run all the checks
 
@@ -71,7 +71,7 @@ uv run python scripts/check_expectations.py          # server running on :8080; 
 uv run python scripts/check_expectations.py --only resp-003-missing-required-header
 ```
 
-A plain run works too: `clrsig conform specs/contract-fail.yaml -b http://localhost:8080/contract-fail` reports 25 of 36 operations failing. (`clrsig` v0.7.1 silently skipped response validation for specs with `servers`, F-010, and needed a generated copy of the spec; that is fixed in v0.8.2.)
+A plain run works too: `clrsig conform specs/contract-fail.yaml -b http://localhost:8080/contract-fail` reports 27 of 37 operations failing. (`clrsig` v0.7.1 silently skipped response validation for specs with `servers`, F-010, and needed a generated copy of the spec; that is fixed in v0.8.2.)
 
 ## `conform-fail` cases
 
@@ -156,7 +156,7 @@ No handler makes an outbound request from caller input: there is no HTTP client 
 
 ## Troubleshooting
 
-- **A response check passes in a plain `clrsig conform` run with an older `clrsig`:** v0.7.1 and earlier skip response validation for specs with `servers` (F-010). Use v0.8.9 or later.
+- **A response check passes in a plain `clrsig conform` run with an older `clrsig`:** v0.7.1 and earlier skip response validation for specs with `servers` (F-010). Use v0.8.2 or later (v0.11.0 is what the expectations are written for).
 - **Timing cases fail on Windows:** the host overshoots delays; run against the Docker container.
 - **Reset answers `401`:** `ADMIN_TOKEN` is set; send the bearer token, and export `ADMIN_TOKEN` for the runner.
 - **State looks wrong:** it is shared by every caller and lost on restart; reset the family first.

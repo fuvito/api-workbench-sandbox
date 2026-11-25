@@ -32,8 +32,9 @@ Generated from `expectations/contract-fail.yaml` by `uv run python scripts/check
 | `resp-010-extra-property-closed` | `/cases/resp-010-extra-property-closed` | fails | CS-RESP-010 | 1 | property "extra" is unsupported |
 | `resp-011-writeonly-leak` | `/cases/resp-011-writeonly-leak` | fails | CS-RESP-011 | 1 | writeOnly property "password" in response |
 | `resp-012-xml-valid` | `/cases/resp-012-xml-valid` | passes | CS-NC-009 | 0 | (also CS-GAP-004) application/xml has no decoder: the body is not compared and nothing is reported |
+| `resp-007g-format-email-uuid` | `/cases/resp-007g-format-email-uuid` | fails | CS-RESP-007 | 1 | doesn't match the format "email" (checked since clrsig 0.9.0; before, this case passed and pinned CS-GAP-001) |
 | `resp-multi-problem` | `/cases/resp-multi-problem` | fails | CS-RESP-003 | 1 | header "X-Total-Count" is required |
-| `gap-format-email-uuid` | `/cases/gap-format-email-uuid` | passes | CS-GAP-001 | 0 | formats other than date-time are not validated |
+| `gap-format-uri` | `/cases/gap-format-uri` | passes | CS-GAP-001 | 0 | formats outside email, uuid, ipv4, ipv6, date and date-time (here uri) are not validated |
 | `gap-undeclared-header` | `/cases/gap-undeclared-header` | passes | CS-GAP-003 | 0 | a header the spec never mentions is not reported |
 | `gap-slow-response` | `/cases/gap-slow-response` | passes | CS-GAP-005 | 0 | no response time is measured (the case waits 5 s, times LATENCY_SCALE) |
 | `nc-002-no-content-declared` | `/cases/nc-002-no-content-declared` | passes | CS-NC-002 | 0 | the spec declares no response content, so any body is accepted |

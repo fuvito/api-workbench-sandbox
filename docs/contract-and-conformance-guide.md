@@ -347,7 +347,7 @@ These problems cannot be seen in one request. Each response is valid by itself; 
 Every tool has blind spots. It is better to know them than to trust a green run.
 
 #### P56. Things clrsig knowingly does not check
-- Formats other than `date-time` (`email`, `uuid`: `"mail": "nope"` passes) (`CS-GAP-001`).
+- Formats outside `date`, `date-time`, `email`, `uuid`, `ipv4`, `ipv6` and `byte` (`uri`, `hostname`: `"link": "not a uri"` passes) (`CS-GAP-001`); `email` and `uuid` are checked since clrsig 0.9.0.
 - Extra fields on open schemas (`CS-GAP-002`) and response headers the spec never mentions (`CS-GAP-003`).
 - XML, CSV and other non-JSON response bodies (`CS-GAP-004`, `CS-NC-009`).
 - A time limit for one method of a path (`CS-GAP-005`; since v0.8.8 a limit per path prefix exists).
@@ -428,7 +428,7 @@ The same checks are also available outside the terminal: `conform` is a tool of 
 - **Check:** `CS-RESP-005`, `CS-RESP-006`, `CS-RESP-007`. **Finds it by:** validating the body against the JSON Schema in the spec: required fields, types, and the rules (`enum`, `minimum`, `maximum`, `minLength`, `maxLength`, `pattern`, `minItems`, `uniqueItems`, `nullable`, `date-time`).
 - **What you see:** `property "id" is missing`; `value must be a number`; `value must be an object`; `number must be at least 0`; `minimum string length is 3`; `duplicate items found`; `Value is not nullable`. The message includes the path to the bad value (for example `/items/0/price`).
 - **What to do:** fix the response code or the schema, whichever is wrong. A frequent cause: a database `NULL` that the schema does not allow (`nullable: true` is the fix when `null` is truly valid).
-- **Limits:** formats other than `date-time` (`email`, `uuid`, `uri`) are not validated (`CS-GAP-001`).
+- **Limits:** formats outside the supported list (`uri`, `hostname`) are not validated (`CS-GAP-001`); `email`, `uuid`, `ipv4`, `ipv6`, `date` and `date-time` are.
 
 **P08. Body not valid JSON, or empty**
 - **Check:** `CS-RESP-008` (finding `invalid-body`). **Finds it by:** parsing the body as **strict** JSON.
@@ -674,7 +674,7 @@ Each card gives the **goal**, the **problems** (numbers from Parts 1 and 2), the
 - **Key sentences:** "Required, type, rule: the three questions for every field." "`oneOf` fails as one message, not as a list of fields." "`writeOnly` leaks are a security problem, not a style problem."
 - **Demo:** `resp-005-missing-required-field`, `resp-006-wrong-field-type`, `resp-006b-array-for-object`, `resp-007-enum`, `resp-007c-pattern`, `resp-009-oneof-no-match`, `resp-010-extra-property-closed` vs `resp-010b-extra-property-open` (open schema is legal), `resp-011-writeonly-leak`, `resp-multi-problem` (only the first problem).
 - **Analogy:** a form: required boxes, the right kind of answer in each box, and rules like "at most 5 letters".
-- **Limits:** formats like `email` and `uuid` are not validated (`CS-GAP-001`): show `gap-format-email-uuid` passing.
+- **Limits:** formats like `uri` are not validated (`CS-GAP-001`): show `gap-format-uri` passing. `email` and `uuid` are (`resp-007g-format-email-uuid` fails with CS-RESP-007 since clrsig 0.9.0).
 - **Recap:** What is the difference between a missing field and a wrong type? When is an extra field legal? Why can a `oneOf` error message not name a field?
 
 #### Episode 3. Odd but valid, and broken JSON (8 min)

@@ -237,6 +237,14 @@ async def resp_012() -> Response:
     return Response(content=xml, media_type="application/xml")
 
 
+# ---- formats ClearSignal checks since 0.9.0 (email, uuid, ipv4, ipv6) ----
+
+
+@case("resp-007g-format-email-uuid")
+async def resp_007g() -> Response:
+    return json_response({"mail": "nope", "ref": "not-a-uuid"})
+
+
 # ---- two problems at once: ClearSignal reports the header first (CS-GAP-011) ----
 
 
@@ -248,9 +256,9 @@ async def resp_multi() -> Response:
 # ---- known gaps: wrong, but ClearSignal does not catch it today ----
 
 
-@case("gap-format-email-uuid")
-async def gap_format() -> Response:
-    return json_response({"mail": "nope", "ref": "not-a-uuid"})
+@case("gap-format-uri")
+async def gap_format_uri() -> Response:
+    return json_response({"link": "not a uri"})
 
 
 @case("gap-undeclared-header")

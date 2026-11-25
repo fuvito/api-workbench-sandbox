@@ -153,7 +153,8 @@ async def test_nested_wrong_type_is_deep_and_only_there(client):
         ("resp-poly-discriminator-wrong", {"type": "cat", "barks": True}),
         ("resp-010-extra-property-closed", {"id": 1, "extra": True}),
         ("resp-011-writeonly-leak", {"id": 1, "name": "Ada", "password": "hunter2"}),
-        ("gap-format-email-uuid", {"mail": "nope", "ref": "not-a-uuid"}),
+        ("resp-007g-format-email-uuid", {"mail": "nope", "ref": "not-a-uuid"}),
+        ("gap-format-uri", {"link": "not a uri"}),
     ],
 )
 async def test_body_deviations_are_exactly_these(client, slug, expected):

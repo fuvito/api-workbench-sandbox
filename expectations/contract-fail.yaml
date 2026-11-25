@@ -13,7 +13,7 @@
 #
 # Run: uv run python scripts/check_expectations.py   (server running on :8080)
 #
-# These expectations hold for clrsig v0.8.2 run against the standard spec
+# These expectations hold for clrsig v0.11.0 (email, uuid, ipv4 and ipv6 formats are checked since 0.9.0) run against the standard spec
 # (docs/clrsig-findings.md). Do not edit a spec or handler to change an expectation.
 
 format: 1
@@ -49,6 +49,7 @@ cases:
   - { case: resp-007c-uniqueitems, expect: fail, check: CS-RESP-007, message: 'duplicate items found' }
   - { case: resp-007d-null-not-nullable, expect: fail, check: CS-RESP-007, message: 'Value is not nullable' }
   - { case: resp-007e-bad-datetime, expect: fail, check: CS-RESP-007, message: 'format "date-time"' }
+  - { case: resp-007g-format-email-uuid, expect: fail, check: CS-RESP-007, message: 'doesn.t match the format "email"' }
 
   # ---- CS-RESP-008: invalid JSON / empty body ----
   - { case: resp-008-invalid-json, expect: fail, check: CS-RESP-008, message: 'not valid JSON \(invalid character' }
@@ -69,7 +70,7 @@ cases:
   - { case: resp-multi-problem, expect: fail, check: CS-RESP-003, message: 'header "X-Total-Count" is required' }
 
   # ---- known gaps: wrong, yet not caught today ----
-  - { case: gap-format-email-uuid, expect: pass, reference: CS-GAP-001, why: "formats other than date-time are not validated" }
+  - { case: gap-format-uri, expect: pass, reference: CS-GAP-001, why: "formats outside email, uuid, ipv4, ipv6, date and date-time are accepted without a check" }
   - { case: gap-undeclared-header, expect: pass, reference: CS-GAP-003, why: "a header the spec never mentions is not reported" }
   - { case: gap-slow-response, expect: pass, reference: CS-GAP-005, why: "no response time is measured (the case waits 5 s, times LATENCY_SCALE)" }
 

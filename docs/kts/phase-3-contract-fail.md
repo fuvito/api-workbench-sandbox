@@ -37,7 +37,7 @@ clrsig/scenarios/contract-fail-checkers.yaml   checker A and B side by side
 | CS-RESP-008 / 009 / 010 / 011 | invalid JSON, empty body, oneOf and discriminator mismatch, extra property on a closed schema, writeOnly leak | fail |
 | Multi-problem | header and body both wrong | fails once, with the header (CS-RESP-003) first (CS-GAP-011) |
 | XML | `resp-012-xml-valid` | **passes**: not checked (CS-NC-009) |
-| Known gaps | email/uuid formats, undeclared header, slow response | pass: CS-GAP-001, 003, 005 |
+| Known gaps | uri format (email/uuid are checked since clrsig 0.9.0), undeclared header, slow response | pass: CS-GAP-001, 003, 005 |
 | Not checked | no content declared, octet-stream, no Content-Type, undocumented path | pass: CS-NC-002, 003, 008, 001 |
 
 ## Decisions where the sources disagreed

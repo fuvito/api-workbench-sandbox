@@ -11,7 +11,7 @@ finding, or changes exit code makes the run fail.
 
 A response failure is recognized by the `checkId` ClearSignal puts on each finding in its JSON
 report, plus a regex on the validator's message; a probe by its text in the report. Everything is
-recorded in the expectations file. Written for clrsig v0.8.2 and later.
+recorded in the expectations file. Written for clrsig v0.11.0 (v0.10.0 and later for the baseline cases).
 """
 
 import argparse
@@ -28,6 +28,11 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# clrsig prints characters such as the cross of a failed check; a Windows console would stop on them.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 CLOUD = False  # --cloud: skip every entry marked `local_only: true` (transport behavior not verified on Cloud Run)
 # `PASS|FAIL <METHOD> <path> <dash> <description> (expect ...)`; the dash is matched loosely so a
 # console encoding difference cannot break parsing.
@@ -651,7 +656,9 @@ def run_drift(spec: dict, spec_file: Path) -> int:
                 if level not in servers:
                     servers[level] = _start_server(level)
                 url = servers[level][1]
-                args = [*conform_args(spec, spec_file, url), "--paths", ",".join(drift["paths"])]
+                args = conform_args(spec, spec_file, url)
+                if step["mode"] != "write":  # a baseline is recorded from a full run (clrsig 0.10.0)
+                    args += ["--paths", ",".join(drift["paths"])]
                 file = baselines.setdefault(step["file"], Path(tmp) / f"{step['file']}.yaml")
                 if step["mode"] == "write":
                     args += ["--write-baseline", str(file)]
@@ -665,7 +672,8 @@ def run_drift(spec: dict, spec_file: Path) -> int:
                 if code != step["exit"]:
                     problems.append(f"exit code {code}, expected {step['exit']}")
                 if "output" in step and not re.search(step["output"], text):
-                    problems.append(f"output does not match /{step['output']}/")
+                    last = [line for line in text.splitlines() if line.strip()][-1:] or [""]
+                    problems.append(f"output does not match /{step['output']}/ (last line: {last[0][:120]})")
                 for kind in ("NEW", "FIXED"):
                     got = sorted(re.findall(rf"^\s*{kind}\s+(\S+ \S+)", text, re.M))
                     expected = sorted(step.get(kind.lower()) or [])
