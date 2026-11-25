@@ -8,6 +8,11 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 | `conform --tags` / `--paths` that match nothing | v0.8.9: `NOTHING CHECKED` and exit 2 (it was PASSED, exit 0); all operations skipped by `--read-only` is `NOTHING CHECKED` with exit 0 | `conform-tags-matches-nothing`, `conform-paths-matches-nothing`, `conform-read-only-checks-nothing` |
 | `conform --tags` | `--tags products` runs 12 operations, skips 53 | `conform-tags` |
 | `conform --explain` | adds `[CS-RESP-001] ...` and a reason under the failure | `conform-explain` |
+| `conform --format github` | a `::error file=...,line=N,title=CS-RESP-005 ...::` annotation on the spec line of the failed operation | `conform-format-github` |
+| `conform --fail-on` | v0.9.0: only `failure` or `warning` are valid; anything else is exit 2 | `conform-fail-on-invalid` |
+| `validate --spec` | v0.11.0: lints the OpenAPI document; the ok spec is clean | `validate-spec-lint` |
+| `validate --strict` | v0.9.1: lints a scenario beyond plain validation; the CRUD scenario is clean | `validate-strict-scenario` |
+| `run --format github` | v0.10.0: a summary notice (and an annotation per failed step) | `run-format-github` |
 | `conform --fail-fast` | stops at the first violation (8 operations, 1 failed) | `conform-fail-fast` |
 | `conform --max-response-time` | `slow-response`, CS-RESP-014 | `expectations/conform-fail.yaml` (`latency-over-limit`, `degrading-latency`, ...) |
 | `conform --max-response-time-for` | a limit per path prefix (v0.8.8): it loosens, tightens or turns off (`0`) the global limit under `/latency`; another prefix changes nothing | `latency-path-limit-*` in `conform-fail.yaml` |

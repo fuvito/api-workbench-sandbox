@@ -216,9 +216,39 @@ runs:
     args: [conform, "{root}/specs/contract-fail.yaml", -b, "{base}/contract-fail", --paths, "/cases/resp-001", --explain]
     exit: 1
     output: '\[CS-RESP-001\] Status 500 is not declared for GET /cases/resp-001-undeclared-status'
+  - name: conform-format-github
+    reference: CS-RESP-005
+    note: "v0.9.0 and v0.11.0: --format github prints a workflow annotation on the spec line of the failed operation, with the check ID"
+    args: [conform, "{root}/specs/contract-fail.yaml", -b, "{base}/contract-fail", --paths, "/cases/resp-005", --format, github]
+    exit: 1
+    output: '::error file=[^,]*contract-fail\.yaml,line=\d+,title=CS-RESP-005 GET /cases/resp-005-missing-required-field::'
+  - name: conform-fail-on-invalid
+    reference: null
+    note: "v0.9.0: --fail-on takes failure or warning; anything else is a usage error, exit 2"
+    args: [conform, "{root}/specs/contract-fail.yaml", -b, "{base}/contract-fail", --paths, "/cases/resp-005", --fail-on, bogus]
+    exit: 2
+    output: 'use failure \(the default\) or warning'
+  - name: validate-spec-lint
+    reference: null
+    note: "v0.11.0: validate --spec lints the OpenAPI document itself; the ok spec is clean"
+    args: [validate, --spec, "{root}/specs/ok.yaml"]
+    exit: 0
+    output: 'OK'
+  - name: validate-strict-scenario
+    reference: null
+    note: "v0.9.1: validate --strict lints a scenario for problems the plain validation allows; the CRUD scenario is clean"
+    args: [validate, --strict, "{root}/clrsig/scenarios/ok-crud.yaml"]
+    exit: 0
+    output: 'OK'
+  - name: run-format-github
+    reference: null
+    note: "v0.10.0: run --format github prints a summary notice (and an annotation per failed step)"
+    args: [run, "{root}/clrsig/scenarios/ok-crud.yaml", --env, "{root}/clrsig/environments/ok.yaml", --spec, "{spec}", --format, github]
+    exit: 0
+    output: '::notice title=Clear Signal run::1 scenarios: 1 passed, 0 failed'
   - name: conform-fail-fast
     reference: null
-    note: "--fail-fast stops at the first violation (contract-fail: 25 of 36 fail without it)"
+    note: "--fail-fast stops at the first violation (contract-fail: 27 of 37 fail without it)"
     args: [conform, "{root}/specs/contract-fail.yaml", -b, "{base}/contract-fail", --fail-fast]
     exit: 1
     output: 'FAILED\s+8 operations\s+·\s+7 passed\s+·\s+1 failed\s+·\s+0 skipped'
