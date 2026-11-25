@@ -326,6 +326,6 @@ A feature is done only when:
 - [x] Pin that `conform` and `run` reports do not quote the token a failing response holds (CS-RUN-011).
 - [x] Record F-037 (`"expected": "<nil>"` for `schema` assertions).
 - [x] Rerun every expectation file with the released v0.13.2 on the maintainer's machine (2026-11-25).
-- [ ] CI (container) with v0.13.2.
-- [ ] Run the "Action smoke test" workflow once with v0.13.2.
+- [x] CI (container) with v0.13.2 (commit `b85137f`, run 45722287678; all eight new entries passed).
+- [x] Run the "Action smoke test" workflow once with v0.13.2 (run 45722923402, passed: `good=0 bad=1`).
 
