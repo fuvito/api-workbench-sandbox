@@ -13,7 +13,7 @@
 #
 # Run: uv run python scripts/check_expectations.py   (server running on :8080)
 #
-# These expectations hold for clrsig v0.12.0 (email, uuid, ipv4 and ipv6 formats are checked since 0.9.0) run against the standard spec
+# These expectations hold for clrsig v0.13.0 (email, uuid, ipv4 and ipv6 formats are checked since 0.9.0) run against the standard spec
 # (docs/clrsig-findings.md). Do not edit a spec or handler to change an expectation.
 
 format: 1

@@ -14,6 +14,9 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 | `validate --strict` | v0.9.1: lints a scenario beyond plain validation; the CRUD scenario is clean, an extraction nobody uses fails | `validate-strict-*` |
 | `config show`, `--config`, `clrsig.yaml` | v0.9.1: the project file supplies spec, environment, base URL and `readOnly`; `config show` says where each value comes from | `config-show-*`, `conform-from-the-project-file` (`clrsig/fixtures/project/`) |
 | `init --dry-run` | v0.9.1: lists what it would create | `init-dry-run-writes-nothing` |
+| `init --spec` | v0.13.0: names the values the spec needs and says they would be listed as comments | `init-lists-the-values-the-spec-needs` |
+| `conform --list` | v0.13.0: sends nothing (it runs against a closed port) and names the missing values; a flag that needs requests, such as `--negative`, is exit 2 | `conform-list-sends-nothing`, `conform-list-refuses-negative` |
+| an empty value in `conform` | v0.13.0: empty in a path value, bearer token, API key or basic user name is "not sent"; an empty basic password is sent (CS-GAP-013) | `conform-an-empty-*` |
 | `conform --setup` | v0.9.1: a login scenario's extraction fills `{{token}}`; without it the operation is not sent; a failed setup is exit 2 and nothing is checked | `conform-without-the-setup-is-not-sent`, `conform-setup-supplies-the-token`, `conform-failed-setup-*` |
 | `conform --changed-against` | v0.10.0: nothing changed against `HEAD` is `NOTHING CHECKED`, exit 0; an unknown git ref is exit 2 | `conform-changed-against-*` |
 | `conform --write-baseline` with a filter | v0.10.0: refused, exit 2 | `write-baseline-is-refused-for-a-limited-run` |
@@ -43,7 +46,7 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 - `import insomnia`, `bundle import`, `bundle export`, `run --workspace`, `--report` to a file: file-writing commands; the formats they write are the ones pinned above.
 - `init` and `init github-actions --write` without `--dry-run`: file-writing commands.
 - `--changed-against` with a changed operation: it needs two committed versions of a spec, and CI checks out one commit.
-- `--fail-on warning`: in v0.12.0 every response finding is a failure, so no fixture can produce a warning from `conform`.
+- `--fail-on warning`: in v0.13.0 every response finding is a failure, so no fixture can produce a warning from `conform`.
 - `--ca-cert`, `--client-cert`, `--client-key` (TLS, mutual TLS): the server speaks plain HTTP on one port. Phase 6 (Cloud Run) is the first place TLS is involved.
 - `mcp` (an MCP server over stdio), `telemetry`, `completion`: not behavior of an API under test.
 - `--show-extracted`: needs a secret-looking extraction; the `oauth2` scenario extracts an access token, which clrsig masks (`***`) in its output.

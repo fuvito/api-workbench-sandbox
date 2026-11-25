@@ -304,6 +304,56 @@ runs:
     args: [init, "{root}/.pytest_cache/clrsig-init", --dry-run]
     exit: 0
     output: 'nothing was written[\s\S]*clrsig\.yaml'
+  # ---- what a run needs, and empty values (clrsig 0.13.0) ----
+  - name: conform-list-sends-nothing
+    reference: null
+    note: "v0.13.0: --list needs no server (the port is closed) and names what is missing; exit 0"
+    args: [conform, "{spec}", -b, "http://localhost:1", --list]
+    exit: 0
+    output: 'Nothing was sent\.[\s\S]*65 operations\s+·\s+25 ready\s+·\s+40 would not be sent\s+·\s+0 skipped[\s\S]*Missing: '
+  - name: conform-list-refuses-negative
+    reference: null
+    note: "v0.13.0: a flag that only matters when requests are sent is a usage error"
+    args: [conform, "{spec}", -b, "http://localhost:1", --list, --negative]
+    exit: 2
+    output: '--list sends nothing, so it cannot be used with --negative'
+  - name: init-lists-the-values-the-spec-needs
+    reference: null
+    note: "v0.13.0: init --spec reads which values the spec's requests take"
+    args: [init, "{root}/.pytest_cache/clrsig-init-spec", --spec, "{spec}", --dry-run]
+    exit: 0
+    output: 'nothing was written[\s\S]*The spec needs: .*productId[\s\S]*would be listed'
+  - name: conform-an-empty-path-value-is-not-sent
+    reference: CS-RUN-001
+    note: "v0.13.0: before, /products/{{productId}} with an empty value was sent as /products/ and could pass"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --paths, /products/, --read-only, --var, "productId="]
+    exit: 1
+    output: 'not sent: no value for \{\{productId\}\} \(defined but empty'
+  - name: conform-an-empty-token-is-not-sent
+    reference: CS-RUN-001
+    note: "v0.13.0: an empty bearer token"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --paths, /me, --var, "token="]
+    exit: 1
+    output: 'defined but empty: \{\{token\}\}[\s\S]*0 passed\s+·\s+0 failed\s+·\s+1 not sent'
+  - name: conform-an-empty-api-key-is-not-sent
+    reference: CS-RUN-001
+    note: "v0.13.0: an empty API key"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --paths, /feature-flags, --var, "apiKey="]
+    exit: 1
+    output: 'defined but empty: \{\{apiKey\}\}[\s\S]*0 passed\s+·\s+0 failed\s+·\s+1 not sent'
+  - name: conform-an-empty-basic-user-name-is-not-sent
+    reference: CS-RUN-001
+    note: "v0.13.0: an empty basic user name"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --paths, /audit-events, --var, "basicUser="]
+    exit: 1
+    output: 'defined but empty: \{\{basicUser\}\}[\s\S]*0 passed\s+·\s+0 failed\s+·\s+1 not sent'
+  - name: conform-an-empty-basic-password-is-sent
+    reference: CS-GAP-013
+    note: "a known gap, pinned: the password is sent empty, the server refuses the login with a declared 401, and the operation PASSES"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --paths, /audit-events, --var, "basicPass="]
+    exit: 0
+    output: 'PASS\s+GET\s+/audit-events\s+401'
+    not_output: 'not sent'
   - name: conform-without-the-setup-is-not-sent
     reference: CS-RUN-001
     note: "control for the next entry: the environment has no {{token}}"
