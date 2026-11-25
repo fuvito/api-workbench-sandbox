@@ -1,0 +1,12 @@
+# DELIBERATELY WEAK (clrsig validate --spec, CS-SPEC-001, a warning): no operationId.
+# Not served by any family.
+openapi: 3.0.3
+info:
+  title: Lint - operation without an operationId
+  version: "1.0.0"
+paths:
+  /things:
+    get:
+      responses:
+        "200":
+          description: Things

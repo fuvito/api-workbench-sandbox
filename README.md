@@ -58,20 +58,20 @@ uv run python scripts/check_expectations.py --expectations expectations/diff.yam
 uv run python scripts/fuzz_specs.py --count 60                                             # random specs, no server
 ```
 
-Each prints one line per case and ends with `ALL AS EXPECTED` (exit 0) or `<n> MISMATCH(ES)` (exit 1): a case that unexpectedly passes, fails with another check, or changes exit code is a mismatch. `--section`, `--only` and `--cloud` narrow a run. The plain commands in "Run ClearSignal" below do not verify response behavior (F-010); these runners do.
+Each prints one line per case and ends with `ALL AS EXPECTED` (exit 0) or `<n> MISMATCH(ES)` (exit 1): a case that unexpectedly passes, fails with another check, or changes exit code is a mismatch. `--section`, `--only` and `--cloud` narrow a run. The plain commands in "Run ClearSignal" above only show the results; these runners compare every one with its expected outcome.
 
-CI (`.github/workflows/ci.yml`): pytest, then the Docker image is built and started, `/health` of each family is polled, and the five expectation files run against the container (timing needs it). Pushes and pull requests use the released `clrsig` pinned in `CLRSIG_VERSION`; a nightly run builds `clrsig` from `api-workbench@main` to catch ClearSignal regressions. When a `clrsig` release changes behavior, the expectations that encode a known bug (today F-016 and F-022) must flip with it; update them in the same change that bumps `CLRSIG_VERSION`.
+CI (`.github/workflows/ci.yml`): pytest, then the Docker image is built and started, `/health` of each family is polled, and the five expectation files run against the container (timing needs it). Pushes and pull requests use the released `clrsig` pinned in `CLRSIG_VERSION`; a nightly run builds `clrsig` from `api-workbench@main` to catch ClearSignal regressions. When a `clrsig` release changes behavior, the expectations it affects must flip with it (a fixed bug, or a new check such as the `email` and `uuid` formats of 0.9.0); update them in the same change that bumps `CLRSIG_VERSION`.
 
 ## `contract-fail` cases
 
-35 operations under `GET /contract-fail/cases/<check-id>-<slug>`, each declaring the correct behavior in `specs/contract-fail.yaml` while the server breaks exactly one thing. The expected ClearSignal outcome of every case is in `expectations/contract-fail.yaml` (table: `docs/contract-fail-cases.md`).
+36 operations under `GET /contract-fail/cases/<check-id>-<slug>`, each declaring the correct behavior in `specs/contract-fail.yaml` while the server breaks exactly one thing. The expected ClearSignal outcome of every case is in `expectations/contract-fail.yaml` (table: `docs/contract-fail-cases.md`).
 
 ```
 uv run python scripts/check_expectations.py          # server running on :8080; exit 0 = all as expected
 uv run python scripts/check_expectations.py --only resp-003-missing-required-header
 ```
 
-A plain run works too: `clrsig conform specs/contract-fail.yaml -b http://localhost:8080/contract-fail` reports 27 of 37 operations failing. (`clrsig` v0.7.1 silently skipped response validation for specs with `servers`, F-010, and needed a generated copy of the spec; that is fixed in v0.8.2.)
+A plain run works too: `clrsig conform specs/contract-fail.yaml -b http://localhost:8080/contract-fail` reports 26 of 37 operations failing (the 37th is `/health`). (`clrsig` v0.7.1 silently skipped response validation for specs with `servers`, F-010, and needed a generated copy of the spec; that is fixed in v0.8.2.)
 
 ## `conform-fail` cases
 
@@ -87,7 +87,7 @@ A plain run works too: `clrsig conform specs/contract-fail.yaml -b http://localh
 | `/rules/*` | seven business rules broken on purpose, visible only to scenarios |
 | `/hostile/*` | the adversarial group: 20 odd or malformed response bodies and HTTP shapes (deep or wide JSON, duplicate keys, a BOM, invalid UTF-8, NaN, trailing text, numbers beyond float64, gzip, duplicate headers, a 60 KB header, chunked) |
 
-Without a server: 14 awkward documents in `specs/hostile/` (circular `$ref`, discriminator, 60-branch `oneOf`, unsatisfiable `allOf`, JSON and 3.2 documents, three invalid ones) and a generated 500-operation spec for scale, both pinned in `expectations/conform-fail.yaml`; `scripts/fuzz_specs.py` runs clrsig on random valid specs (`make_specs.py`, deterministic per seed); 13 spec-diff pairs in `specs/diff/` and the impact scenarios in `clrsig/scenarios/impact/` (`expectations/diff.yaml`, `docs/diff-cases.md`). Coverage signals: `clrsig/scenarios/coverage-gaps.yaml` with `specs/coverage/coverage.yaml`.
+Without a server: 15 awkward documents in `specs/hostile/` (circular `$ref`, discriminator, 60-branch `oneOf`, unsatisfiable `allOf`, JSON and 3.2 documents, three invalid ones) and a generated 500-operation spec for scale, both pinned in `expectations/conform-fail.yaml`; three documents in `specs/lint/` for the spec checks of `clrsig validate --spec` (CS-SPEC-001 to 003, pinned in `expectations/ok.yaml`); `scripts/fuzz_specs.py` runs clrsig on random valid specs (`make_specs.py`, deterministic per seed); 13 spec-diff pairs in `specs/diff/` and the impact scenarios in `clrsig/scenarios/impact/` (`expectations/diff.yaml`, `docs/diff-cases.md`). Coverage signals: `clrsig/scenarios/coverage-gaps.yaml` with `specs/coverage/coverage.yaml`.
 
 ```
 uv run python scripts/check_expectations.py --expectations expectations/conform-fail.yaml   # about 2 minutes

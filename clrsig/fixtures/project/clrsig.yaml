@@ -1,0 +1,8 @@
+# A project file (clrsig 0.9.1 and later) for the `config show` and `conform --config` entries in
+# expectations/ok.yaml. It is not at the repository root, so no other command picks it up.
+schemaVersion: "1"
+spec: ../../../specs/ok.yaml
+environment: ../../environments/ok.yaml
+baseUrl: http://localhost:8080/ok
+conform:
+  readOnly: true

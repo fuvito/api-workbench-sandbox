@@ -294,3 +294,11 @@ A feature is done only when:
 - [x] Pin CI to `v0.8.2` (`CLRSIG_VERSION`); moved to `v0.8.3` below.
 - [x] Use `--max-response-time` and the `duration` assertion for the timing cases (F-018 closed): degrading and jitter sequences, three new limit cases, a `duration` step in `ok-latency`.
 - [x] Move to clrsig v0.8.3: F-016 and F-022 verified closed, `run-002b` now exits 1 with the good step running, `resp-011` pins `CS-RESP-011` / `write-only-property`, CI pinned to `v0.8.3`.
+
+## ClearSignal v0.11.0
+
+- [x] Pin CI to `v0.11.0` and flip the changed outcomes (`email`/`uuid` formats are checked since 0.9.0; a baseline is recorded from a full run since 0.10.0).
+- [x] Rerun every expectation file against the container, and the fuzz run (2026-11-24).
+- [x] Pin the new commands and flags: `validate --spec` (CS-SPEC-001 to 003, `specs/lint/`), `validate --strict` on a weak scenario, the project file, `init --dry-run`, `conform --setup`, `--changed-against`, refused `--write-baseline`.
+- [x] Bring README, the guide, `commands-and-flags.md`, `clrsig-gaps.md` and the Action smoke test up to v0.11.0 (KT: `docs/kts/clrsig-0-11-0.md`).
+- [ ] Run the "Action smoke test" workflow once with v0.11.0 (manual dispatch, after the push).

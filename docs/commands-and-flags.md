@@ -1,6 +1,6 @@
 # clrsig commands and flags exercised here
 
-Beyond the check catalog, the fixtures pin what each `clrsig` command and flag does. The entries are in `expectations/ok.yaml` (section `runs`) and run with the other expectations in CI; when a release changes a flag, the entry flips and the file changes with it. Pinned for `clrsig` v0.8.5.
+Beyond the check catalog, the fixtures pin what each `clrsig` command and flag does. The entries are in `expectations/ok.yaml` (section `runs`) and run with the other expectations in CI; when a release changes a flag, the entry flips and the file changes with it. Verified with `clrsig` v0.11.0.
 
 | Command or flag | What is pinned | Entry |
 |---|---|---|
@@ -8,11 +8,16 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 | `conform --tags` / `--paths` that match nothing | v0.8.9: `NOTHING CHECKED` and exit 2 (it was PASSED, exit 0); all operations skipped by `--read-only` is `NOTHING CHECKED` with exit 0 | `conform-tags-matches-nothing`, `conform-paths-matches-nothing`, `conform-read-only-checks-nothing` |
 | `conform --tags` | `--tags products` runs 12 operations, skips 53 | `conform-tags` |
 | `conform --explain` | adds `[CS-RESP-001] ...` and a reason under the failure | `conform-explain` |
-| `conform --format github` | a `::error file=...,line=N,title=CS-RESP-005 ...::` annotation on the spec line of the failed operation | `conform-format-github` |
+| `conform --format github` | v0.10.0: a `::error file=...,line=N,title=CS-RESP-005 ...::` annotation on the spec line of the failed operation | `conform-format-github` |
 | `conform --fail-on` | v0.9.0: only `failure` or `warning` are valid; anything else is exit 2 | `conform-fail-on-invalid` |
-| `validate --spec` | v0.11.0: lints the OpenAPI document; the ok spec is clean | `validate-spec-lint` |
-| `validate --strict` | v0.9.1: lints a scenario beyond plain validation; the CRUD scenario is clean | `validate-strict-scenario` |
-| `run --format github` | v0.10.0: a summary notice (and an annotation per failed step) | `run-format-github` |
+| `validate --spec` | v0.11.0: lints the OpenAPI document; the ok spec is clean. A `required` property that is not declared is an error (CS-SPEC-002); a missing `operationId` (CS-SPEC-001) and an example that breaks its format (CS-SPEC-003) are warnings, which fail only with `--strict` | `validate-spec-*` (documents in `specs/lint/`) |
+| `validate --strict` | v0.9.1: lints a scenario beyond plain validation; the CRUD scenario is clean, an extraction nobody uses fails | `validate-strict-*` |
+| `config show`, `--config`, `clrsig.yaml` | v0.9.1: the project file supplies spec, environment, base URL and `readOnly`; `config show` says where each value comes from | `config-show-*`, `conform-from-the-project-file` (`clrsig/fixtures/project/`) |
+| `init --dry-run` | v0.9.1: lists what it would create | `init-dry-run-writes-nothing` |
+| `conform --setup` | v0.9.1: a login scenario's extraction fills `{{token}}`; without it the operation is not sent; a failed setup is exit 2 and nothing is checked | `conform-without-the-setup-is-not-sent`, `conform-setup-supplies-the-token`, `conform-failed-setup-*` |
+| `conform --changed-against` | v0.10.0: nothing changed against `HEAD` is `NOTHING CHECKED`, exit 0; an unknown git ref is exit 2 | `conform-changed-against-*` |
+| `conform --write-baseline` with a filter | v0.10.0: refused, exit 2 | `write-baseline-is-refused-for-a-limited-run` |
+| `run --format github` | v0.11.0: a summary notice (and an annotation per failed step) | `run-format-github` |
 | `conform --fail-fast` | stops at the first violation (8 operations, 1 failed) | `conform-fail-fast` |
 | `conform --max-response-time` | `slow-response`, CS-RESP-014 | `expectations/conform-fail.yaml` (`latency-over-limit`, `degrading-latency`, ...) |
 | `conform --max-response-time-for` | a limit per path prefix (v0.8.8): it loosens, tightens or turns off (`0`) the global limit under `/latency`; another prefix changes nothing | `latency-path-limit-*` in `conform-fail.yaml` |
@@ -36,6 +41,9 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 ## Not exercised, and why
 
 - `import insomnia`, `bundle import`, `bundle export`, `run --workspace`, `--report` to a file: file-writing commands; the formats they write are the ones pinned above.
+- `init` and `init github-actions --write` without `--dry-run`: file-writing commands.
+- `--changed-against` with a changed operation: it needs two committed versions of a spec, and CI checks out one commit.
+- `--fail-on warning`: in v0.11.0 every response finding is a failure, so no fixture can produce a warning from `conform`.
 - `--ca-cert`, `--client-cert`, `--client-key` (TLS, mutual TLS): the server speaks plain HTTP on one port. Phase 6 (Cloud Run) is the first place TLS is involved.
 - `mcp` (an MCP server over stdio), `telemetry`, `completion`: not behavior of an API under test.
 - `--show-extracted`: needs a secret-looking extraction; the `oauth2` scenario extracts an access token, which clrsig masks (`***`) in its output.

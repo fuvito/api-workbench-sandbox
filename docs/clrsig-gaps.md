@@ -1,6 +1,6 @@
 # What clrsig does not do, and where this repo stands on it
 
-A map of the things clrsig cannot cover (yet), so that when it learns one, the fixture is ready or its absence is a decision. Three kinds, because each is handled differently. Written 2026-11-22 for `clrsig` v0.8.5. Gaps and capabilities are checked against the catalog (`what-we-check.md`) and by running the fixtures, not assumed.
+A map of the things clrsig cannot cover (yet), so that when it learns one, the fixture is ready or its absence is a decision. Three kinds, because each is handled differently. Written 2026-11-22 for `clrsig` v0.8.5; the catalog gaps (CS-GAP-001 to 006 and 008 to 011) were rechecked 2026-11-24 with v0.11.0. Gaps and capabilities are checked against the catalog (`what-we-check.md`) and by running the fixtures, not assumed.
 
 ## 1. Gaps the catalog names (CS-GAP-001 to 011)
 

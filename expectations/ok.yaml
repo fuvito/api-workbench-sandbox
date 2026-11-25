@@ -181,7 +181,7 @@ probes:
 runs:
   # ---- conform: choosing what is sent ----
   - name: conform-read-only
-    reference: null
+    reference: CS-NC-007
     note: "--read-only sends GET and HEAD only; every other operation is skipped and never sent"
     args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --read-only]
     exit: 0
@@ -218,7 +218,7 @@ runs:
     output: '\[CS-RESP-001\] Status 500 is not declared for GET /cases/resp-001-undeclared-status'
   - name: conform-format-github
     reference: CS-RESP-005
-    note: "v0.9.0 and v0.11.0: --format github prints a workflow annotation on the spec line of the failed operation, with the check ID"
+    note: "v0.10.0: --format github prints a workflow annotation on the spec line of the failed operation, with the check ID"
     args: [conform, "{root}/specs/contract-fail.yaml", -b, "{base}/contract-fail", --paths, "/cases/resp-005", --format, github]
     exit: 1
     output: '::error file=[^,]*contract-fail\.yaml,line=\d+,title=CS-RESP-005 GET /cases/resp-005-missing-required-field::'
@@ -242,7 +242,7 @@ runs:
     output: 'OK'
   - name: run-format-github
     reference: null
-    note: "v0.10.0: run --format github prints a summary notice (and an annotation per failed step)"
+    note: "v0.11.0: run --format github prints a summary notice (and an annotation per failed step)"
     args: [run, "{root}/clrsig/scenarios/ok-crud.yaml", --env, "{root}/clrsig/environments/ok.yaml", --spec, "{spec}", --format, github]
     exit: 0
     output: '::notice title=Clear Signal run::1 scenarios: 1 passed, 0 failed'
@@ -252,6 +252,95 @@ runs:
     args: [conform, "{root}/specs/contract-fail.yaml", -b, "{base}/contract-fail", --fail-fast]
     exit: 1
     output: 'FAILED\s+8 operations\s+·\s+7 passed\s+·\s+1 failed\s+·\s+0 skipped'
+
+  # ---- the spec itself (clrsig 0.11.0, catalog 2.5) ----
+  - name: validate-spec-required-not-declared
+    reference: CS-SPEC-002
+    note: "a required property that is not declared is an error: exit 1"
+    args: [validate, --spec, "{root}/specs/lint/required-undeclared.yaml"]
+    exit: 1
+    output: '\[CS-SPEC-002\] GET /things response 200 lists "email" as required'
+  - name: validate-spec-missing-operation-id
+    reference: CS-SPEC-001
+    note: "a missing operationId is a warning, shown as a note: exit 0"
+    args: [validate, --spec, "{root}/specs/lint/missing-operation-id.yaml"]
+    exit: 0
+    output: 'OK\s+note: \[CS-SPEC-001\] GET /things has no operationId'
+  - name: validate-spec-example-breaks-its-format
+    reference: CS-SPEC-003
+    note: "an example that breaks its format is a warning too: the spec still loads, exit 0"
+    args: [validate, --spec, "{root}/specs/lint/example-breaks-format.yaml"]
+    exit: 0
+    output: 'OK\s+note: \[CS-SPEC-003\]'
+  - name: validate-spec-strict-fails-on-a-warning
+    reference: CS-SPEC-001
+    note: "--strict makes a spec warning fail the check"
+    args: [validate, --spec, "{root}/specs/lint/missing-operation-id.yaml", --strict]
+    exit: 1
+    output: 'CS-SPEC-001'
+  - name: validate-strict-reports-an-unused-extraction
+    reference: null
+    note: "v0.9.1: --strict fails a valid scenario whose extraction no later step uses"
+    args: [validate, --strict, "{root}/clrsig/scenarios/conform-fail-failed-extraction.yaml"]
+    exit: 1
+    output: 'warning: \[step 1\] extract nothing: extracts "nope", but no later step uses \{\{nope\}\}'
+
+  # ---- project file, setup scenario, changed operations, baseline guard (clrsig 0.9.1, 0.10.0) ----
+  - name: config-show-reads-the-project-file
+    reference: null
+    note: "v0.9.1: config show says which values come from clrsig.yaml and which are defaults"
+    args: [config, show, --config, "{root}/clrsig/fixtures/project/clrsig.yaml"]
+    exit: 0
+    output: 'conform\.readOnly\s+true\s+file[\s\S]*conform\.negative\s+false\s+default'
+  - name: conform-from-the-project-file
+    reference: null
+    note: "v0.9.1: conform with no spec or flags takes spec, environment, base URL and readOnly from the project file"
+    args: [conform, --config, "{root}/clrsig/fixtures/project/clrsig.yaml"]
+    exit: 0
+    output: 'PASSED\s+65 operations\s+·\s+33 passed\s+·\s+0 failed\s+·\s+32 skipped'
+  - name: init-dry-run-writes-nothing
+    reference: null
+    note: "v0.9.1: init --dry-run lists what it would create"
+    args: [init, "{root}/.pytest_cache/clrsig-init", --dry-run]
+    exit: 0
+    output: 'nothing was written[\s\S]*clrsig\.yaml'
+  - name: conform-without-the-setup-is-not-sent
+    reference: CS-RUN-001
+    note: "control for the next entry: the environment has no {{token}}"
+    args: [conform, "{root}/specs/ok-features.yaml", -b, "{base}/ok", --env, "{root}/clrsig/environments/ok-features-no-token.yaml", --paths, /features/oauth2-profile]
+    exit: 1
+    output: 'not sent: no value for \{\{token\}\}'
+  - name: conform-setup-supplies-the-token
+    reference: null
+    note: "v0.9.1: --setup runs the login scenario first; what it extracts fills the generated request"
+    args: [conform, "{root}/specs/ok-features.yaml", -b, "{base}/ok", --env, "{root}/clrsig/environments/ok-features-no-token.yaml", --paths, /features/oauth2-profile, --setup, "{root}/clrsig/scenarios/ok-setup-login.yaml"]
+    exit: 0
+    output: 'PASSED\s+26 operations\s+·\s+1 passed[\s\S]*values available to the check: token'   # stdout, then stderr
+  - name: conform-failed-setup-does-not-start-the-check
+    reference: null
+    note: "v0.9.1: a setup scenario that fails stops the run before any operation, exit 2"
+    args: [conform, "{root}/specs/ok-features.yaml", -b, "{base}/ok", --env, "{root}/clrsig/environments/conform-fail.yaml", --setup, "{root}/clrsig/scenarios/conform-fail-failed-extraction.yaml"]
+    exit: 2
+    output: 'did not pass, so the check was not started'
+    not_output: 'operations\s+·'
+  - name: conform-changed-against-head-checks-nothing
+    reference: CS-NC-007
+    note: "v0.10.0: nothing changed against HEAD, so nothing is sent and the run passes (the spec is one nobody edits)"
+    args: [conform, "{root}/specs/hostile/only-post.yaml", -b, "{fbase}", --changed-against, HEAD]
+    exit: 0
+    output: 'NOTHING CHECKED[\s\S]*no operation changed against HEAD'
+  - name: conform-changed-against-unknown-ref
+    reference: null
+    note: "v0.10.0: a git ref that does not exist is a configuration error"
+    args: [conform, "{root}/specs/hostile/only-post.yaml", -b, "{fbase}", --changed-against, no-such-ref]
+    exit: 2
+    output: 'git ref "no-such-ref" was not found'
+  - name: write-baseline-is-refused-for-a-limited-run
+    reference: null
+    note: "v0.10.0: a baseline written from a filtered run would drop the other entries"
+    args: [conform, "{root}/specs/contract-fail.yaml", -b, "{base}/contract-fail", --paths, "/cases/resp-005", --write-baseline, "{root}/.pytest_cache/clrsig-refused-baseline.yaml"]
+    exit: 2
+    output: 'record the baseline with a full run'
 
   # ---- run: seeds, variables, reports ----
   - name: run-seed-7

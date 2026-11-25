@@ -1,0 +1,20 @@
+# DELIBERATELY WRONG (clrsig validate --spec, CS-SPEC-002): `email` is required but not declared.
+# Not served by any family.
+openapi: 3.0.3
+info:
+  title: Lint - required property that is not declared
+  version: "1.0.0"
+paths:
+  /things:
+    get:
+      operationId: listThings
+      responses:
+        "200":
+          description: A thing
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, email]
+                properties:
+                  id: { type: string }

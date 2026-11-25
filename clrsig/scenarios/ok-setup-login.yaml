@@ -1,0 +1,19 @@
+schemaVersion: "1"
+title: ok - login used by conform --setup
+description: >
+  The scenario `conform --setup` runs before the check: it exchanges client credentials for the fixed
+  fake token and extracts it as {{token}}, which the generated requests of secured operations use.
+
+steps:
+  - label: Get an access token (client credentials)
+    request:
+      method: POST
+      url: "{{baseUrl}}/features/oauth2/token"
+      body:
+        type: form
+        content: "grant_type=client_credentials"
+    assertions:
+      - { type: status, operator: eq, expected: 200 }
+    extractions:
+      - { name: token, source: jsonpath, path: "$.access_token" }
+    failPolicy: stop

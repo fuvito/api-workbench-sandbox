@@ -1,0 +1,6 @@
+schemaVersion: "1"
+name: ok-features-no-token
+# ok-features without {{token}}: only a --setup scenario can supply it (expectations/ok.yaml).
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/ok"

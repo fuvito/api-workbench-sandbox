@@ -1,0 +1,19 @@
+# DELIBERATELY WRONG EXAMPLE (clrsig validate --spec, CS-SPEC-003, a warning): "123" is not a uuid.
+# Not served by any family.
+openapi: 3.0.3
+info:
+  title: Lint - example that breaks its own format
+  version: "1.0.0"
+paths:
+  /things:
+    get:
+      operationId: listThings
+      responses:
+        "200":
+          description: A thing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid, example: "123" }
