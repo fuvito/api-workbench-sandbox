@@ -301,11 +301,11 @@ A feature is done only when:
 - [x] Rerun every expectation file against the container, and the fuzz run (2026-11-24).
 - [x] Pin the new commands and flags: `validate --spec` (CS-SPEC-001 to 003, `specs/lint/`), `validate --strict` on a weak scenario, the project file, `init --dry-run`, `conform --setup`, `--changed-against`, refused `--write-baseline`.
 - [x] Bring README, the guide, `commands-and-flags.md`, `clrsig-gaps.md` and the Action smoke test up to v0.11.0 (KT: `docs/kts/clrsig-0-11-0.md`).
-- [ ] Run the "Action smoke test" workflow once with v0.11.0 (manual dispatch, after the push).
+- [ ] Run the "Action smoke test" workflow once with v0.11.0 (manual dispatch, after the push). *Not run; superseded by the v0.12.0 run below.*
 
 ## ClearSignal v0.12.0
 
 - [x] Pin CI and the Action smoke test to `v0.12.0`; the 500-operation case now expects only the "not sent" wording.
 - [x] Rerun every expectation file with the released v0.12.0 on the maintainer's machine (2026-11-25).
-- [ ] CI (container) with v0.12.0, after the push.
-- [ ] Run the "Action smoke test" workflow once with v0.12.0 (manual dispatch, after the push). It was not run for v0.11.0.
+- [x] CI (container) with v0.12.0 (commit `780bc2e`, run 45674886070).
+- [x] Run the "Action smoke test" workflow once with v0.12.0 (run 45675734135, passed: `good=0 bad=1`). It was not run for v0.11.0.
