@@ -316,5 +316,5 @@ A feature is done only when:
 - [x] Pin `conform --list`, `init --spec`, and the empty-value rule with its basic-password gap (CS-GAP-013) in `expectations/ok.yaml`.
 - [x] Record F-036 (`--paths` and path parameters).
 - [x] Rerun every expectation file with the released v0.13.0 on the maintainer's machine (2026-11-25).
-- [ ] CI (container) with v0.13.0, after the push.
-- [ ] Run the "Action smoke test" workflow once with v0.13.0 (manual dispatch, after the push).
+- [x] CI (container) with v0.13.0 (commit `087c064`, run 45696085705).
+- [x] Run the "Action smoke test" workflow once with v0.13.0 (run 45696872577, passed: `good=0 bad=1`).
