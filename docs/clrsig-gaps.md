@@ -18,6 +18,7 @@ Each has a fixture pinned as "passes, because of CS-GAP-0xx". When clrsig closes
 | CS-GAP-009 | more negative probes (wrong header or path types, boundaries, enums, unknown fields) | `/lenient/enum-and-boundary`, `/lenient/unknown-fields` | the probes exist |
 | CS-GAP-010 | exercise callbacks, webhooks and links | `subscribe-with-callback`, `webhooks` in `ok-3.1.yaml`, the `links` of `/features/items` | they are run |
 | CS-GAP-011 | report more than the first problem per response | `contract-fail` case `resp-multi-problem` | all problems are listed |
+| CS-GAP-012 | tell why a negative probe was refused: any `4xx` passes it, so a `401`, `404` or `429` can pass a missing-field probe although the body was never validated (in the catalog since clrsig 0.11.1) | — (no fixture pins it yet) | an unexpected `4xx` is reported differently |
 
 ## 2. Capabilities clrsig does not have (not in the catalog)
 

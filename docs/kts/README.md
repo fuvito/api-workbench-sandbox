@@ -25,5 +25,6 @@ One note per phase, written when the phase completes. Each covers: what was buil
 | Beyond the catalog: OpenAPI features and CLI commands | [beyond-the-catalog.md](beyond-the-catalog.md) | Written |
 | The adversarial group: trying to break clrsig | [adversarial-group.md](adversarial-group.md) | Written |
 | ClearSignal v0.11.0 | [clrsig-0-11-0.md](clrsig-0-11-0.md) | Written |
+| ClearSignal v0.12.0 | [clrsig-0-12-0.md](clrsig-0-12-0.md) | Written |
 | 6 — Cloud Run | phase-6-cloud-run.md | Pending |
 | 7 — Release readiness | phase-7-release.md | Pending |

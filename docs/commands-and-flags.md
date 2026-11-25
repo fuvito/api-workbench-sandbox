@@ -43,7 +43,7 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 - `import insomnia`, `bundle import`, `bundle export`, `run --workspace`, `--report` to a file: file-writing commands; the formats they write are the ones pinned above.
 - `init` and `init github-actions --write` without `--dry-run`: file-writing commands.
 - `--changed-against` with a changed operation: it needs two committed versions of a spec, and CI checks out one commit.
-- `--fail-on warning`: in v0.11.0 every response finding is a failure, so no fixture can produce a warning from `conform`.
+- `--fail-on warning`: in v0.12.0 every response finding is a failure, so no fixture can produce a warning from `conform`.
 - `--ca-cert`, `--client-cert`, `--client-key` (TLS, mutual TLS): the server speaks plain HTTP on one port. Phase 6 (Cloud Run) is the first place TLS is involved.
 - `mcp` (an MCP server over stdio), `telemetry`, `completion`: not behavior of an API under test.
 - `--show-extracted`: needs a secret-looking extraction; the `oauth2` scenario extracts an access token, which clrsig masks (`***`) in its output.
