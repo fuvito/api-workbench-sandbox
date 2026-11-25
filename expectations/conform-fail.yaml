@@ -479,7 +479,9 @@ runs:
     note: "against a closed port, with no values for the path parameters: nothing is sent and the run still finishes"
     args: [conform, "{bigspec}", -b, "http://localhost:1", --request-timeout, "100", --negative]
     exit: 1
-    output: 'FAILED\s+500 operations\s+·\s+0 passed\s+·\s+500 failed'
+    # clrsig after v0.11.1 counts them as "not sent"; up to v0.11.1 they were counted as "failed".
+    # Drop the second form when CI pins a release with the new wording.
+    output: 'FAILED\s+500 operations\s+·\s+0 passed\s+·\s+(0 failed\s+·\s+500 not sent|500 failed)\s+·\s+0 skipped'
     max_seconds: 30
 
 # Coverage signals (catalog 2.3): a scenario that deliberately leaves one gap of each kind, run into
