@@ -40,9 +40,9 @@ clrsig run clrsig/scenarios/ok-latency.yaml --env clrsig/environments/ok.yaml --
 clrsig run clrsig/scenarios/ok-parameters-and-paging.yaml --env clrsig/environments/ok.yaml --spec http://localhost:8080/ok/openapi.yaml
 ```
 
-Expected with `clrsig` v0.13.4: all scenarios pass, `conform` reports 65 of 65 operations and `conform --negative` runs 62 probes that all pass. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
+Expected with `clrsig` v0.13.5: all scenarios pass, `conform` reports 65 of 65 operations and `conform --negative` runs 62 probes that all pass. Latency timeout check: `clrsig run clrsig/scenarios/ok-latency.yaml ... --timeout 100` exits 1 (the two slow steps fail with "context deadline exceeded"); that is the intended result, it shows ClearSignal's timeout handling.
 
-Verified with released `clrsig` v0.13.4 (earlier versions have known issues; see `docs/clrsig-findings.md`; up to 0.13.1, reports quote a failing response in full, secrets included). With a spec that has `servers`, `-b` is the family's base (`http://localhost:8080/ok`) and `--paths` takes the spec's own paths.
+Verified with released `clrsig` v0.13.5 (earlier versions have known issues; see `docs/clrsig-findings.md`; up to 0.13.1, reports quote a failing response in full, secrets included). With a spec that has `servers`, `-b` is the family's base (`http://localhost:8080/ok`) and `--paths` takes the spec's own paths.
 
 ## Run all the checks
 
@@ -156,7 +156,7 @@ No handler makes an outbound request from caller input: there is no HTTP client 
 
 ## Troubleshooting
 
-- **A response check passes in a plain `clrsig conform` run with an older `clrsig`:** v0.7.1 and earlier skip response validation for specs with `servers` (F-010). Use v0.8.2 or later (v0.13.4 is what the expectations are written for).
+- **A response check passes in a plain `clrsig conform` run with an older `clrsig`:** v0.7.1 and earlier skip response validation for specs with `servers` (F-010). Use v0.8.2 or later (v0.13.5 is what the expectations are written for).
 - **Timing cases fail on Windows:** the host overshoots delays; run against the Docker container.
 - **Reset answers `401`:** `ADMIN_TOKEN` is set; send the bearer token, and export `ADMIN_TOKEN` for the runner.
 - **State looks wrong:** it is shared by every caller and lost on restart; reset the family first.

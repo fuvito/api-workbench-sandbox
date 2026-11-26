@@ -347,3 +347,12 @@ A feature is done only when:
 - [x] CI (container) with v0.13.4 (commit `32496d8`, run 45758415844; the four new entries and the changed step passed).
 - [x] Run the "Action smoke test" workflow once with v0.13.4 (run 45758942081, passed: `good=0 bad=1`).
 
+## ClearSignal v0.13.5
+
+0.13.5 changes only the `mcp` command, which this sandbox does not exercise: no fixture or expectation changed.
+
+- [x] Pin CI and the Action smoke test to `v0.13.5`.
+- [x] Rerun every expectation file with the released v0.13.5 on the maintainer's machine (2026-11-25): all six pass.
+- [ ] CI (container) with v0.13.5: not checked.
+- [ ] Run the "Action smoke test" workflow with v0.13.5.
+
