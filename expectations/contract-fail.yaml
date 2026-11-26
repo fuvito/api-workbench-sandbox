@@ -86,7 +86,7 @@ scenarios:
     env: clrsig/environments/contract-fail.yaml
     steps:
       control-ok:                       { spec_check: ok,        schema_assertion: ok }
-      resp-001-undeclared-status:       { spec_check: violation, schema_assertion: ok,   check: CS-RESP-001, note: "B does not look at the status" }
+      resp-001-undeclared-status:       { spec_check: violation, schema_assertion: ok, schema_assertion_from_0_13_4: fail, check: CS-RESP-001, note: "up to 0.13.3 B did not look at the status and passed (F-038); from 0.13.4 it fails" }
       resp-002-wrong-content-type:      { spec_check: violation, schema_assertion: ok,   check: CS-RESP-002, note: "B reads the body as JSON whatever the type" }
       resp-003-missing-required-header: { spec_check: violation, schema_assertion: ok,   check: CS-RESP-003, note: "B ignores headers" }
       resp-004-wrong-header-type:       { spec_check: violation, schema_assertion: ok,   check: CS-RESP-004, note: "B ignores headers" }

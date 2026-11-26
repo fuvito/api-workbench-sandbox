@@ -15,6 +15,7 @@ recorded in the expectations file. Written for clrsig v0.13.3 (v0.10.0 and later
 """
 
 import argparse
+import functools
 import json
 import os
 import re
@@ -215,6 +216,15 @@ def run_whole_spec(spec: dict, spec_file: Path, base_url: str) -> int:
 # ---- scenario: checker A (step spec check) and checker B (schema assertion) ----
 
 
+@functools.cache
+def schema_assertions_are_strict() -> bool:
+    """From clrsig 0.13.4 a `schema` assertion fails when it has nothing to compare the body with
+    (F-038). A development build ("dev", clrsig's main) behaves like the newest release."""
+    _, out, _ = clrsig("--version")
+    found = re.search(r"v(\d+)\.(\d+)\.(\d+)", out)
+    return found is None or tuple(int(n) for n in found.groups()) >= (0, 13, 4)
+
+
 def check_scenario(entry: dict, spec_file: Path) -> list[tuple[str, list[str], str]]:
     args = ["run", str(ROOT / entry["file"]), "--env", str(ROOT / entry["env"]), "--spec", str(spec_file), "--format", "json"]
     _, out, _ = clrsig(*args)
@@ -233,8 +243,12 @@ def check_scenario(entry: dict, spec_file: Path) -> list[tuple[str, list[str], s
         if "spec_check" in want and got_a != want["spec_check"]:
             problems.append(f"spec check (A) was '{got_a}', expected '{want['spec_check']}'")
         got_b = "-" if not schema_assertions else ("ok" if all(a["passed"] for a in schema_assertions) else "fail")
-        if want.get("schema_assertion", "none") != "none" and got_b != want["schema_assertion"]:
-            problems.append(f"schema assertion (B) was '{got_b}', expected '{want['schema_assertion']}'")
+        expected_b = want.get("schema_assertion", "none")
+        # a result that changed with 0.13.4 is written down for both sides, never "either"
+        if "schema_assertion_from_0_13_4" in want and schema_assertions_are_strict():
+            expected_b = want["schema_assertion_from_0_13_4"]
+        if expected_b != "none" and got_b != expected_b:
+            problems.append(f"schema assertion (B) was '{got_b}', expected '{expected_b}'")
         # Plain step outcome, for scenarios whose steps assert the CORRECT behavior and so fail
         # exactly where the server is wrong.
         if "passed" in want and step["passed"] != want["passed"]:
