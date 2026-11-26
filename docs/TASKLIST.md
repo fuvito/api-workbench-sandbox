@@ -344,6 +344,6 @@ A feature is done only when:
 - [x] Pin CI and the Action smoke test to `v0.13.4`; one expected value again for `resp-001-undeclared-status`.
 - [x] Close F-037 and F-038 and pin them, with `generate` over an edited file and a run with no probes.
 - [x] Rerun every expectation file with the released v0.13.4 on the maintainer's machine (2026-11-25).
-- [ ] CI (container) with v0.13.4.
-- [ ] Run the "Action smoke test" workflow once with v0.13.4.
+- [x] CI (container) with v0.13.4 (commit `32496d8`, run 45758415844; the four new entries and the changed step passed).
+- [x] Run the "Action smoke test" workflow once with v0.13.4 (run 45758942081, passed: `good=0 bad=1`).
 
