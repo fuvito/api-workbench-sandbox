@@ -364,5 +364,6 @@ A feature is done only when:
 - [x] Rerun every expectation file with the released v0.14.1 on the maintainer's machine (2026-11-26): all six pass.
 - [ ] CI (container) with v0.14.1: not checked.
 - [ ] Run the "Action smoke test" workflow with v0.14.1.
-- [ ] Fixtures for what 0.14.0 changed (a value not sent, an unsupported `schemaVersion`, the export placeholder, the coverage gate with no data): none yet.
+- [x] Expectations for what 0.14.0 changed (2026-11-26, `expectations/ok.yaml`, fixtures in `clrsig/fixtures/v014/`): a value not sent, an unsupported `schemaVersion`, the export placeholder (`run` and `bundle run`), an unknown method, the coverage gate with no data, a missing workspace. Not covered: the migration of coverage recorded by 0.13.5 (B-152), and the app.
+- [x] `clrsig/scenarios/ok-dynamic-values.yaml` had `extract:` for `extractions:` (and `from:` for `source:`), so it never extracted anything; no release said so. Found with the next release's unknown-key check.
 

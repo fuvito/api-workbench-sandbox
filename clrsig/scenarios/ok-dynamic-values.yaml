@@ -11,5 +11,5 @@ steps:
     request: { method: GET, url: "{{baseUrl}}/ok-slow/{{pause}}" }
     assertions:
       - { type: status, operator: eq, expected: 200 }
-    extract:
-      - { name: requested, from: jsonpath, path: "$.requestedMs" }
+    extractions:
+      - { name: requested, source: jsonpath, path: "$.requestedMs" }

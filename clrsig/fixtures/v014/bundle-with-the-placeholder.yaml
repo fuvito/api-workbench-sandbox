@@ -1,0 +1,15 @@
+schemaVersion: "1"
+title: placeholder
+environments:
+  - file: local
+    name: local
+    variables:
+      - {name: baseUrl, value: "http://localhost:8080/ok"}
+      - {name: token, value: CHANGE_ME, secret: true}
+scenarios:
+  - file: uses-the-token
+    title: Uses the token
+    steps:
+      - label: health with the token
+        request: {method: GET, url: "{{baseUrl}}/health", auth: {type: bearer, token: "{{token}}"}}
+        assertions: [{type: status, operator: eq, expected: 200}]

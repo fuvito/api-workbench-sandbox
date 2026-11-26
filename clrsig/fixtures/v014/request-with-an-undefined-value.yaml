@@ -1,0 +1,5 @@
+# From clrsig 0.14.0 this is not sent: nothing defines {{notDefinedAnywhere}}.
+schemaVersion: "1"
+title: A value nothing defines
+method: GET
+url: "{{baseUrl}}/health?marker={{notDefinedAnywhere}}"

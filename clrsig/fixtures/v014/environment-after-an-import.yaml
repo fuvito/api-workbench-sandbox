@@ -1,0 +1,9 @@
+# What "clrsig bundle import" leaves: the secret still holds the export's placeholder.
+schemaVersion: "1"
+name: after-an-import
+variables:
+  - name: baseUrl
+    value: "http://localhost:8080/ok"
+  - name: token
+    value: CHANGE_ME
+    secret: true

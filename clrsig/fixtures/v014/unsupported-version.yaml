@@ -1,0 +1,7 @@
+# A scenario for a file format clrsig does not know. From 0.14.0 it is refused.
+schemaVersion: "9"
+title: An unsupported schemaVersion
+steps:
+  - label: health
+    request: {method: GET, url: "{{baseUrl}}/health"}
+    assertions: [{type: status, operator: eq, expected: 200}]

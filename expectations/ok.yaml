@@ -516,6 +516,72 @@ runs:
     exit: 0
     output: 'PASSED\s+65 operations\s+·\s+6 passed\s+·\s+0 failed\s+·\s+59 skipped[\s\S]*PASSED\s+6 probes\s+·\s+6 passed'
 
+  # ---- what 0.14.0 changed: nothing doubtful is sent, and a check that looked at nothing fails ----
+  - name: a-value-nothing-defines-is-not-sent
+    reference: null
+    note: "v0.14.0: before, the braces went to the server and the exit code could be 0"
+    args: [request, "{root}/clrsig/fixtures/v014/request-with-an-undefined-value.yaml", --env, "{root}/clrsig/environments/ok.yaml"]
+    exit: 1
+    output: 'not sent: no value for \{\{notDefinedAnywhere\}\}'
+    not_output: '200 OK'
+  - name: an-unsupported-schema-version-is-refused
+    reference: null
+    note: "v0.14.0: before, the file was read as version 1 and its request sent"
+    args: [run, "{root}/clrsig/fixtures/v014/unsupported-version.yaml", --env, "{root}/clrsig/environments/ok.yaml"]
+    exit: 2
+    output: 'schemaVersion "9" is not supported'
+    not_output: 'PASS|FAIL  health'
+  - name: the-export-placeholder-is-not-sent
+    reference: CS-RUN-020
+    note: "v0.14.0: a secret still holding CHANGE_ME has no value; before, it was sent as the secret"
+    args: [run, "{root}/clrsig/fixtures/v014/uses-the-token.yaml", --env, "{root}/clrsig/fixtures/v014/environment-after-an-import.yaml"]
+    exit: 1
+    output: '(?s)^(?=.*"token" still holds the CHANGE_ME)(?=.*not sent: no value for \{\{token\}\})'
+    not_output: '✓ status'
+  - name: the-export-placeholder-given-a-value-is-sent
+    reference: null
+    note: "v0.14.0: --var gives the secret its value"
+    args: [run, "{root}/clrsig/fixtures/v014/uses-the-token.yaml", --env, "{root}/clrsig/fixtures/v014/environment-after-an-import.yaml", --var, token=test-token]
+    exit: 0
+    output: 'PASSED\s+1 passed'
+  - name: bundle-run-does-not-send-the-placeholder
+    reference: CS-RUN-018
+    note: "v0.14.0: the placeholder of an export"
+    args: [bundle, run, "{root}/clrsig/fixtures/v014/bundle-with-the-placeholder.yaml"]
+    exit: 1
+    output: '(?s)^(?=.*still holds the CHANGE_ME)(?=.*not sent: no value for \{\{token\}\})'
+    not_output: 'Bundle PASSED'
+  - name: validate-reports-an-unknown-method
+    reference: CS-RUN-015
+    note: "v0.14.0: before, validate said OK"
+    args: [validate, "{root}/clrsig/fixtures/v014/unknown-method.yaml"]
+    exit: 1
+    output: 'unknown HTTP method "GETT"'
+  - name: validate-exits-2-for-a-file-it-cannot-read
+    reference: null
+    note: "v0.14.0: before, exit 1"
+    args: [validate, "{root}/clrsig/fixtures/v014/no-such-file.yaml"]
+    exit: 2
+    output: 'PARSE ERROR: reading file'
+  - name: a-coverage-gate-with-no-data-fails
+    reference: CS-RUN-017
+    note: "v0.14.0: before, it passed with nothing checked"
+    args: [coverage, quality, "{spec}", --workspace, "{root}/clrsig/fixtures/v014/empty-workspace", --fail-on-gaps]
+    exit: 1
+    output: 'cannot pass when no coverage was recorded'
+  - name: coverage-with-no-data-and-no-gate-passes
+    reference: null
+    note: "v0.14.0: without --fail-on-gaps nothing recorded is not a failure"
+    args: [coverage, quality, "{spec}", --workspace, "{root}/clrsig/fixtures/v014/empty-workspace"]
+    exit: 0
+    output: 'No coverage data found'
+  - name: a-misspelled-workspace-is-an-error
+    reference: CS-RUN-017
+    note: "v0.14.0: before, it read as an empty workspace"
+    args: [coverage, list, --workspace, "{root}/clrsig/fixtures/v014/no-such-workspace"]
+    exit: 2
+    output: 'is not a folder'
+
   # ---- generate and negative probes (clrsig 0.13.4) ----
   - name: generate-does-not-replace-an-edited-file
     reference: null

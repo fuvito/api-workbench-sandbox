@@ -1,0 +1,6 @@
+schemaVersion: "1"
+title: An HTTP method that does not exist
+steps:
+  - label: health
+    request: {method: GETT, url: "{{baseUrl}}/health"}
+    assertions: [{type: status, operator: eq, expected: 200}]

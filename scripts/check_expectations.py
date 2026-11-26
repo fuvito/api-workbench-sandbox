@@ -36,7 +36,7 @@ for _stream in (sys.stdout, sys.stderr):
 CLOUD = False  # --cloud: skip every entry marked `local_only: true` (transport behavior not verified on Cloud Run)
 # `PASS|FAIL <METHOD> <path> <dash> <description> (expect ...)`; the dash is matched loosely so a
 # console encoding difference cannot break parsing.
-PROBE_LINE = re.compile(r"^\s*(PASS|FAIL)\s+([A-Z]+)\s+(\S+)\s+\S+\s+(.*?)\s+\(expect ")
+PROBE_LINE = re.compile(r"^\s*(PASS|FAIL|WARN)\s+([A-Z]+)\s+(\S+)\s+\S+\s+(.*?)\s+\(expect ")
 
 
 def clrsig(*args: str, unset: tuple[str, ...] = ()) -> tuple[int, str, str]:
