@@ -482,8 +482,8 @@ paths:
     get:
       operationId: gapFormatUri
       tags: [controls]
-      summary: Known gap - uri format
-      description: Formats outside the ones ClearSignal checks (email, uuid, ipv4, ipv6, date, date-time) are accepted without a check (CS-GAP-001), uri among them. The server sends text that is not a uri. Passes today.
+      summary: uri format
+      description: The server sends text that is not a uri. Fails with CS-RESP-007 since clrsig 0.15.0; before, it passed and pinned CS-GAP-001.
       responses:
         "200":
           description: The declared response

@@ -13,7 +13,7 @@
 #
 # Run: uv run python scripts/check_expectations.py   (server running on :8080)
 #
-# These expectations hold for clrsig v0.13.4 (email, uuid, ipv4 and ipv6 formats are checked since 0.9.0) run against the standard spec
+# These expectations hold for clrsig v0.15.0 (email, uuid, ipv4 and ipv6 formats are checked since 0.9.0, uri and hostname since 0.15.0) run against the standard spec
 # (docs/clrsig-findings.md). Do not edit a spec or handler to change an expectation.
 
 format: 1
@@ -70,7 +70,7 @@ cases:
   - { case: resp-multi-problem, expect: fail, check: CS-RESP-003, message: 'header "X-Total-Count" is required' }
 
   # ---- known gaps: wrong, yet not caught today ----
-  - { case: gap-format-uri, expect: pass, reference: CS-GAP-001, why: "formats outside email, uuid, ipv4, ipv6, date and date-time are accepted without a check" }
+  - { case: gap-format-uri, expect: fail, check: CS-RESP-007, message: 'doesn.t match the format "uri"' }
   - { case: gap-undeclared-header, expect: pass, reference: CS-GAP-003, why: "a header the spec never mentions is not reported" }
   - { case: gap-slow-response, expect: pass, reference: CS-GAP-005, why: "no response time is measured (the case waits 5 s, times LATENCY_SCALE)" }
 

@@ -248,10 +248,10 @@ runs:
     output: '::notice title=Clear Signal run::1 scenarios: 1 passed, 0 failed'
   - name: conform-fail-fast
     reference: null
-    note: "--fail-fast stops at the first violation (contract-fail: 27 of 37 fail without it)"
+    note: "--fail-fast stops at the first violation (contract-fail: 28 of 37 fail without it)"
     args: [conform, "{root}/specs/contract-fail.yaml", -b, "{base}/contract-fail", --fail-fast]
     exit: 1
-    output: 'FAILED\s+8 operations\s+·\s+7 passed\s+·\s+1 failed\s+·\s+0 skipped'
+    output: 'FAILED\s+2 operations\s+·\s+1 passed\s+·\s+1 failed\s+·\s+0 skipped'
 
   # ---- the spec itself (clrsig 0.11.0, catalog 2.5) ----
   - name: validate-spec-required-not-declared

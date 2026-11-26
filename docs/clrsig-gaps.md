@@ -8,7 +8,7 @@ Each has a fixture pinned as "passes, because of CS-GAP-0xx". When clrsig closes
 
 | Gap | What clrsig does not do | Fixture that pins it | When it is closed |
 |---|---|---|---|
-| CS-GAP-001 | validate formats outside `date`, `date-time`, `email`, `uuid`, `ipv4`, `ipv6` and `byte` (for example `uri`, `hostname`). `email` and `uuid` are checked since clrsig 0.9.0 (case `resp-007g-format-email-uuid` now fails with CS-RESP-007) | `contract-fail` case `gap-format-uri` | the case fails with a format check |
+| CS-GAP-001 | validate formats outside `date`, `date-time`, `email`, `uuid`, `ipv4`, `ipv6`, `byte`, `uri` and `hostname` (for example `uri-reference`, `duration`). `email` and `uuid` are checked since clrsig 0.9.0, `uri` and `hostname` since 0.15.0 (case `gap-format-uri` now fails with CS-RESP-007) | no case: the old `gap-format-uri` is caught | add a case for a format still unchecked |
 | CS-GAP-002 | warn about extra properties on open schemas | `resp-010b-extra-property-open` | a strict mode reports it |
 | CS-GAP-003 | report a response header the spec never mentions | `gap-undeclared-header` | the case fails |
 | CS-GAP-004 | compare non-JSON bodies (XML and other types; CS-NC-009) | `resp-012-xml-valid`, `/features/report.csv` | a decoder exists |

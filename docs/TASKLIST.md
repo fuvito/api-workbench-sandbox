@@ -367,3 +367,14 @@ A feature is done only when:
 - [x] Expectations for what 0.14.0 changed (2026-11-26, `expectations/ok.yaml`, fixtures in `clrsig/fixtures/v014/`): a value not sent, an unsupported `schemaVersion`, the export placeholder (`run` and `bundle run`), an unknown method, the coverage gate with no data, a missing workspace. Not covered: the migration of coverage recorded by 0.13.5 (B-152), and the app.
 - [x] `clrsig/scenarios/ok-dynamic-values.yaml` had `extract:` for `extractions:` (and `from:` for `source:`), so it never extracted anything; no release said so. Found with the next release's unknown-key check.
 
+
+## ClearSignal v0.15.0
+
+0.15.0 checks `format: uri` and `hostname`: `gap-format-uri` flipped from passing to CS-RESP-007, so 28 of 37 contract-fail operations fail and `--fail-fast` stops at the second.
+
+- [x] Pin CI and the Action smoke test to `v0.15.0`.
+- [x] Update the expectations, the case table and the guide for `gap-format-uri`.
+- [x] Rerun every expectation file with `clrsig` built from the release code on the maintainer's machine (2026-11-26).
+- [ ] CI (container) with v0.15.0: not checked.
+- [ ] Run the "Action smoke test" workflow with v0.15.0.
+- [ ] Expectations for the rest of what 0.15.0 changed (unknown keys, doubtful probes, response-time rules by tag or operation): not written.
