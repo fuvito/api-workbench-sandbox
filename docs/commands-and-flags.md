@@ -21,6 +21,9 @@ Beyond the check catalog, the fixtures pin what each `clrsig` command and flag d
 | what reports quote (`conform` in five formats, `run --format json`) | v0.13.2: a response that breaks its schema is not quoted, so the token in it is not in the report; the missing field is still named (CS-RUN-011) | `*report-does-not-quote-the-token*` in `ok-features.yaml` |
 | several problems in one OpenAPI 3.1 response, and `--baseline` | v0.13.3: one line each, in order; a second problem is new although the first is in the baseline; an unchanged response with two matches (CS-RUN-012) | `two-problems-*`, `a-second-problem-*`, `an-unchanged-response-*` in `ok-features.yaml` |
 | passwords written inside a text | v0.13.3: masked in `run` reports (scenario variable, expected values) and in a request value that does not fit; scheme, user and host stay | `run-report-masks-*` in `ok-features.yaml`, `req-002-does-not-print-a-password-*` in `conform-fail.yaml` |
+| `generate` over a file with other content | v0.13.4: nothing is written and the exit code is 2 (`--force` replaces) | `generate-does-not-replace-an-edited-file` |
+| `conform --negative` with nothing to probe | v0.13.4: `NOTHING CHECKED  0 probes` | `no-negative-probes-is-nothing-checked` |
+| a `schema` assertion with no spec to catch an error | v0.13.4: it reads the body of a `401` and fails (CS-RUN-013) | `a-schema-assertion-on-an-error-answer-is-checked` |
 | `conform --setup` | v0.9.1: a login scenario's extraction fills `{{token}}`; without it the operation is not sent; a failed setup is exit 2 and nothing is checked | `conform-without-the-setup-is-not-sent`, `conform-setup-supplies-the-token`, `conform-failed-setup-*` |
 | `conform --changed-against` | v0.10.0: nothing changed against `HEAD` is `NOTHING CHECKED`, exit 0; an unknown git ref is exit 2 | `conform-changed-against-*` |
 | `conform --write-baseline` with a filter | v0.10.0: refused, exit 2 | `write-baseline-is-refused-for-a-limited-run` |

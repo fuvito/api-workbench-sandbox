@@ -185,3 +185,18 @@ runs:
     exit: 1
     output: 'redis://:\*\*\*@cache\.internal:6379'
     not_output: 'pw-canary'
+
+  # ---- a schema assertion that checks nothing fails (clrsig 0.13.4) ----
+  - name: a-schema-assertion-on-an-error-answer-is-checked
+    reference: CS-RUN-013
+    note: "v0.13.4: up to v0.13.3 this run was PASSED with exit 0, although the 401 body has no such field (F-038)"
+    args: [run, "{root}/clrsig/fixtures/schema-on-an-error.yaml", --var, "baseUrl={fbase}"]
+    exit: 1
+    output: 'neverThere'
+  - name: a-schema-assertion-has-no-nil-expected-value
+    reference: null
+    note: "v0.13.4: up to v0.13.3 the JSON report said \"expected\": \"<nil>\" (F-037)"
+    args: [run, "{root}/clrsig/fixtures/token-report.yaml", --var, "baseUrl={fbase}", --format, json]
+    exit: 1
+    output: '"expected": ""'
+    not_output: 'nil'

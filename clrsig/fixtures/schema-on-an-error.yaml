@@ -1,0 +1,14 @@
+schemaVersion: "1"
+title: a schema assertion on an error answer, with no spec to catch it
+description: >
+  GET /me without a token answers 401, and the schema asks for a field no answer has. Used to check
+  that a schema assertion does not pass without reading the body (clrsig 0.13.4, F-038). Run it
+  without --spec: the step's own spec check would otherwise fail the step whatever the assertion did.
+
+steps:
+  - label: No token
+    request:
+      method: GET
+      url: "{{baseUrl}}/me"
+    assertions:
+      - { type: schema, schema: '{"type":"object","required":["neverThere"]}' }

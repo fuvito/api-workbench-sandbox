@@ -1,0 +1,6 @@
+# Hand-written, and deliberately not what `clrsig generate` would write here: from clrsig 0.13.4
+# generate must leave it alone and write nothing. Do not regenerate it.
+schemaVersion: "1"
+title: my edited health request
+method: GET
+url: "{{baseUrl}}/health"

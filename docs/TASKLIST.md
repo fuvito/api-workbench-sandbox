@@ -339,3 +339,11 @@ A feature is done only when:
 - [x] CI (container) with v0.13.3 (commit `820f315`, run 45746771073; all seven new run entries passed). Also passed against clrsig `main` at `22e2d5d` (run 45747363708).
 - [x] Run the "Action smoke test" workflow once with v0.13.3 (run 45747312695, passed: `good=0 bad=1`).
 
+## ClearSignal v0.13.4
+
+- [x] Pin CI and the Action smoke test to `v0.13.4`; one expected value again for `resp-001-undeclared-status`.
+- [x] Close F-037 and F-038 and pin them, with `generate` over an edited file and a run with no probes.
+- [x] Rerun every expectation file with the released v0.13.4 on the maintainer's machine (2026-11-25).
+- [ ] CI (container) with v0.13.4.
+- [ ] Run the "Action smoke test" workflow once with v0.13.4.
+

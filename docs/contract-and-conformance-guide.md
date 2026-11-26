@@ -1,6 +1,6 @@
 # Contract and conformance testing: the problems, how clrsig finds them, and how to explain them
 
-Written 2026-11-22 for developers, in plain language. Every example is a real fixture in this repository, and the `clrsig` results are for **clrsig v0.13.3**: the expected outcomes in `expectations/*.yaml` were rerun with it on 2026-11-25.
+Written 2026-11-22 for developers, in plain language. Every example is a real fixture in this repository, and the `clrsig` results are for **clrsig v0.13.4**: the expected outcomes in `expectations/*.yaml` were rerun with it on 2026-11-25.
 
 **How this guide is organized**
 
@@ -385,7 +385,7 @@ A green result is only as good as the tool. While building these fixtures we fou
 
 ## Part 2: How clrsig finds and helps solve them
 
-Same numbers as Part 1. For each problem: **Check** (the ID in the report), **How it finds it** (the idea), **What you see** (real output), **What to do**, and **Limits** (where clrsig cannot help). Results are for clrsig v0.13.3 against the fixtures of this repository.
+Same numbers as Part 1. For each problem: **Check** (the ID in the report), **How it finds it** (the idea), **What you see** (real output), **What to do**, and **Limits** (where clrsig cannot help). Results are for clrsig v0.13.4 against the fixtures of this repository.
 
 ### The commands, once
 
@@ -462,7 +462,7 @@ The same checks are also available outside the terminal: `conform` is a tool of 
 **P13. Valid JSON that looks unusual** and **P14. Compressed, chunked, header-heavy answers**
 - **Check:** none: they **pass**. **How clrsig helps:** the fixtures `hostile-deep-nesting`, `wide-object`, `unicode`, `integer-as-float`, `integer-exponent`, `big-integer`, `negative-zero`, `gzip`, `chunked-stream`, `duplicate-headers` and `big-header` are pinned as "must pass". If a future clrsig release starts failing them, the expectations fail and you see it.
 - **What to do:** if you build your own checker or wrapper, run these fixtures through it. They are the typical places where homemade validators break.
-- **Limits:** none known in v0.13.3 for this group.
+- **Limits:** none known in v0.13.4 for this group.
 
 **P15. Bodies that are not JSON**
 - **Check:** `CS-NC-009` and `CS-NC-003` ("not checked"), `CS-GAP-004`. **How it behaves:** for XML, CSV, images and binary, clrsig checks status, headers and `Content-Type` and does **not** compare the body; it reports nothing about the body.
@@ -650,8 +650,8 @@ This part is for you, the person making the videos with Google NotebookLM. It sa
 2. **One problem, three beats:** what goes wrong, why it hurts, how clrsig shows it. Always show the real line of clrsig output.
 3. **Use the real fixtures.** Say the endpoint name (for example `/contract-fail/cases/resp-005-missing-required-field`). Viewers can repeat it.
 4. **Explain each word once.** First use of *contract*, *conformance*, *negative probe*, *scenario*, *baseline*, *drift* gets a one-sentence meaning (glossary in 3.5).
-5. **Be honest about limits.** Every episode ends with "what clrsig does *not* see here". Never say "clrsig catches everything". Say "in clrsig v0.13.3".
-6. **Name the version and the date.** "Recorded with clrsig v0.13.3, November 2026." Results can change with new releases (see 3.8).
+5. **Be honest about limits.** Every episode ends with "what clrsig does *not* see here". Never say "clrsig catches everything". Say "in clrsig v0.13.4".
+6. **Name the version and the date.** "Recorded with clrsig v0.13.4, November 2026." Results can change with new releases (see 3.8).
 7. **Do not read tables aloud.** Show them, then say the one thing that matters.
 8. **End with three recap questions** and the next episode's one-line teaser.
 
@@ -846,7 +846,7 @@ Add the glossary (3.5) to every source so the words are explained in each episod
 ### 3.8 Recording the demos and checking the facts
 
 **Set up once**
-1. Install clrsig v0.13.3 (`scoop install clrsig`, `brew install fuvito/api-workbench/clrsig`, or the Docker image `ghcr.io/fuvito/api-workbench:v0.13.3`) and check `clrsig --version`.
+1. Install clrsig v0.13.4 (`scoop install clrsig`, `brew install fuvito/api-workbench/clrsig`, or the Docker image `ghcr.io/fuvito/api-workbench:v0.13.4`) and check `clrsig --version`.
 2. Build and start the practice server: `docker build -t api-workbench-sandbox .` then `docker run --rm -p 8080:8080 api-workbench-sandbox`. Do **not** set `ADMIN_TOKEN` for the demos (the scenarios reset the server without a token).
 3. Use a large terminal font, a dark theme with high contrast, and show **one command and its output per screen**.
 4. Reset the server between demos: `curl -X POST http://localhost:8080/conform-fail/__admin/reset` (and `/ok/__admin/reset`).
@@ -864,4 +864,4 @@ Add the glossary (3.5) to every source so the words are explained in each episod
 ### 3.9 After publishing
 
 - Keep the guide and the expectations in step: when a new clrsig release changes an answer, `check_expectations.py` fails; update the expectation, the guide, and re-record only the affected episode (the episode cards say which problems each one covers).
-- Pin the version in the video description: "Recorded with clrsig v0.13.3".
+- Pin the version in the video description: "Recorded with clrsig v0.13.4".

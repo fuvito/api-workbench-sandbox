@@ -29,5 +29,6 @@ One note per phase, written when the phase completes. Each covers: what was buil
 | ClearSignal v0.13.0 | [clrsig-0-13-0.md](clrsig-0-13-0.md) | Written |
 | ClearSignal v0.13.2 | [clrsig-0-13-2.md](clrsig-0-13-2.md) | Written |
 | ClearSignal v0.13.3 | [clrsig-0-13-3.md](clrsig-0-13-3.md) | Written |
+| ClearSignal v0.13.4 | [clrsig-0-13-4.md](clrsig-0-13-4.md) | Written |
 | 6 — Cloud Run | phase-6-cloud-run.md | Pending |
 | 7 — Release readiness | phase-7-release.md | Pending |

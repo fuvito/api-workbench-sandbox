@@ -515,3 +515,18 @@ runs:
     args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --negative, --paths, "/products/{{{{productId}}}}"]
     exit: 0
     output: 'PASSED\s+65 operations\s+·\s+6 passed\s+·\s+0 failed\s+·\s+59 skipped[\s\S]*PASSED\s+6 probes\s+·\s+6 passed'
+
+  # ---- generate and negative probes (clrsig 0.13.4) ----
+  - name: generate-does-not-replace-an-edited-file
+    reference: null
+    note: "v0.13.4: a file with other content stops the run and nothing is written; before, it was overwritten without a word"
+    args: [generate, "{spec}", --output, "{root}/clrsig/fixtures/generate-in-the-way"]
+    exit: 2
+    output: 'nothing was written[\s\S]*getHealth\.yaml[\s\S]*--force'
+  - name: no-negative-probes-is-nothing-checked
+    reference: null
+    note: "v0.13.4: an operation with nothing to probe says NOTHING CHECKED, not PASSED 0 probes; the exit code is unchanged"
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/ok.yaml", --negative, --paths, /health]
+    exit: 0
+    output: 'NOTHING CHECKED\s+0 probes'
+    not_output: 'PASSED\s+0 probes'
