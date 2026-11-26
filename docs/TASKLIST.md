@@ -336,6 +336,6 @@ A feature is done only when:
 - [x] Pin that written-out passwords are masked in `run` reports and in a request value that does not fit (CS-RUN-011).
 - [x] Record F-038 (`schema` assertions and unknown statuses).
 - [x] Rerun every expectation file with the released v0.13.3 on the maintainer's machine (2026-11-25).
-- [ ] CI (container) with v0.13.3.
-- [ ] Run the "Action smoke test" workflow once with v0.13.3.
+- [x] CI (container) with v0.13.3 (commit `820f315`, run 45746771073; all seven new run entries passed). Also passed against clrsig `main` at `22e2d5d` (run 45747363708).
+- [x] Run the "Action smoke test" workflow once with v0.13.3 (run 45747312695, passed: `good=0 bad=1`).
 
