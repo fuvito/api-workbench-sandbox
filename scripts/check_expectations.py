@@ -11,7 +11,7 @@ finding, or changes exit code makes the run fail.
 
 A response failure is recognized by the `checkId` ClearSignal puts on each finding in its JSON
 report, plus a regex on the validator's message; a probe by its text in the report. Everything is
-recorded in the expectations file. Written for clrsig v0.13.5 (v0.10.0 and later for the baseline cases).
+recorded in the expectations file. Written for clrsig v0.14.1 (v0.10.0 and later for the baseline cases).
 """
 
 import argparse

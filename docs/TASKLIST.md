@@ -356,3 +356,13 @@ A feature is done only when:
 - [ ] CI (container) with v0.13.5: not checked.
 - [ ] Run the "Action smoke test" workflow with v0.13.5.
 
+## ClearSignal v0.14.1
+
+0.14.0 changed what is sent and how coverage is stored; 0.14.1 fixes its coverage migration. No fixture or expectation had to change.
+
+- [x] Pin CI and the Action smoke test to `v0.14.1`.
+- [x] Rerun every expectation file with the released v0.14.1 on the maintainer's machine (2026-11-26): all six pass.
+- [ ] CI (container) with v0.14.1: not checked.
+- [ ] Run the "Action smoke test" workflow with v0.14.1.
+- [ ] Fixtures for what 0.14.0 changed (a value not sent, an unsupported `schemaVersion`, the export placeholder, the coverage gate with no data): none yet.
+
