@@ -172,6 +172,20 @@ runs:
     exit: 1
     finding: { kind: request, message: 'request body field "amount" takes its value from \{\{amount\}\}, which is "cheap"' }
 
+  # ---- a password in a value that does not fit the request (clrsig 0.13.3) ----
+  - name: req-002-does-not-print-a-password-text
+    check: CS-REQ-002
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-bad-values.yaml", --paths, "/requests/body-value", --var, "amount=postgres://app:pw-canary-5@db.internal/orders"]
+    exit: 1
+    output: 'postgres://app:\*\*\*@db\.internal/orders'
+    not_output: 'pw-canary'
+  - name: req-002-does-not-print-a-password-json
+    check: CS-REQ-002
+    args: [conform, "{spec}", -b, "{fbase}", --env, "{root}/clrsig/environments/conform-fail-bad-values.yaml", --paths, "/requests/body-value", --var, "amount=Server=db;Pwd=pw-canary-6;", --format, json]
+    exit: 1
+    output: 'Pwd=\*\*\*;'
+    not_output: 'pw-canary'
+
   # CS-RUN-001 / CS-RUN-002: the request is not sent. Both share the finding kind `missing-value`.
   - name: run-001-missing-placeholder
     check: CS-RUN-001

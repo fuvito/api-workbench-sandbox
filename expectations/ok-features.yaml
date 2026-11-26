@@ -148,3 +148,40 @@ runs:
     exit: 1
     output: 'refresh_token'
     not_output: 'test-token'
+
+  # ---- several problems in one 3.1 response, and baselines (clrsig 0.13.3) ----
+  - name: two-problems-are-listed-one-each-in-order
+    reference: CS-RUN-012
+    note: "v0.13.3: each problem has its own line, in a fixed order; before, one line held both, in random order"
+    args: [conform, "{root}/clrsig/fixtures/token-two-problems.yaml", -b, "{fbase}"]
+    exit: 1
+    output: "at '/expires_in'[\\s\\S]*at '/token_type'"   # the words before "at" differ between releases
+    not_output: " \\| (error at |at ')"
+  - name: a-second-problem-is-not-hidden-by-the-baseline
+    reference: CS-RUN-012
+    note: "v0.13.3: the baseline records one problem and the response has two. v0.13.2 usually passed this (B-131); the order was random"
+    args: [conform, "{root}/clrsig/fixtures/token-two-problems.yaml", -b, "{fbase}", --baseline, "{root}/clrsig/fixtures/baseline-one-problem.yaml"]
+    exit: 1
+    output: 'Baseline: 1 known, 1 new, 0 fixed[\s\S]*NEW[^\n]*expires_in'
+  - name: an-unchanged-response-with-two-problems-matches-its-baseline
+    reference: CS-RUN-012
+    note: "v0.13.3: v0.13.2 sometimes reported one of two recorded problems as new"
+    args: [conform, "{root}/clrsig/fixtures/token-two-problems.yaml", -b, "{fbase}", --baseline, "{root}/clrsig/fixtures/baseline-two-problems.yaml"]
+    exit: 0
+    output: 'Baseline: 2 known, 0 new, 0 fixed'
+
+  # ---- passwords written inside longer text (clrsig 0.13.3) ----
+  - name: run-report-masks-written-out-passwords-text
+    reference: CS-RUN-011
+    note: "v0.13.3: only the password is masked; the scheme, user and host stay"
+    args: [run, "{root}/clrsig/fixtures/password-report.yaml", --var, "baseUrl={fbase}"]
+    exit: 1
+    output: 'postgres://app:\*\*\*@db\.internal:5432/orders[\s\S]*Password=\*\*\*;'
+    not_output: 'pw-canary'
+  - name: run-report-masks-written-out-passwords-json
+    reference: CS-RUN-011
+    note: "v0.13.3: the same in a JSON report, scenario variables included"
+    args: [run, "{root}/clrsig/fixtures/password-report.yaml", --var, "baseUrl={fbase}", --format, json]
+    exit: 1
+    output: 'redis://:\*\*\*@cache\.internal:6379'
+    not_output: 'pw-canary'

@@ -1,0 +1,6 @@
+schemaVersion: "2"
+violations:
+    - operation: POST /features/oauth2/token
+      check: other
+      rule: 'validation failed due to: error at "/token_type": at ''/token_type'': value must be ''Mac'''
+      summary: 'validation failed due to: error at "/token_type": at ''/token_type'': value must be ''Mac'''

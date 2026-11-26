@@ -329,3 +329,13 @@ A feature is done only when:
 - [x] CI (container) with v0.13.2 (commit `b85137f`, run 45722287678; all eight new entries passed).
 - [x] Run the "Action smoke test" workflow once with v0.13.2 (run 45722923402, passed: `good=0 bad=1`).
 
+## ClearSignal v0.13.3
+
+- [x] Pin CI and the Action smoke test to `v0.13.3`.
+- [x] Pin several problems in one OpenAPI 3.1 response, and baselines with them (CS-RUN-012).
+- [x] Pin that written-out passwords are masked in `run` reports and in a request value that does not fit (CS-RUN-011).
+- [x] Record F-038 (`schema` assertions and unknown statuses).
+- [x] Rerun every expectation file with the released v0.13.3 on the maintainer's machine (2026-11-25).
+- [ ] CI (container) with v0.13.3.
+- [ ] Run the "Action smoke test" workflow once with v0.13.3.
+

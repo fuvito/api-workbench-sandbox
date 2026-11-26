@@ -31,7 +31,7 @@ Read `docs/PRD.md` and `docs/TASKLIST.md` before making substantial changes. The
 
 ## Verifying response behavior with ClearSignal
 
-- Expectations are written for `clrsig` v0.13.2 (pinned in CI). Releases up to 0.13.1 quote a failing response in full in their reports (secrets included): do not use them against a real system. `clrsig` v0.7.1 and earlier skip response validation for specs with `servers` (F-010); never claim "conform passes" from a run with such a version. With a spec that has `servers`, `-b` is the family base (`http://localhost:8080/ok`) and `--paths` takes the spec's own paths.
+- Expectations are written for `clrsig` v0.13.3 (pinned in CI). Releases up to 0.13.1 quote a failing response in full in their reports (secrets included), releases up to 0.13.2 print passwords written inside a text, and a 0.13.2 baseline can hide new problems: use 0.13.3 or later against a real system. `clrsig` v0.7.1 and earlier skip response validation for specs with `servers` (F-010); never claim "conform passes" from a run with such a version. With a spec that has `servers`, `-b` is the family base (`http://localhost:8080/ok`) and `--paths` takes the spec's own paths.
 - Timing expectations are verified against the Docker container, not a Windows host (delays overshoot there). Entries marked `local_only` are transport behavior not verified on Cloud Run.
 - Expected outcomes of failure cases live in `expectations/*.yaml` and are checked by `scripts/check_expectations.py`. Change an expectation only when ClearSignal's behavior changed, never to match a handler you edited.
 

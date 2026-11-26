@@ -1,0 +1,10 @@
+schemaVersion: "2"
+violations:
+    - operation: POST /features/oauth2/token
+      check: other
+      rule: 'error at "/expires_in": at ''/expires_in'': got number, want string'
+      summary: 'error at "/expires_in": at ''/expires_in'': got number, want string'
+    - operation: POST /features/oauth2/token
+      check: other
+      rule: 'error at "/token_type": at ''/token_type'': value must be ''Mac'''
+      summary: 'error at "/token_type": at ''/token_type'': value must be ''Mac'''

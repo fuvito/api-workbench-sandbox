@@ -1,0 +1,27 @@
+# Deliberately stricter than the server, in OpenAPI 3.1: one field of the token response is wrong.
+# Used to check that a baseline matches problem by problem (clrsig 0.13.3). Not served by the
+# sandbox and not a family spec.
+openapi: "3.1.0"
+info: { title: "token endpoint, one problem", version: "1" }
+paths:
+  /features/oauth2/token:
+    post:
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type]
+              properties:
+                grant_type: { type: string, enum: [client_credentials] }
+      responses:
+        "200":
+          description: The token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token_type: { type: string, enum: [Mac] }
